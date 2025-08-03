@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import './HomeScreen.css'
 
 function HomeScreen () {
 
@@ -28,7 +29,7 @@ function HomeScreen () {
         setTimeout(() => {
         setUploadStatus(`Successfully processed workflow: ${selectedFile.name}`)
         }, 1500)
-        navigate('/workflow')
+        navigate('/workflow', { state: { fileData: selectedFile } })
     }
 
     return (
@@ -39,12 +40,12 @@ function HomeScreen () {
             <p>
             Select a workflow configuration file (JSON, YAML, or XML) to analyze and optimize your business processes.
             </p>
-            <div style={{ margin: '20px 0' }}>
+            <div className='hsInput' >
             <input
                 type="file"
                 onChange={handleFileSelect}
                 accept=".json,.yaml,.yml,.xml,.txt"
-                style={{ marginBottom: '10px', display: 'block' }}
+                style={{ marginBottom: '10px'}}
             />
             <button 
                 onClick={handleUpload}
@@ -79,8 +80,11 @@ function HomeScreen () {
         <p className="read-the-docs">
             Upload your workflow files to get intelligent analysis and optimization suggestions
         </p>
-        <button onClick={() => navigate('/workflow')}>
-
+        <button onClick={() => navigate('/workflow', { state: { fileData: selectedFile } })}>
+            Klikk
+        </button>
+        <button onClick={() => navigate('/test')}>
+            Test
         </button>
         </>
     )
