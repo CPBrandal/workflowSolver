@@ -1,7 +1,15 @@
-import VisualWorkflow from "./components/VisualWorkflow";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import HomeScreen from "./screens/homeScreen/HomeScreen";
+import WorkflowScreen from "./screens/workflowScreen/WorkflowScreen";
+
 function App() {
   return (
-    <VisualWorkflow></VisualWorkflow>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomeScreen />} />
+        <Route path="/workflow" element={<WorkflowScreen></WorkflowScreen>} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

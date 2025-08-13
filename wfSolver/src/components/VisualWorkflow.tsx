@@ -1,41 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Play, CheckCircle, Clock, AlertCircle, Pause, RefreshCw } from 'lucide-react';
+import { StatusInfo } from './StatusInfo';
+import type { NodeStatus, WorkflowNode, VisualWorkflowProps } from '../types';
+import { NodeDetails } from './NodeDetails';
 
-// Types
-type NodeStatus = 'pending' | 'running' | 'completed' | 'error' | 'paused';
-type NodeType = 'start' | 'process' | 'end';
-
-interface WorkflowNode {
-  id: string;
-  name: string;
-  type: NodeType;
-  status: NodeStatus;
-  x: number;
-  y: number;
-  connections: string[];
-  description?: string;
-  duration?: string;
-}
-
-interface EventHandlers {
-  onNodeClick?: (node: WorkflowNode) => void;
-  onNodeDoubleClick?: (node: WorkflowNode) => void;
-  onWorkflowStart?: () => void;
-  onWorkflowComplete?: () => void;
-  onWorkflowReset?: () => void;
-}
-
-interface VisualWorkflowProps {
-  nodes?: WorkflowNode[];
-  selectedNodeId?: string | null;
-  eventHandlers?: EventHandlers;
-  readonly?: boolean;
-  showGrid?: boolean;
-  enableSimulation?: boolean;
-  autoStart?: boolean;
-}
-
-const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
+function VisualWorkflow({
   nodes: propNodes,
   selectedNodeId: propSelectedNodeId,
   eventHandlers,
@@ -43,7 +12,7 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
   showGrid = false,
   enableSimulation = true,
   autoStart = false
-}) => {
+}: VisualWorkflowProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(propSelectedNodeId || null);
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
@@ -52,34 +21,34 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
       id: '1',
       name: 'Start',
       type: 'start',
-      status: 'completed',
+      status: 'pending',
       x: 2,
       y: 0,
       connections: ['2'],
       description: 'Initialize the workflow process',
-      duration: '1s'
+      duration: 1
     },
     {
       id: '2',
       name: 'Data Validation',
       type: 'process',
-      status: 'completed',
+      status: 'pending',
       x: 2,
       y: 1,
       connections: ['3', '4'],
       description: 'Validate incoming data format and integrity',
-      duration: '3s'
+      duration: 3
     },
     {
       id: '3',
       name: 'Process A',
       type: 'process',
-      status: 'running',
+      status: 'pending',
       x: 1,
       y: 2,
       connections: ['5'],
       description: 'Execute primary processing logic',
-      duration: '10s'
+      duration: 10
     },
     {
       id: '4',
@@ -90,7 +59,7 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
       y: 2,
       connections: ['5'],
       description: 'Execute secondary processing logic',
-      duration: '8s'
+      duration: 8
     },
     {
       id: '5',
@@ -101,7 +70,7 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
       y: 3,
       connections: ['6'],
       description: 'Combine results from parallel processes',
-      duration: '3s'
+      duration: 3
     },
     {
       id: '6',
@@ -112,25 +81,30 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
       y: 4,
       connections: [],
       description: 'Finalize and cleanup workflow',
-      duration: '1s'
+      duration: 1
     }
   ];
 
   const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>(propNodes || defaultNodes);
 
-  // Update internal state when prop nodes change
   useEffect(() => {
     if (propNodes) {
       setWorkflowNodes(propNodes);
     }
   }, [propNodes]);
 
-  // Auto-start simulation if enabled
   useEffect(() => {
     if (autoStart && enableSimulation && !readonly) {
       simulateWorkflow();
     }
   }, [autoStart, enableSimulation, readonly]);
+
+  
+  const getNodeDependencies = (nodeId: string, nodes: WorkflowNode[]): string[] => {
+    return nodes
+      .filter(node => node.connections.includes(nodeId))
+      .map(node => node.id);
+  };
 
   const getStatusIcon = (status: NodeStatus): React.JSX.Element => {
     switch (status) {
@@ -197,13 +171,13 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
           let strokeWidth = "2";
           
           if (node.status === 'completed' && target.status === 'running') {
-            strokeColor = "#3b82f6"; // Blue for active path
+            strokeColor = "#3b82f6"; //Blue
             strokeWidth = "3";
           } else if (node.status === 'completed') {
-            strokeColor = "#10b981"; // Green for completed path
+            strokeColor = "#10b981"; // Green
             strokeWidth = "3";
           } else if (node.status === 'error') {
-            strokeColor = "#ef4444"; // Red for error path
+            strokeColor = "#ef4444"; // Red
             strokeWidth = "3";
           }
 
@@ -234,7 +208,6 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
     const newSelectedId = selectedNodeId === node.id ? null : node.id;
     setSelectedNodeId(newSelectedId);
     
-    // Call external event handler if provided
     if (eventHandlers?.onNodeClick) {
       eventHandlers.onNodeClick(node);
     }
@@ -263,53 +236,94 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
       eventHandlers.onWorkflowStart();
     }
     
-    // Reset all to pending except start
+    // Reset all nodes to pending
     const resetNodes = workflowNodes.map(node => ({
       ...node,
-      status: node.id === '1' ? 'completed' as NodeStatus : 'pending' as NodeStatus
+      status: 'pending' as NodeStatus
     }));
+    
     setWorkflowNodes(resetNodes);
 
-    // Simulate progression with realistic timing
-    setTimeout(() => {
-      setWorkflowNodes(prev => prev.map(node =>
-        node.id === '2' ? { ...node, status: 'running' as NodeStatus } : node
-      ));
-    }, 1000);
+    // Track completion times and active timeouts
+    const completionTimes: { [nodeId: string]: number } = {};
+    const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
+    
+    // Function to start a node
+    const startNode = (nodeId: string, startTime: number) => {
+      const timeout = setTimeout(() => {
+        setWorkflowNodes(prev => prev.map(node =>
+          node.id === nodeId ? { ...node, status: 'running' as NodeStatus } : node
+        ));
+      }, startTime * 1000);
+      activeTimeouts.push(timeout);
+    };
 
-    setTimeout(() => {
-      setWorkflowNodes(prev => prev.map(node =>
-        node.id === '2' ? { ...node, status: 'completed' as NodeStatus } :
-        node.id === '3' ? { ...node, status: 'running' as NodeStatus } :
-        node.id === '4' ? { ...node, status: 'running' as NodeStatus } : node
-      ));
-    }, 3000);
-
-    setTimeout(() => {
-      setWorkflowNodes(prev => prev.map(node =>
-        node.id === '3' ? { ...node, status: 'completed' as NodeStatus } :
-        node.id === '4' ? { ...node, status: 'completed' as NodeStatus } :
-        node.id === '5' ? { ...node, status: 'running' as NodeStatus } : node
-      ));
-    }, 6000);
-
-    setTimeout(() => {
-      setWorkflowNodes(prev => prev.map(node =>
-        node.id === '5' ? { ...node, status: 'completed' as NodeStatus } :
-        node.id === '6' ? { ...node, status: 'running' as NodeStatus } : node
-      ));
-    }, 8000);
-
-    setTimeout(() => {
-      setWorkflowNodes(prev => prev.map(node =>
-        node.id === '6' ? { ...node, status: 'completed' as NodeStatus } : node
-      ));
-      setIsRunning(false);
+    // Function to complete a node
+    const completeNode = (nodeId: string, completionTime: number) => {
+      completionTimes[nodeId] = completionTime;
       
-      if (eventHandlers?.onWorkflowComplete) {
-        eventHandlers.onWorkflowComplete();
+      const timeout = setTimeout(() => {
+        setWorkflowNodes(prev => {
+          const updatedNodes = prev.map(node =>
+            node.id === nodeId ? { ...node, status: 'completed' as NodeStatus } : node
+          );
+          
+          // Check if workflow is complete
+          const allCompleted = updatedNodes.every(n => n.status === 'completed');
+          if (allCompleted) {
+            setIsRunning(false);
+            if (eventHandlers?.onWorkflowComplete) {
+              eventHandlers.onWorkflowComplete();
+            }
+          }
+          
+          return updatedNodes;
+        });
+      }, completionTime * 1000);
+      activeTimeouts.push(timeout);
+    };
+
+    // Calculate start and completion times for each node
+    const calculateNodeTiming = () => {
+      const processedNodes = new Set<string>();
+      const nodesToProcess = [...resetNodes];
+      
+      // Process nodes in dependency order
+      while (nodesToProcess.length > 0) {
+        const readyNodes = nodesToProcess.filter(node => {
+          const dependencies = getNodeDependencies(node.id, resetNodes);
+          return dependencies.every(depId => processedNodes.has(depId));
+        });
+        
+        if (readyNodes.length === 0) break; // Circular dependency or other issue
+        
+        readyNodes.forEach(node => {
+          const dependencies = getNodeDependencies(node.id, resetNodes);
+          
+          // Calculate when this node can start
+          let earliestStart = 0;
+          if (dependencies.length > 0) {
+            earliestStart = Math.max(...dependencies.map(depId => completionTimes[depId] || 0));
+          }
+          
+          // Schedule node to start and complete
+          const nodeStartTime = earliestStart;
+          const nodeCompletionTime = earliestStart + (node.duration || 1);
+          
+          startNode(node.id, nodeStartTime);
+          completeNode(node.id, nodeCompletionTime);
+          
+          completionTimes[node.id] = nodeCompletionTime;
+          processedNodes.add(node.id);
+          
+          // Remove from processing queue
+          const index = nodesToProcess.findIndex(n => n.id === node.id);
+          if (index > -1) nodesToProcess.splice(index, 1);
+        });
       }
-    }, 10000);
+    };
+
+    calculateNodeTiming();
   };
 
   const resetWorkflow = (): void => {
@@ -317,7 +331,7 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
     
     setWorkflowNodes(prev => prev.map(node => ({
       ...node,
-      status: node.id === '1' ? 'completed' as NodeStatus : 'pending' as NodeStatus
+      status: 'pending' as NodeStatus
     })));
     setIsRunning(false);
     
@@ -330,9 +344,8 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white">
-      {/* Header with controls */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Enhanced Visual Workflow</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Visual Workflow</h2>
         {enableSimulation && !readonly && (
           <div className="flex gap-2">
             <button
@@ -372,7 +385,6 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
       )}
       
       <div className={`relative bg-gray-50 rounded-lg p-8 overflow-auto ${showGrid ? 'bg-dot-pattern' : ''}`} style={{ minHeight: '600px' }}>
-        {/* SVG for connections */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none">
           <defs>
             <marker
@@ -413,70 +425,21 @@ const VisualWorkflow: React.FC<VisualWorkflowProps> = ({
             </span>
             {node.duration && (
               <span className="text-xs text-gray-500 mt-1">
-                {node.duration}
+                {node.duration}s
               </span>
             )}
           </div>
         ))}
       </div>
 
-      {/* Node Details Panel */}
+      {/* Details about clicked node */}
       {selectedNode && (
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h3 className="font-semibold text-blue-800 mb-2">Node Details</h3>
-          <div className="text-sm text-blue-700 space-y-1">
-            <p><span className="font-medium">Name:</span> {selectedNode.name}</p>
-            <p><span className="font-medium">Status:</span> 
-              <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                selectedNode.status === 'completed' ? 'bg-green-200 text-green-800' :
-                selectedNode.status === 'running' ? 'bg-blue-200 text-blue-800' :
-                selectedNode.status === 'error' ? 'bg-red-200 text-red-800' :
-                selectedNode.status === 'paused' ? 'bg-yellow-200 text-yellow-800' :
-                'bg-gray-200 text-gray-800'
-              }`}>
-                {selectedNode.status}
-              </span>
-            </p>
-            <p><span className="font-medium">Type:</span> {selectedNode.type}</p>
-            {selectedNode.duration && (
-              <p><span className="font-medium">Duration:</span> {selectedNode.duration}</p>
-            )}
-            {selectedNode.description && (
-              <p><span className="font-medium">Description:</span> {selectedNode.description}</p>
-            )}
-            <p><span className="font-medium">Connections:</span> {selectedNode.connections.length} outgoing</p>
-          </div>
-        </div>
+        <NodeDetails selectedNode={selectedNode} />
       )}
-
-      {/* Status Legend */}
-      <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-        <h3 className="font-semibold mb-3 text-gray-800">Status Legend</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-green-600" />
-            <span className="text-gray-700">Completed</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Play className="w-4 h-4 text-blue-600" />
-            <span className="text-gray-700">Running</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-700">Pending</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600" />
-            <span className="text-gray-700">Error</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Pause className="w-4 h-4 text-yellow-600" />
-            <span className="text-gray-700">Paused</span>
-          </div>
-        </div>
-      </div>
+      {/* Info about the status symbols */}
+      <StatusInfo />
     </div>
   );
-};
+}
 
 export default VisualWorkflow;

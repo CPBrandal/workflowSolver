@@ -1,5 +1,5 @@
-export type NodeStatus = 'completed' | 'running' | 'pending' | 'error' | 'paused';
-export type NodeType = 'start' | 'process' | 'end' | 'decision' | 'parallel';
+export type NodeStatus = 'pending' | 'running' | 'completed' | 'error' | 'paused';
+export type NodeType = 'start' | 'process' | 'end';
 
 export interface WorkflowNode {
   id: string;
@@ -10,10 +10,7 @@ export interface WorkflowNode {
   y: number;
   connections: string[];
   description?: string;
-  duration?: string;
-  metadata?: Record<string, any>;
-  createdAt?: Date;
-  updatedAt?: Date;
+  duration?: number;
 }
 
 export interface Position {
@@ -29,21 +26,20 @@ export interface NodeConnection {
   condition?: string;
 }
 
-export interface WorkflowEventHandlers {
+export interface EventHandlers {
   onNodeClick?: (node: WorkflowNode) => void;
   onNodeDoubleClick?: (node: WorkflowNode) => void;
-  onNodeHover?: (node: WorkflowNode | null) => void;
-  onConnectionClick?: (connection: NodeConnection) => void;
-  onCanvasClick?: (position: Position) => void;
+  onWorkflowStart?: () => void;
+  onWorkflowComplete?: () => void;
+  onWorkflowReset?: () => void;
 }
 
 export interface VisualWorkflowProps {
-  workflow?: any;
   nodes?: WorkflowNode[];
   selectedNodeId?: string | null;
-  canvasConfig?: any;
-  eventHandlers?: WorkflowEventHandlers;
+  eventHandlers?: EventHandlers;
   readonly?: boolean;
   showGrid?: boolean;
-  showMinimap?: boolean;
+  enableSimulation?: boolean;
+  autoStart?: boolean;
 }
