@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import VisualWorkflow from "./VisualWorkflow";
-import { inputFileHandler } from '../../utils/inputFileHandler';
+import { InputFileHandler } from './utils/InputFileHandler';
 import type { WorkflowNode } from '../../types';
 
 function WorkflowScreen() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Fetch file from HomeScreen
   const file = location.state?.file as File | null;
-  
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +16,7 @@ function WorkflowScreen() {
   useEffect(() => {
     const processFile = async () => {
       if (!file) {
-        setError('No file provided. Please go back and select a workflow file.');
+        setError('No file provided.');
         setLoading(false);
         return;
       }
@@ -27,12 +25,9 @@ function WorkflowScreen() {
         setLoading(true);
         setError(null);
         
-        // Call inputFileHandler for processing
-        const parsedNodes = await inputFileHandler(file);
+        const parsedNodes = await InputFileHandler(file);
         setNodes(parsedNodes);
-        
       } catch (err) {
-        console.error('Error processing workflow file:', err);
         setError(err instanceof Error ? err.message : 'Failed to process workflow file');
       } finally {
         setLoading(false);
@@ -61,8 +56,7 @@ function WorkflowScreen() {
           <p className="text-red-700 mb-4">{error}</p>
           <button
             onClick={() => navigate('/')}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-          >
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
             Go Back
           </button>
         </div>

@@ -1,17 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { Play, CheckCircle, Clock, AlertCircle, Pause, RefreshCw } from 'lucide-react';
-import { StatusInfo } from './utils/StatusInfo';
-import type { NodeStatus, WorkflowNode, VisualWorkflowProps } from '../../types';
-import { NodeDetails } from './utils/NodeDetails';
-import { defaultNodes } from './utils/defaultNodes';
-import WorkflowProgress from './utils/WorkflowProgress';
-import { RenderConnections } from './utils/RenderConnections';
+import { useState, useEffect } from 'react';
+import { Play, Clock, RefreshCw, } from 'lucide-react';
+import { StatusInfo } from './components/StatusInfo';
+import type { NodeStatus, WorkflowNode } from '../../types';
+import { NodeDetails } from './components/NodeDetails';
+import { defaultNodes } from './data/defaultNodes';
+import WorkflowProgress from './components/WorkflowProgress';
+import { WorkflowConnections } from './utils/WorkflowConnections';
+import { formatTime } from '../../utils/formatTime';
+import { getNodeDependencies } from './utils/getNodeDependencies';
+import { getStatusIcon } from './components/GetStatusIcon';
+
+export interface EventHandlers {
+  onNodeClick?: (node: WorkflowNode) => void;
+  onWorkflowStart?: () => void;
+  onWorkflowComplete?: () => void;
+  onWorkflowReset?: () => void;
+}
+
+export interface VisualWorkflowProps {
+  nodes?: WorkflowNode[];
+  selectedNodeId?: string | null;
+  eventHandlers?: EventHandlers;
+  showGrid?: boolean;
+  enableSimulation?: boolean;
+}
+
 
 function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, eventHandlers, showGrid = false, enableSimulation = true}: VisualWorkflowProps) {
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(propSelectedNodeId || null);
-  const [isRunning, setIsRunning] = useState<boolean>(false);
   const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>(propNodes || defaultNodes);
+
+  const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [runtime, setRuntime] = useState<number>(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
 
   useEffect(() => {
     if (propNodes) {
@@ -19,28 +41,22 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
     }
   }, [propNodes]);
   
-  const getNodeDependencies = (nodeId: string, nodes: WorkflowNode[]): string[] => {
-    return nodes
-      .filter(node => node.connections.includes(nodeId))
-      .map(node => node.id);
-  };
-
-  const getStatusIcon = (status: NodeStatus): React.JSX.Element => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case 'running':
-        return <Play className="w-5 h-5 text-blue-600" />;
-      case 'pending':
-        return <Clock className="w-5 h-5 text-gray-500" />;
-      case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
-      case 'paused':
-        return <Pause className="w-5 h-5 text-yellow-600" />;
-      default:
-        return <Clock className="w-5 h-5 text-gray-500" />;
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    
+    if (isRunning && startTime) {
+      interval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        setRuntime(elapsed);
+      }, 1);
     }
-  };
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isRunning, startTime]);
 
   const getNodeClasses = (node: WorkflowNode): string => {
     const baseClasses = "absolute flex flex-col items-center justify-center w-36 h-24 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg";
@@ -56,26 +72,16 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
       case 'pending':
         statusClasses = "border-gray-300 bg-gray-100 hover:bg-gray-200";
         break;
-      case 'error':
-        statusClasses = "border-red-300 bg-red-100 hover:bg-red-200";
-        break;
-      case 'paused':
-        statusClasses = "border-yellow-300 bg-yellow-100 hover:bg-yellow-200";
-        break;
       default:
         statusClasses = "border-gray-300 bg-gray-100";
     }
 
-    const typeClasses = (node.type === 'start' || node.type === 'end') ? "rounded-full" : "rounded-lg";
     const selectedClasses = selectedNodeId === node.id ? "ring-4 ring-blue-300" : "";
 
-    return `${baseClasses} ${statusClasses} ${typeClasses} ${selectedClasses}`;
+    return `${baseClasses} ${statusClasses} ${selectedClasses}`;
   };
 
-  
-
   const handleNodeClick = (node: WorkflowNode): void => {
-    
     const newSelectedId = selectedNodeId === node.id ? null : node.id;
     setSelectedNodeId(newSelectedId);
     
@@ -84,29 +90,15 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
     }
   };
 
-  const handleNodeDoubleClick = (node: WorkflowNode): void => {
-    
-    if (eventHandlers?.onNodeDoubleClick) {
-      eventHandlers.onNodeDoubleClick(node);
-    }
-  };
-
-
-
   const simulateWorkflow = (): void => {
-    
+    resetWorkflow();
     setIsRunning(true);
+    setStartTime(Date.now());
+    setRuntime(0); 
     
     if (eventHandlers?.onWorkflowStart) {
       eventHandlers.onWorkflowStart();
     }
-    
-    const resetNodes = workflowNodes.map(node => ({
-      ...node,
-      status: 'pending' as NodeStatus
-    }));
-    
-    setWorkflowNodes(resetNodes);
 
     const completionTimes: { [nodeId: string]: number } = {};
     const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
@@ -145,18 +137,18 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
 
     const calculateNodeTiming = () => {
       const processedNodes = new Set<string>();
-      const nodesToProcess = [...resetNodes];
+      const nodesToProcess = [...workflowNodes];
       
       while (nodesToProcess.length > 0) {
         const readyNodes = nodesToProcess.filter(node => {
-          const dependencies = getNodeDependencies(node.id, resetNodes);
+          const dependencies = getNodeDependencies(node.id, workflowNodes);
           return dependencies.every(depId => processedNodes.has(depId));
         });
         
         if (readyNodes.length === 0) break;
         
         readyNodes.forEach(node => {
-          const dependencies = getNodeDependencies(node.id, resetNodes);
+          const dependencies = getNodeDependencies(node.id, workflowNodes);
           
           let earliestStart = 0;
           if (dependencies.length > 0) {
@@ -188,6 +180,8 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
       status: 'pending' as NodeStatus
     })));
     setIsRunning(false);
+    setStartTime(null);
+    setRuntime(0); 
     
     if (eventHandlers?.onWorkflowReset) {
       eventHandlers.onWorkflowReset();
@@ -205,16 +199,14 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
             <button
               onClick={simulateWorkflow}
               disabled={isRunning}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               <Play className="w-4 h-4" />
               {isRunning ? 'Running...' : 'Start Workflow'}
             </button>
             <button
               onClick={resetWorkflow}
               disabled={isRunning}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               <RefreshCw className="w-4 h-4" />
               Reset
             </button>
@@ -222,7 +214,6 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
         )}
       </div>
 
-      {/* Progress Bar */}
       {enableSimulation && (
         <WorkflowProgress nodes={workflowNodes}></WorkflowProgress>
       )}
@@ -236,18 +227,15 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
               markerHeight="7"
               refX="9"
               refY="3.5"
-              orient="auto"
-            >
+              orient="auto">
               <polygon
                 points="0 0, 10 3.5, 0 7"
-                fill="#6b7280"
-              />
+                fill="#6b7280"/>
             </marker>
           </defs>
-          {RenderConnections(workflowNodes)}
+          {<WorkflowConnections nodes={workflowNodes}></WorkflowConnections>}
         </svg>
 
-        {/* Workflow Nodes */}
         {workflowNodes.map((node: WorkflowNode) => (
           <div
             key={node.id}
@@ -257,7 +245,6 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
               top: node.y * 120
             }}
             onClick={() => handleNodeClick(node)}
-            onDoubleClick={() => handleNodeDoubleClick(node)}
             title={node.description}
           >
             <div className="mb-1">
@@ -275,14 +262,24 @@ function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, 
         ))}
       </div>
 
-      {/* Details about clicked node */}
       {selectedNode && (
         <NodeDetails selectedNode={selectedNode} />
       )}
-      {/* Info about the status symbols */}
+
       <StatusInfo />
-      <div>
-        
+      
+      <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+        <div className="flex items-center gap-2">
+          <Clock className="w-5 h-5 text-gray-600" />
+          <span className="text-lg font-medium text-gray-800">
+            Total runtime: {formatTime(runtime)}
+          </span>
+          {isRunning && (
+            <span className="text-sm text-blue-600 animate-pulse">
+              Running
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

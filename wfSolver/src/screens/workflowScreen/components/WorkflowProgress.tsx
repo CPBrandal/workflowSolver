@@ -1,10 +1,5 @@
 import type { WorkflowNode } from "../../../types";
-
-const getWorkflowProgress = (nodes: WorkflowNode[]): number => {
-  const completed = nodes.filter(n => n.status === 'completed').length;
-  const total = nodes.length;
-  return Math.round((completed / total) * 100);
-};
+import { getWorkflowProgress } from "../utils/GetWorkflowProgress";
 
 interface WorkflowProgressProps {
   nodes: WorkflowNode[];

@@ -1,8 +1,9 @@
 import VisualWorkflow from '../workflowScreen/VisualWorkflow';
+import { defaultNodes } from '../workflowScreen/data/defaultNodes';
 
 function TestScreen() {
   return (
-    <VisualWorkflow></VisualWorkflow>
+    <VisualWorkflow nodes={defaultNodes}></VisualWorkflow>
   );
 }
 

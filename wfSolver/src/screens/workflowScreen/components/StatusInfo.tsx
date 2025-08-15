@@ -1,5 +1,4 @@
-import { Play, CheckCircle, Clock, AlertCircle, Pause } from 'lucide-react';
-
+import { Play, CheckCircle, Clock } from 'lucide-react';
 
 export function StatusInfo (){
     return(
@@ -17,14 +16,6 @@ export function StatusInfo (){
                 <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-500" />
                     <span className="text-gray-700">Pending</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-600" />
-                    <span className="text-gray-700">Error</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Pause className="w-4 h-4 text-yellow-600" />
-                    <span className="text-gray-700">Paused</span>
                 </div>
             </div>
         </div>

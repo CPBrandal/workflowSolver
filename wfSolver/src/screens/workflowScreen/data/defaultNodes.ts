@@ -4,7 +4,6 @@ export const defaultNodes: WorkflowNode[] = [
     {
       id: '1',
       name: 'Start',
-      type: 'start',
       status: 'pending',
       x: 2,
       y: 0,
@@ -15,7 +14,6 @@ export const defaultNodes: WorkflowNode[] = [
     {
       id: '2',
       name: 'Data Validation',
-      type: 'process',
       status: 'pending',
       x: 2,
       y: 1,
@@ -26,7 +24,6 @@ export const defaultNodes: WorkflowNode[] = [
     {
       id: '3',
       name: 'Process A',
-      type: 'process',
       status: 'pending',
       x: 1,
       y: 2,
@@ -37,7 +34,6 @@ export const defaultNodes: WorkflowNode[] = [
     {
       id: '4',
       name: 'Process B',
-      type: 'process',
       status: 'pending',
       x: 3,
       y: 2,
@@ -48,7 +44,6 @@ export const defaultNodes: WorkflowNode[] = [
     {
       id: '5',
       name: 'Merge Results',
-      type: 'process',
       status: 'pending',
       x: 2,
       y: 3,
@@ -59,7 +54,6 @@ export const defaultNodes: WorkflowNode[] = [
     {
       id: '6',
       name: 'Complete',
-      type: 'end',
       status: 'pending',
       x: 2,
       y: 4,
