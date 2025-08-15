@@ -1,4 +1,4 @@
-import type { WorkflowNode } from "../types"
+import type { WorkflowNode } from "../../../types"
 
 interface NodeDetailsProps{
     selectedNode: WorkflowNode;

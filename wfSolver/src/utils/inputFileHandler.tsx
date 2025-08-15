@@ -1,41 +1,13 @@
 import * as yaml from 'js-yaml';
 import type { NodeType, WorkflowNode } from '../types';
+import generateDescription from './generateDescription';
+import type { ArgoTask, ArgoWorkflow } from '../types/argo';
+import capitalizeTaskName from './capitalizeTaskName';
 
-
-interface ArgoTask {
-  name: string;
-  dependencies?: string[];
-  template: string;
-}
-
-interface ArgoTemplate {
-  name: string;
-  container?: {
-    args?: string[];
-  };
-  nodeSelector?: Record<string, string>;
-  metadata?: {
-    annotations?: Record<string, string>;
-    labels?: Record<string, string>;
-  };
-}
-
-interface ArgoWorkflow {
-  metadata?: {
-    annotations?: Record<string, string>;
-    labels?: Record<string, string>;
-  };
-  spec: {
-    templates: ArgoTemplate[];
-  };
-}
-
-export const inputFileHandler = async (file: File): Promise<WorkflowNode[]> => {
+export async function inputFileHandler(file: File): Promise<WorkflowNode[]> {
   try {
-    // Read the file content
+    // Read the file content and parse yaml
     const fileContent = await file.text();
-    
-    // Parse YAML
     const workflow = yaml.load(fileContent) as ArgoWorkflow;
     
     // Extract DAG tasks and templates
@@ -47,7 +19,6 @@ export const inputFileHandler = async (file: File): Promise<WorkflowNode[]> => {
     const tasks = (dagTemplate as any).dag.tasks as ArgoTask[];
     const templates = workflow.spec.templates;
     
-    // Create a map of template name to duration
     const templateDurations = new Map<string, number>();
     templates.forEach(template => {
       if (template.container?.args) {
@@ -61,7 +32,6 @@ export const inputFileHandler = async (file: File): Promise<WorkflowNode[]> => {
       }
     });
     
-    // Build dependency map
     const taskMap = new Map<string, ArgoTask>();
     tasks.forEach(task => {
       taskMap.set(task.name, task);
@@ -79,42 +49,55 @@ export const inputFileHandler = async (file: File): Promise<WorkflowNode[]> => {
       nodesByLevel.get(level)!.push(taskName);
     });
     
-    // Convert to WorkflowNode format
     const workflowNodes: WorkflowNode[] = [];
     let nodeIdCounter = 1;
+    
+    // Create a map from task name to node ID for easier lookup
+    const taskNameToId = new Map<string, string>();
+    tasks.forEach((task, index) => {
+      taskNameToId.set(task.name, (index + 1).toString());
+    });
     
     tasks.forEach(task => {
       const level = levels[task.name];
       const nodesAtLevel = nodesByLevel.get(level)!;
       const indexAtLevel = nodesAtLevel.indexOf(task.name);
       
-      // Calculate x position (center nodes at each level)
-      const maxNodesAtLevel = Math.max(...Array.from(nodesByLevel.values()).map(arr => arr.length));
-      const xOffset = maxNodesAtLevel > 1 ? (indexAtLevel - (nodesAtLevel.length - 1) / 2) : 0;
-      const x = Math.max(0, Math.round(2 + xOffset));
+      let x: number;
+      if (nodesAtLevel.length === 1) {
+        x = 2;
+      } else {
+        const spacing = 2;
+        const totalWidth = (nodesAtLevel.length - 1) * spacing;
+        const startX = Math.max(0, 2 - totalWidth / 2);
+        x = startX + (indexAtLevel * spacing);
+      }
       
-      // Determine node type
+      x = Math.max(x, 0);
+      
       let nodeType: NodeType = 'process';
       if (!task.dependencies || task.dependencies.length === 0) {
         nodeType = 'start';
       } else if (task.name.toLowerCase().includes('end') || 
                  !tasks.some(t => t.dependencies?.includes(task.name))) {
-        // Check if no other tasks depend on this one (it's a terminal node)
         const isTerminal = !tasks.some(t => t.dependencies?.includes(task.name));
         if (isTerminal) {
           nodeType = 'end';
         }
       }
       
-      // Find connections (tasks that depend on this task)
+      // Find tasks that depend on this task
       const connections: string[] = [];
+      
       tasks.forEach(t => {
         if (t.dependencies?.includes(task.name)) {
-          connections.push((nodeIdCounter + tasks.findIndex(task => task.name === t.name)).toString());
+          const dependentNodeId = taskNameToId.get(t.name);
+          if (dependentNodeId) {
+            connections.push(dependentNodeId);
+          }
         }
       });
       
-      // Find the corresponding template for this task
       const template = templates.find(t => t.name === task.template);
 
       const node: WorkflowNode = {
@@ -124,27 +107,13 @@ export const inputFileHandler = async (file: File): Promise<WorkflowNode[]> => {
         status: 'pending',
         x: x,
         y: level,
-        connections: [], // Will be filled in second pass
+        connections: connections,
         description: generateDescription(task.name, task.template, template, workflow.metadata),
         duration: templateDurations.get(task.template) || 1
       };
       
       workflowNodes.push(node);
       nodeIdCounter++;
-    });
-    
-    // Second pass: fill in connections with correct IDs
-    workflowNodes.forEach((node, index) => {
-      const task = tasks[index];
-      const connections: string[] = [];
-      
-      tasks.forEach((t, tIndex) => {
-        if (t.dependencies?.includes(task.name)) {
-          connections.push((tIndex + 1).toString());
-        }
-      });
-      
-      node.connections = connections;
     });
     
     return workflowNodes;
@@ -187,86 +156,4 @@ function calculateNodeLevels(tasks: ArgoTask[]): Record<string, number> {
   });
   
   return levels;
-}
-
-function capitalizeTaskName(taskName: string): string {
-  return taskName
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-function generateDescription(
-  taskName: string, 
-  templateName: string, 
-  template?: ArgoTemplate,
-  workflowMeta?: { annotations?: Record<string, string>; labels?: Record<string, string> }
-): string {
-  // 1. First, check for description in template annotations
-  if (template?.metadata?.annotations) {
-    const annotations = template.metadata.annotations;
-    // Try common description annotation keys
-    const descriptionKeys = [
-      'description',
-      'workflows.argoproj.io/description',
-      'summary',
-      'documentation',
-      'doc',
-      'info'
-    ];
-    
-    for (const key of descriptionKeys) {
-      if (annotations[key]) {
-        return annotations[key];
-      }
-    }
-  }
-
-  // 2. Check for description in template labels
-  if (template?.metadata?.labels) {
-    const labels = template.metadata.labels;
-    if (labels.description || labels.summary) {
-      return labels.description || labels.summary;
-    }
-  }
-
-  // 3. Check workflow-level annotations for task-specific descriptions
-  if (workflowMeta?.annotations) {
-    const taskSpecificKey = `${taskName}.description`;
-    const templateSpecificKey = `${templateName}.description`;
-    
-    if (workflowMeta.annotations[taskSpecificKey]) {
-      return workflowMeta.annotations[taskSpecificKey];
-    }
-    if (workflowMeta.annotations[templateSpecificKey]) {
-      return workflowMeta.annotations[templateSpecificKey];
-    }
-  }
-
-  // 4. Extract description from container args (like echo statements)
-  if (template?.container?.args) {
-    const echoArg = template.container.args.find(arg => 
-      arg.includes('echo') && arg.includes('Executing')
-    );
-    if (echoArg) {
-      // Extract the echo message: echo 'Executing B task' -> Executing B task
-      const match = echoArg.match(/echo\s+['"]([^'"]+)['"]/);
-      if (match) {
-        return match[1];
-      }
-    }
-  }
-
-  // 5. Use template name (often more descriptive than task name)
-  const cleanTemplateName = templateName
-    .replace(/-template$/, '') // Remove common -template suffix
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, l => l.toUpperCase());
-
-  if (cleanTemplateName !== capitalizeTaskName(taskName)) {
-    return `Execute ${cleanTemplateName}`;
-  }
-
-  // 6. Fall back to task name
-  return `Execute ${capitalizeTaskName(taskName)} task`;
 }

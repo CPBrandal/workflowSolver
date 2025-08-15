@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import VisualWorkflow from "../../components/VisualWorkflow";
+import VisualWorkflow from "./VisualWorkflow";
 import { inputFileHandler } from '../../utils/inputFileHandler';
 import type { WorkflowNode } from '../../types';
 
@@ -8,7 +8,7 @@ function WorkflowScreen() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // 1. Receive file from HomeScreen
+  // Fetch file from HomeScreen
   const file = location.state?.file as File | null;
   
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
@@ -27,7 +27,7 @@ function WorkflowScreen() {
         setLoading(true);
         setError(null);
         
-        // 2. Call inputFileHandler with the file
+        // Call inputFileHandler for processing
         const parsedNodes = await inputFileHandler(file);
         setNodes(parsedNodes);
         
@@ -70,7 +70,6 @@ function WorkflowScreen() {
     );
   }
 
-  // 3. Send nodes to VisualWorkflow
   return <VisualWorkflow nodes={nodes} />;
 }
 

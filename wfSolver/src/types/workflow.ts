@@ -38,8 +38,6 @@ export interface VisualWorkflowProps {
   nodes?: WorkflowNode[];
   selectedNodeId?: string | null;
   eventHandlers?: EventHandlers;
-  readonly?: boolean;
   showGrid?: boolean;
   enableSimulation?: boolean;
-  autoStart?: boolean;
 }

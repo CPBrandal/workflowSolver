@@ -1,4 +1,4 @@
-import VisualWorkflow from '../../components/VisualWorkflow';
+import VisualWorkflow from '../workflowScreen/VisualWorkflow';
 
 function TestScreen() {
   return (

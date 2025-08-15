@@ -1,90 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Play, CheckCircle, Clock, AlertCircle, Pause, RefreshCw } from 'lucide-react';
-import { StatusInfo } from './StatusInfo';
-import type { NodeStatus, WorkflowNode, VisualWorkflowProps } from '../types';
-import { NodeDetails } from './NodeDetails';
+import { StatusInfo } from './utils/StatusInfo';
+import type { NodeStatus, WorkflowNode, VisualWorkflowProps } from '../../types';
+import { NodeDetails } from './utils/NodeDetails';
+import { defaultNodes } from './utils/defaultNodes';
+import WorkflowProgress from './utils/WorkflowProgress';
+import { RenderConnections } from './utils/RenderConnections';
 
-function VisualWorkflow({
-  nodes: propNodes,
-  selectedNodeId: propSelectedNodeId,
-  eventHandlers,
-  readonly = false,
-  showGrid = false,
-  enableSimulation = true,
-  autoStart = false
-}: VisualWorkflowProps) {
+function VisualWorkflow({ nodes: propNodes, selectedNodeId: propSelectedNodeId, eventHandlers, showGrid = false, enableSimulation = true}: VisualWorkflowProps) {
+
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(propSelectedNodeId || null);
   const [isRunning, setIsRunning] = useState<boolean>(false);
-
-  const defaultNodes: WorkflowNode[] = [
-    {
-      id: '1',
-      name: 'Start',
-      type: 'start',
-      status: 'pending',
-      x: 2,
-      y: 0,
-      connections: ['2'],
-      description: 'Initialize the workflow process',
-      duration: 1
-    },
-    {
-      id: '2',
-      name: 'Data Validation',
-      type: 'process',
-      status: 'pending',
-      x: 2,
-      y: 1,
-      connections: ['3', '4'],
-      description: 'Validate incoming data format and integrity',
-      duration: 3
-    },
-    {
-      id: '3',
-      name: 'Process A',
-      type: 'process',
-      status: 'pending',
-      x: 1,
-      y: 2,
-      connections: ['5'],
-      description: 'Execute primary processing logic',
-      duration: 10
-    },
-    {
-      id: '4',
-      name: 'Process B',
-      type: 'process',
-      status: 'pending',
-      x: 3,
-      y: 2,
-      connections: ['5'],
-      description: 'Execute secondary processing logic',
-      duration: 8
-    },
-    {
-      id: '5',
-      name: 'Merge Results',
-      type: 'process',
-      status: 'pending',
-      x: 2,
-      y: 3,
-      connections: ['6'],
-      description: 'Combine results from parallel processes',
-      duration: 3
-    },
-    {
-      id: '6',
-      name: 'Complete',
-      type: 'end',
-      status: 'pending',
-      x: 2,
-      y: 4,
-      connections: [],
-      description: 'Finalize and cleanup workflow',
-      duration: 1
-    }
-  ];
-
   const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>(propNodes || defaultNodes);
 
   useEffect(() => {
@@ -92,13 +18,6 @@ function VisualWorkflow({
       setWorkflowNodes(propNodes);
     }
   }, [propNodes]);
-
-  useEffect(() => {
-    if (autoStart && enableSimulation && !readonly) {
-      simulateWorkflow();
-    }
-  }, [autoStart, enableSimulation, readonly]);
-
   
   const getNodeDependencies = (nodeId: string, nodes: WorkflowNode[]): string[] => {
     return nodes
@@ -149,61 +68,13 @@ function VisualWorkflow({
 
     const typeClasses = (node.type === 'start' || node.type === 'end') ? "rounded-full" : "rounded-lg";
     const selectedClasses = selectedNodeId === node.id ? "ring-4 ring-blue-300" : "";
-    const readonlyClasses = readonly ? "cursor-default" : "";
 
-    return `${baseClasses} ${statusClasses} ${typeClasses} ${selectedClasses} ${readonlyClasses}`;
+    return `${baseClasses} ${statusClasses} ${typeClasses} ${selectedClasses}`;
   };
 
-  const renderConnections = (): React.ReactElement[] => {
-    const connections: React.ReactElement[] = [];
-    
-    workflowNodes.forEach((node: WorkflowNode) => {
-      node.connections.forEach((targetId: string) => {
-        const target = workflowNodes.find((n: WorkflowNode) => n.id === targetId);
-        if (target) {
-          const startX = (node.x * 180) + 72;
-          const startY = (node.y * 120) + 48;
-          const endX = (target.x * 180) + 72;
-          const endY = (target.y * 120) + 48;
-
-          // Enhanced connection coloring based on status
-          let strokeColor = "#6b7280";
-          let strokeWidth = "2";
-          
-          if (node.status === 'completed' && target.status === 'running') {
-            strokeColor = "#3b82f6"; //Blue
-            strokeWidth = "3";
-          } else if (node.status === 'completed') {
-            strokeColor = "#10b981"; // Green
-            strokeWidth = "3";
-          } else if (node.status === 'error') {
-            strokeColor = "#ef4444"; // Red
-            strokeWidth = "3";
-          }
-
-          connections.push(
-            <g key={`${node.id}-${targetId}`}>
-              <line
-                x1={startX}
-                y1={startY}
-                x2={endX}
-                y2={endY}
-                stroke={strokeColor}
-                strokeWidth={strokeWidth}
-                markerEnd="url(#arrowhead)"
-                className="transition-all duration-300"
-              />
-            </g>
-          );
-        }
-      });
-    });
-
-    return connections;
-  };
+  
 
   const handleNodeClick = (node: WorkflowNode): void => {
-    if (readonly) return;
     
     const newSelectedId = selectedNodeId === node.id ? null : node.id;
     setSelectedNodeId(newSelectedId);
@@ -214,21 +85,15 @@ function VisualWorkflow({
   };
 
   const handleNodeDoubleClick = (node: WorkflowNode): void => {
-    if (readonly) return;
     
     if (eventHandlers?.onNodeDoubleClick) {
       eventHandlers.onNodeDoubleClick(node);
     }
   };
 
-  const getWorkflowProgress = (): number => {
-    const completed = workflowNodes.filter(n => n.status === 'completed').length;
-    const total = workflowNodes.length;
-    return Math.round((completed / total) * 100);
-  };
+
 
   const simulateWorkflow = (): void => {
-    if (readonly) return;
     
     setIsRunning(true);
     
@@ -236,7 +101,6 @@ function VisualWorkflow({
       eventHandlers.onWorkflowStart();
     }
     
-    // Reset all nodes to pending
     const resetNodes = workflowNodes.map(node => ({
       ...node,
       status: 'pending' as NodeStatus
@@ -244,11 +108,9 @@ function VisualWorkflow({
     
     setWorkflowNodes(resetNodes);
 
-    // Track completion times and active timeouts
     const completionTimes: { [nodeId: string]: number } = {};
     const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
     
-    // Function to start a node
     const startNode = (nodeId: string, startTime: number) => {
       const timeout = setTimeout(() => {
         setWorkflowNodes(prev => prev.map(node =>
@@ -258,7 +120,6 @@ function VisualWorkflow({
       activeTimeouts.push(timeout);
     };
 
-    // Function to complete a node
     const completeNode = (nodeId: string, completionTime: number) => {
       completionTimes[nodeId] = completionTime;
       
@@ -268,7 +129,6 @@ function VisualWorkflow({
             node.id === nodeId ? { ...node, status: 'completed' as NodeStatus } : node
           );
           
-          // Check if workflow is complete
           const allCompleted = updatedNodes.every(n => n.status === 'completed');
           if (allCompleted) {
             setIsRunning(false);
@@ -283,30 +143,26 @@ function VisualWorkflow({
       activeTimeouts.push(timeout);
     };
 
-    // Calculate start and completion times for each node
     const calculateNodeTiming = () => {
       const processedNodes = new Set<string>();
       const nodesToProcess = [...resetNodes];
       
-      // Process nodes in dependency order
       while (nodesToProcess.length > 0) {
         const readyNodes = nodesToProcess.filter(node => {
           const dependencies = getNodeDependencies(node.id, resetNodes);
           return dependencies.every(depId => processedNodes.has(depId));
         });
         
-        if (readyNodes.length === 0) break; // Circular dependency or other issue
+        if (readyNodes.length === 0) break;
         
         readyNodes.forEach(node => {
           const dependencies = getNodeDependencies(node.id, resetNodes);
           
-          // Calculate when this node can start
           let earliestStart = 0;
           if (dependencies.length > 0) {
             earliestStart = Math.max(...dependencies.map(depId => completionTimes[depId] || 0));
           }
           
-          // Schedule node to start and complete
           const nodeStartTime = earliestStart;
           const nodeCompletionTime = earliestStart + (node.duration || 1);
           
@@ -316,7 +172,6 @@ function VisualWorkflow({
           completionTimes[node.id] = nodeCompletionTime;
           processedNodes.add(node.id);
           
-          // Remove from processing queue
           const index = nodesToProcess.findIndex(n => n.id === node.id);
           if (index > -1) nodesToProcess.splice(index, 1);
         });
@@ -327,7 +182,6 @@ function VisualWorkflow({
   };
 
   const resetWorkflow = (): void => {
-    if (readonly) return;
     
     setWorkflowNodes(prev => prev.map(node => ({
       ...node,
@@ -346,7 +200,7 @@ function VisualWorkflow({
     <div className="max-w-5xl mx-auto p-6 bg-white">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Visual Workflow</h2>
-        {enableSimulation && !readonly && (
+        {enableSimulation && (
           <div className="flex gap-2">
             <button
               onClick={simulateWorkflow}
@@ -370,21 +224,10 @@ function VisualWorkflow({
 
       {/* Progress Bar */}
       {enableSimulation && (
-        <div className="mb-6">
-          <div className="flex justify-between text-sm text-gray-600 mb-1">
-            <span>Progress</span>
-            <span>{getWorkflowProgress()}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${getWorkflowProgress()}%` }}
-            ></div>
-          </div>
-        </div>
+        <WorkflowProgress nodes={workflowNodes}></WorkflowProgress>
       )}
       
-      <div className={`relative bg-gray-50 rounded-lg p-8 overflow-auto ${showGrid ? 'bg-dot-pattern' : ''}`} style={{ minHeight: '600px' }}>
+      <div className={`relative bg-gray-50 rounded-lg overflow-auto ${showGrid ? 'bg-dot-pattern' : ''}`} style={{ minHeight: '600px', paddingLeft: '200px', paddingRight: '200px', paddingTop: '50px', paddingBottom: '50px' }}>
         <svg className="absolute inset-0 w-full h-full pointer-events-none">
           <defs>
             <marker
@@ -401,7 +244,7 @@ function VisualWorkflow({
               />
             </marker>
           </defs>
-          {renderConnections()}
+          {RenderConnections(workflowNodes)}
         </svg>
 
         {/* Workflow Nodes */}
@@ -438,6 +281,9 @@ function VisualWorkflow({
       )}
       {/* Info about the status symbols */}
       <StatusInfo />
+      <div>
+        
+      </div>
     </div>
   );
 }

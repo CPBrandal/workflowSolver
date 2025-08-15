@@ -16,20 +16,23 @@ function HomeScreen() {
     }
   }
 
-  const handleUpload = () => {
+    const handleUpload = () => {
     if (!selectedFile) {
-      setUploadStatus('Please select a workflow file first')
-      return
+        setUploadStatus('Please select a workflow file first')
+        return
     }
-
+    
     setUploadStatus('Processing workflow file...')
     
     setTimeout(() => {
-      setUploadStatus(`Successfully processed workflow: ${selectedFile.name}`)
-      // Pass the actual File object to WorkflowScreen
-      navigate('/workflow', { state: { file: selectedFile } })
-    }, 1500)
-  }
+
+        setUploadStatus(`Successfully processed workflow: ${selectedFile.name}`)
+
+        setTimeout(() => {
+        navigate('/workflow', { state: { file: selectedFile } })
+        }, 500)
+    }, 1000)
+    }
 
   const isSuccess = uploadStatus.includes('Successfully')
 
@@ -39,7 +42,7 @@ function HomeScreen() {
       <div className="bg-white rounded-lg shadow-lg p-8 items-center">
         <h2 className="text-2xl font-semibold mb-4 text-center">Upload Your Workflow</h2>
         <p className="text-gray-700 mb-6 text-center">
-          Select a workflow configuration file (JSON, YAML, or XML) to analyze and optimize your business processes.
+          Select a workflow configuration file (YAML) to analyze and optimize your business processes.
         </p>
         <div className="my-5 flex flex-col items-center space-y-4">
           <input
@@ -70,11 +73,11 @@ function HomeScreen() {
           </div>
         )}
         <p className="mt-5 text-sm text-gray-600 text-center">
-          Supported formats: JSON, YAML, XML • Max file size: 10MB
+          Supported formats: YAML • Max file size: 10MB
         </p>
       </div>
       <p className="text-center mt-8 text-gray-600">
-        Upload your workflow files to get intelligent analysis and optimization suggestions
+        Upload your workflow files to get scheduling optimization suggestions
       </p>
       <div className="flex justify-center space-x-4 mt-6">
         <button
