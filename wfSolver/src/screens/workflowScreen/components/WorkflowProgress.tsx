@@ -1,5 +1,5 @@
 import type { WorkflowNode } from "../../../types";
-import { getWorkflowProgress } from "../utils/GetWorkflowProgress";
+import { getWorkflowProgress } from "../../../utils/getWorkflowProgress";
 
 interface WorkflowProgressProps {
   nodes: WorkflowNode[];

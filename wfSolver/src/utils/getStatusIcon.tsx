@@ -1,5 +1,5 @@
 import { CheckCircle, Play, Clock } from 'lucide-react';
-import type { NodeStatus } from '../../../types';
+import type { NodeStatus } from '../types';
 
 export function getStatusIcon (status: NodeStatus){
   switch (status) {
