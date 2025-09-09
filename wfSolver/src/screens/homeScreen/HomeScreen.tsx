@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { ArbitraryWorkflowConfig } from '../../utils/generateArbitraryWorkflow'
 import { generateArbitraryWorkflow, createComplexArbitraryWorkflow } from '../../utils/generateArbitraryWorkflow'
 import { generateDAGGENWorkflow, createDAGGENConfig, type DAGGENConfig } from '../../utils/generateDaggenWorkflow'
+import type { LocationState } from '../../types'
 
 function HomeScreen() {
     const navigate = useNavigate()
@@ -150,7 +151,7 @@ function HomeScreen() {
                         workflowType: generatorType,
                         nodeCount,
                         generatorType
-                    } 
+                    } as LocationState
                 })
             }, 500)
 

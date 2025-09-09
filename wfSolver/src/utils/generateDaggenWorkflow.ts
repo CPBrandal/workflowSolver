@@ -47,6 +47,9 @@ export function generateDAGGENWorkflow(config: DAGGENConfig): WorkflowNode[] {
     // Step 3: Ensure connectivity
     ensureBasicConnectivity(nodes, levels);
     
+    // Step 4: Ensure all non-terminal nodes have outgoing connections
+    ensureOutgoingConnections(nodes, levels);
+    
     console.log('Generated DAGGEN workflow with levels:', levels);
     console.log('Node details:', nodes.map(n => ({ id: n.id, level: n.level, connections: n.connections.length })));
     
@@ -243,6 +246,58 @@ function ensureBasicConnectivity(nodes: WorkflowNode[], levels: number[]): void 
         randomSource.connections.push(randomTarget.id);
       }
     }
+  }
+}
+
+function ensureOutgoingConnections(nodes: WorkflowNode[], levels: number[]): void {
+  // Group nodes by level
+  const nodesByLevel: WorkflowNode[][] = [];
+  let nodeIndex = 0;
+  
+  for (let level = 0; level < levels.length; level++) {
+    nodesByLevel[level] = nodes.slice(nodeIndex, nodeIndex + levels[level]);
+    nodeIndex += levels[level];
+  }
+  
+  const finalLevel = levels.length - 1;
+  
+  // Check each node (except those in the final level) to ensure it has outgoing connections
+  for (let level = 0; level < finalLevel; level++) {
+    const nodesInLevel = nodesByLevel[level];
+    
+    for (const node of nodesInLevel) {
+      // Skip if this node already has outgoing connections
+      if (node.connections.length > 0) continue;
+      
+      // Find available target nodes in subsequent levels
+      const availableTargets: WorkflowNode[] = [];
+      
+      // Look at all subsequent levels for potential targets
+      for (let targetLevel = level + 1; targetLevel < levels.length; targetLevel++) {
+        availableTargets.push(...nodesByLevel[targetLevel]);
+      }
+      
+      // If we have targets, connect to one randomly
+      if (availableTargets.length > 0) {
+        const randomTarget = availableTargets[Math.floor(Math.random() * availableTargets.length)];
+        node.connections.push(randomTarget.id);
+        console.log(`DAGGEN: Added required outgoing connection: ${node.name} -> ${randomTarget.name}`);
+      } else {
+        console.warn(`DAGGEN: Could not find target for node ${node.name} at level ${level}`);
+      }
+    }
+  }
+  
+  // For DAGGEN, we typically want multiple sinks, so nodes in the final level should not have outgoing connections
+  // But if there are multiple nodes in the final level and some have connections to others in the same level,
+  // we should clean that up
+  const finalLevelNodes = nodesByLevel[finalLevel];
+  for (const node of finalLevelNodes) {
+    // Remove any connections from final level nodes to other final level nodes
+    node.connections = node.connections.filter(targetId => {
+      const targetNode = nodes.find(n => n.id === targetId);
+      return targetNode && targetNode.level !== finalLevel;
+    });
   }
 }
 
