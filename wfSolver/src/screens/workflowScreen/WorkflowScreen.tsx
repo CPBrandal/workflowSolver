@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import VisualWorkflow from "./VisualWorkflow";
 import { InputFileHandler } from './utils/InputFileHandler';
 import type { WorkflowNode, LocationState, Worker } from '../../types';
-
-
+import { CriticalPathAnalyzer } from '../../utils/criticalPathAnalyzer';
+import { getProjectDuration, getCriticalPath } from '../../utils/criticalPathAnalyzer';
 
 function WorkflowScreen() {
   const location = useLocation();
@@ -20,6 +20,32 @@ function WorkflowScreen() {
   const [error, setError] = useState<string | null>(null);
   const [workflowInfo, setWorkflowInfo] = useState<string>('');
   const [workers, setWorkers] = useState<Worker[]>([]);
+
+  // Critical Path Analysis - runs when nodes change
+  useEffect(() => {
+    if (nodes.length > 0) {
+      console.log('=== Performing Critical Path Analysis ===');
+      
+      // Simple utility functions
+      const criticalPath = getCriticalPath(nodes);
+      console.log('Critical path:', criticalPath.map(n => n.name));
+      
+      // Get project duration
+      const duration = getProjectDuration(nodes);
+      console.log('Project will take:', duration, 'time units');
+      
+      // Full analysis with detailed results
+      const analyzer = new CriticalPathAnalyzer(nodes);
+      const result = analyzer.analyze();
+
+      console.log('Critical path nodes:', result.criticalPath.length);
+      console.log('Total duration:', result.totalDuration);
+      console.log('Critical path sequence:', result.orderedCriticalPath.map(n => n.name));
+      
+      // Optional: Print detailed analysis for debugging
+      // analyzer.printDetailedResults();
+    }
+  }, [nodes]);
 
   useEffect(() => {
      if (nodes.length > 0) {
@@ -78,8 +104,6 @@ function WorkflowScreen() {
             } 
           });
         }, 100);
-
-        
         
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to process workflow');

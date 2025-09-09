@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Clock, RefreshCw, Users, DollarSign } from 'lucide-react';
+import { Play, Clock, RefreshCw, Users } from 'lucide-react';
 import type { WorkflowNode, VisualWorkflowProps } from '../../types';
 import { useWorkflowSimulation } from '../../hooks/useWorkflowSimulations';
 import { getStatusIcon } from '../../utils/getStatusIcon';
@@ -65,9 +65,6 @@ function VisualWorkflow({
 
   // Calculate worker statistics
   const totalWorkerTime = workers.reduce((sum, w) => sum + w.time, 0);
-  const totalCost = workers.reduce((sum, w) => {
-    return sum + (w.costPerHour ? (w.time / 3600) * w.costPerHour : 0);
-  }, 0);
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white">
@@ -105,7 +102,7 @@ function VisualWorkflow({
 
       {/* Worker Statistics */}
       {workers.length > 0 && (
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-blue-600" />
@@ -136,15 +133,6 @@ function VisualWorkflow({
             </div>
           </div>
           
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-purple-600" />
-              <div>
-                <p className="text-sm text-purple-700">Total Cost</p>
-                <p className="text-xl font-bold text-purple-800">${totalCost.toFixed(2)}</p>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -243,9 +231,6 @@ function VisualWorkflow({
                 </div>
                 <div className="text-xs text-gray-600 mt-1">
                   <div>Time: {formatTime(worker.time * 1000)}</div>
-                  {worker.costPerHour && (
-                    <div>Cost: ${worker.costPerHour.toFixed(0)}/hr</div>
-                  )}
                   {worker.currentTask && (
                     <div>Task: {nodes.find(n => n.id === worker.currentTask)?.name || worker.currentTask}</div>
                   )}
@@ -276,7 +261,7 @@ function VisualWorkflow({
           )}
           {workers.length > 0 && (
             <span className="text-sm text-gray-600 ml-4">
-              Worker time: {formatTime(totalWorkerTime * 1000)} | Cost: ${totalCost.toFixed(2)}
+              Worker time: {formatTime(totalWorkerTime * 1000)}
             </span>
           )}
         </div>
