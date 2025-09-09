@@ -14,17 +14,17 @@ interface DistributionConfig {
 }
 
 interface GammaParams {
-  shape: number;  // α (alpha)
-  scale: number;  // scale parameter (1/rate)
-  min?: number;   // minimum value
-  max?: number;   // maximum value
+  shape: number;
+  scale: number;
+  min?: number;
+  max?: number;
 }
 
 interface BetaParams {
-  alpha: number;  // α shape parameter
-  beta: number;   // β shape parameter
-  min: number;    // minimum bound
-  max: number;    // maximum bound
+  alpha: number;
+  beta: number;
+  min: number;
+  max: number;
 }
 
 interface UniformParams {
@@ -35,15 +35,15 @@ interface UniformParams {
 interface ArbitraryWorkflowConfig {
   nodeCount: number;
   
-  // Core DAG structure parameters (based on DAGGEN approach)
-  maxWidth?: number;           // Maximum nodes per level (parallelism)
-  maxDepth?: number;           // Maximum number of levels
-  edgeProbability?: number;    // Probability of creating dependencies (0-1)
-  maxEdgeSpan?: number;        // Maximum levels an edge can span
+  // Core DAG structure parameters
+  maxWidth?: number;
+  maxDepth?: number;
+  edgeProbability?: number;
+  maxEdgeSpan?: number;
   
   // Workflow-specific parameters
-  singleSink?: boolean;        // Whether to create a single end node
-  densityFactor?: number;      // Controls overall edge density (0-1)
+  singleSink?: boolean;
+  densityFactor?: number;
   
   // Distribution configurations
   distributions?: DistributionConfig;
@@ -55,33 +55,11 @@ interface ArbitraryWorkflowConfig {
   minTransferAmount?: number;
 }
 
-// Default distributions for realistic workflow modeling
-/* const DEFAULT_DISTRIBUTIONS: DistributionConfig = {
-  duration: {
-    type: 'gamma',
-    params: {
-      shape: 2,      // Moderate right skew
-      scale: 2,      // Average duration around 4 hours
-      min: 0.5,      // Minimum 30 minutes
-      max: 24        // Maximum 24 hours
-    } as GammaParams
-  },
-  transferAmount: {
-    type: 'beta',
-    params: {
-      alpha: 2,      // Skewed toward lower amounts
-      beta: 5,       
-      min: 1000,     // Minimum $1,000
-      max: 100000    // Maximum $100,000
-    } as BetaParams
-  }
-}; */
-
 export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): WorkflowNode[] {
   const {
     nodeCount,
-    maxWidth = Math.max(2, Math.ceil(Math.sqrt(nodeCount))), // Dynamic width based on node count
-    maxDepth = Math.max(3, Math.ceil(nodeCount / maxWidth)),
+    maxWidth = Math.max(2, Math.ceil(Math.sqrt(nodeCount))),
+    maxDepth = Math.max(4, Math.ceil(nodeCount / 2)), // Increased minimum depth
     edgeProbability = 0.4,
     maxEdgeSpan = 3,
     singleSink = true,
@@ -93,7 +71,7 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     minTransferAmount = 1000
   } = config;
 
-  console.log('Generating arbitrary workflow with DAGGEN approach:', { 
+  console.log('Generating arbitrary workflow with improved depth:', { 
     nodeCount, maxWidth, maxDepth, edgeProbability, maxEdgeSpan 
   });
 
@@ -109,12 +87,10 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     throw new Error('Invalid duration settings');
   }
 
-  // Use provided distributions or create defaults from legacy params
   const finalDistributions = distributions || createLegacyDistributions(
     minDuration, maxDuration, minTransferAmount, maxTransferAmount
   );
 
-  // Create distribution samplers using d3-random
   const getDuration = createDistributionSampler(finalDistributions.duration);
   const getTransferAmount = createDistributionSampler(finalDistributions.transferAmount);
 
@@ -131,7 +107,7 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
       getTransferAmount
     });
 
-    console.log('Generated arbitrary workflow with levels:', nodes);
+    console.log('Generated workflow with levels:', nodes.map(n => ({ id: n.id, level: n.level, name: n.name })));
     
     if (!nodes || nodes.length === 0) {
       throw new Error('Failed to generate workflow nodes');
@@ -170,7 +146,6 @@ function createDistributionSampler(config: DistributionConfig['duration'] | Dist
     return () => {
       let value = gammaRng();
       
-      // Apply bounds if specified
       if (params.min !== undefined) {
         value = Math.max(value, params.min);
       }
@@ -178,13 +153,12 @@ function createDistributionSampler(config: DistributionConfig['duration'] | Dist
         value = Math.min(value, params.max);
       }
       
-      return Math.round(value * 100) / 100; // Round to 2 decimal places
+      return Math.round(value * 100) / 100;
     };
   } else if (config.type === 'beta') {
     const params = config.params as BetaParams;
     const betaRng = randomBeta(params.alpha, params.beta);
     return () => {
-      // Sample from beta distribution [0,1] then scale to [min,max]
       const betaValue = betaRng();
       const scaledValue = params.min + betaValue * (params.max - params.min);
       return Math.round(scaledValue * 100) / 100;
@@ -225,8 +199,8 @@ function generateDAGWorkflow({
   getTransferAmount
 }: DAGGenerationParams): WorkflowNode[] {
   
-  // Step 1: Distribute nodes across levels
-  const levels = distributeNodesAcrossLevels(nodeCount, maxDepth, maxWidth);
+  // Step 1: Distribute nodes across levels with workflow-friendly pattern
+  const levels = distributeNodesAcrossLevels(nodeCount, maxDepth, maxWidth, singleSink);
   
   // Step 2: Create nodes with level information
   const nodes: WorkflowNode[] = [];
@@ -237,10 +211,13 @@ function generateDAGWorkflow({
     const levelWidth = Math.min(nodesInLevel, maxWidth);
     
     for (let i = 0; i < nodesInLevel; i++) {
+      const isLastLevel = level === levels.length - 1;
+      const isSinkNode = singleSink && isLastLevel && i === 0; // First node in last level is sink
+      
       const node: WorkflowNode = {
         id: nodeId.toString(),
         name: level === 0 ? 'Start' : 
-              level === levels.length - 1 && singleSink && nodesInLevel === 1 ? 'Complete' : 
+              isSinkNode ? 'Complete' : 
               `Task ${nodeId}`,
         status: 'pending',
         x: calculateXPosition(i, levelWidth),
@@ -248,7 +225,7 @@ function generateDAGWorkflow({
         connections: [],
         level: level,
         description: level === 0 ? 'Initialize workflow execution' :
-                    level === levels.length - 1 && singleSink && nodesInLevel === 1 ? 'Complete workflow execution' :
+                    isSinkNode ? 'Complete workflow execution' :
                     `Execute task ${nodeId}`,
         duration: getDuration(),
         transferAmount: getTransferAmount()
@@ -262,53 +239,72 @@ function generateDAGWorkflow({
   // Step 3: Generate dependencies between levels
   generateDependencies(nodes, levels, edgeProbability, maxEdgeSpan, densityFactor);
   
-  // Step 4: Ensure workflow connectivity
-  ensureWorkflowConnectivity(nodes, levels, singleSink);  
+  // Step 4: Ensure workflow connectivity with proper sink handling
+  ensureWorkflowConnectivity(nodes, levels, singleSink);
+  
   return nodes;
 }
 
-function distributeNodesAcrossLevels(nodeCount: number, maxDepth: number, maxWidth: number): number[] {
+function distributeNodesAcrossLevels(nodeCount: number, maxDepth: number, maxWidth: number, singleSink: boolean): number[] {
   if (nodeCount === 1) {
     return [1];
   }
   
-  // Calculate optimal depth
-  const optimalDepth = Math.min(maxDepth, Math.max(2, Math.ceil(Math.log2(nodeCount))));
-  const levels: number[] = new Array(optimalDepth).fill(0);
+  // Calculate better depth for workflow structures
+  const optimalDepth = Math.min(maxDepth, Math.max(3, Math.ceil(nodeCount / 2.5) + 1));
+  console.log('Using optimal depth:', optimalDepth);
   
-  // Distribute nodes using a bell curve distribution
+  const levels: number[] = new Array(optimalDepth).fill(0);
   let remainingNodes = nodeCount;
   
-  if (optimalDepth === 2) {
-    // Simple case: start and end
-    levels[0] = 1;
-    levels[1] = remainingNodes - 1;
-  } else {
-    // First level always has 1 node (entry point)
-    levels[0] = 1;
+  // Always start with 1 node (entry point)
+  levels[0] = 1;
+  remainingNodes--;
+  
+  // Reserve 1 node for sink if needed
+  if (singleSink && optimalDepth > 1) {
+    levels[optimalDepth - 1] = 1;
     remainingNodes--;
-    
-    // Distribute remaining nodes across middle levels
-    for (let level = 1; level < optimalDepth - 1; level++) {
-      const nodesForLevel = Math.min(
-        maxWidth,
-        Math.ceil(remainingNodes * getBellCurveWeight(level, optimalDepth))
-      );
-      levels[level] = Math.max(1, nodesForLevel);
-      remainingNodes -= levels[level];
-    }
-    
-    // Last level gets remaining nodes (minimum 1)
-    levels[optimalDepth - 1] = Math.max(1, remainingNodes);
   }
   
+  // Distribute remaining nodes with workflow-friendly pattern
+  if (optimalDepth > 2) {
+    // Create a gradual expansion then contraction pattern
+    for (let level = 1; level < optimalDepth - (singleSink ? 1 : 0); level++) {
+      if (remainingNodes <= 0) break;
+      
+      // Calculate weight for this level (gradual increase then decrease)
+      const midPoint = (optimalDepth - 1) / 2;
+      const distanceFromMid = Math.abs(level - midPoint);
+      const weight = Math.max(0.1, 1 - (distanceFromMid / midPoint) * 0.7);
+      
+      const nodesForLevel = Math.min(
+        maxWidth,
+        Math.max(1, Math.ceil(remainingNodes * weight / (optimalDepth - level - (singleSink ? 1 : 0))))
+      );
+      
+      levels[level] = nodesForLevel;
+      remainingNodes -= nodesForLevel;
+    }
+  }
+  
+  // Distribute any remaining nodes to middle levels
+  let levelIndex = 1;
+  while (remainingNodes > 0 && levelIndex < levels.length - (singleSink ? 1 : 0)) {
+    if (levels[levelIndex] < maxWidth) {
+      levels[levelIndex]++;
+      remainingNodes--;
+    }
+    levelIndex = (levelIndex % (levels.length - (singleSink ? 2 : 1))) + 1;
+  }
+  
+  // If no sink was reserved but we need one, ensure last level has exactly 1 node
+  if (!singleSink && levels[optimalDepth - 1] === 0) {
+    levels[optimalDepth - 1] = 1;
+  }
+  
+  console.log('Level distribution:', levels);
   return levels;
-}
-
-function getBellCurveWeight(level: number, totalLevels: number): number {
-  const center = totalLevels / 2;
-  const variance = totalLevels / 4;
-  return Math.exp(-Math.pow(level - center, 2) / (2 * variance)) / Math.sqrt(2 * Math.PI * variance);
 }
 
 function calculateXPosition(index: number, levelWidth: number): number {
@@ -374,15 +370,10 @@ function ensureWorkflowConnectivity(nodes: WorkflowNode[], levels: number[], sin
   const finalLevel = levels.length - 1;
   const sinkNode = singleSink ? nodesByLevel[finalLevel][0] : null;
   
-  // First, ensure basic connectivity between adjacent levels
+  // Ensure basic connectivity between adjacent levels
   for (let level = 0; level < levels.length - 1; level++) {
     const sourceNodes = nodesByLevel[level];
     const targetNodes = nodesByLevel[level + 1];
-    
-    // Skip connecting to sink level for now - we'll handle that specially
-    if (singleSink && level + 1 === finalLevel) {
-      continue;
-    }
     
     // Check if there are any connections between these levels
     let hasConnection = false;
@@ -404,46 +395,53 @@ function ensureWorkflowConnectivity(nodes: WorkflowNode[], levels: number[], sin
     }
   }
   
-  // Handle single sink connectivity
+  // Handle single sink connectivity - ensure ALL terminal nodes connect to sink
   if (singleSink && sinkNode) {
-    // Find all nodes that have no outgoing connections (terminal nodes)
-    const terminalNodes = nodes.filter(node => 
-      node.connections.length === 0 && node.id !== sinkNode.id
-    );
-    
-    // Connect all terminal nodes to the sink
-    for (const terminalNode of terminalNodes) {
-      terminalNode.connections.push(sinkNode.id);
+    // Clear any existing connections TO the sink from non-terminal nodes
+    for (const node of nodes) {
+      if (node.level !== undefined && node.level < finalLevel) {
+        const sinkIndex = node.connections.indexOf(sinkNode.id);
+        if (sinkIndex > -1) {
+          node.connections.splice(sinkIndex, 1);
+        }
+      }
     }
     
-    // Also ensure that at least one node from the second-to-last level connects to sink
+    // Connect all nodes from the second-to-last level to the sink
     if (finalLevel > 0) {
       const secondToLastLevel = nodesByLevel[finalLevel - 1];
-      const hasConnectionToSink = secondToLastLevel.some(node => 
-        node.connections.includes(sinkNode.id)
-      );
-      
-      if (!hasConnectionToSink && secondToLastLevel.length > 0) {
-        // Connect a random node from second-to-last level to sink
-        const randomNode = secondToLastLevel[Math.floor(Math.random() * secondToLastLevel.length)];
-        randomNode.connections.push(sinkNode.id);
+      for (const node of secondToLastLevel) {
+        if (!node.connections.includes(sinkNode.id)) {
+          node.connections.push(sinkNode.id);
+        }
+      }
+    }
+    
+    // Remove other nodes from final level if they exist
+    const finalLevelNodes = nodesByLevel[finalLevel];
+    if (finalLevelNodes.length > 1) {
+      // Remove all nodes except the sink from the final level
+      for (let i = finalLevelNodes.length - 1; i > 0; i--) {
+        const nodeToRemove = finalLevelNodes[i];
+        const nodeIndex = nodes.findIndex(n => n.id === nodeToRemove.id);
+        if (nodeIndex > -1) {
+          nodes.splice(nodeIndex, 1);
+        }
       }
     }
   }
   
-  // Ensure no orphaned nodes (except the start node)
+  // Ensure no orphaned nodes (except sink)
   for (let level = 1; level < levels.length; level++) {
     const nodesInLevel = nodesByLevel[level];
     
-    // Skip the sink node - it's not supposed to have incoming connections from our algorithm
-    const nodesToCheck = singleSink && level === finalLevel ? 
-      nodesInLevel.slice(1) : nodesInLevel;
-    
-    for (const node of nodesToCheck) {
+    for (const node of nodesInLevel) {
+      if (singleSink && node === sinkNode) continue; // Skip sink node
+      
       // Check if this node has any incoming connections
       const hasIncoming = nodes.some(n => n.connections.includes(node.id));
       
-      if (!hasIncoming) {
+      if (!hasIncoming && level > 0) {
         // Connect from a random node in the previous level
         const previousLevel = nodesByLevel[level - 1];
         const randomSource = previousLevel[Math.floor(Math.random() * previousLevel.length)];
@@ -461,7 +459,7 @@ export const createComplexArbitraryWorkflow = (nodeCount: number) => {
   return generateArbitraryWorkflow({
     nodeCount,
     maxWidth: Math.ceil(nodeCount / 3),
-    maxDepth: Math.ceil(Math.sqrt(nodeCount)) + 2,
+    maxDepth: Math.ceil(Math.sqrt(nodeCount)) + 3, // Increased depth
     edgeProbability: 0.5,
     maxEdgeSpan: 2,
     singleSink: true,
