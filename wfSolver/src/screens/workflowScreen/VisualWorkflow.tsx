@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Clock, RefreshCw, Users, DollarSign } from 'lucide-react';
+import { Play, Clock, RefreshCw, Users } from 'lucide-react';
 import type { WorkflowNode, VisualWorkflowProps } from '../../types';
 import { useWorkflowSimulation } from '../../hooks/useWorkflowSimulations';
 import { getStatusIcon } from '../../utils/getStatusIcon';

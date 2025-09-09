@@ -168,7 +168,7 @@ export class CriticalPathAnalyzer {
     const criticalNodes = this.getCriticalPathNodes();
     if (criticalNodes.length === 0) return [];
 
-    const ordered: CriticalPathNode[] = [];
+    /* const ordered: CriticalPathNode[] = [];  unused */
     const visited = new Set<string>();
 
     // Find the starting node (no critical predecessors)
