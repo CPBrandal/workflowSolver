@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { WorkflowNode, NodeStatus, EventHandlers } from '../types';
+import type { WorkflowNode, EventHandlers } from '../types';
 import { getNodeDependencies } from '../utils/getNodeDependencies';
 
 interface UseWorkflowSimulationProps {
@@ -39,7 +39,7 @@ export function useWorkflowSimulation({ initialNodes, eventHandlers }: UseWorkfl
   const resetWorkflow = useCallback(() => {
     setNodes(prev => prev.map(node => ({
       ...node,
-      status: 'pending' as NodeStatus
+      status: 'pending'
     })));
     setIsRunning(false);
     setStartTime(null);
@@ -62,7 +62,7 @@ export function useWorkflowSimulation({ initialNodes, eventHandlers }: UseWorkfl
     const startNode = (nodeId: string, startTime: number) => {
       const timeout = setTimeout(() => {
         setNodes(prev => prev.map(node =>
-          node.id === nodeId ? { ...node, status: 'running' as NodeStatus } : node
+          node.id === nodeId ? { ...node, status: 'running' } : node
         ));
       }, startTime * 1000);
       activeTimeouts.push(timeout);
@@ -74,7 +74,7 @@ export function useWorkflowSimulation({ initialNodes, eventHandlers }: UseWorkfl
       const timeout = setTimeout(() => {
         setNodes(prev => {
           const updatedNodes = prev.map(node =>
-            node.id === nodeId ? { ...node, status: 'completed' as NodeStatus } : node
+            node.id === nodeId ? { ...node, status: 'completed' as WorkflowNode['status'] } : node
           );
           
           const allCompleted = updatedNodes.every(n => n.status === 'completed');

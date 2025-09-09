@@ -1,16 +1,15 @@
-// Workflow Types
-export type NodeStatus = 'pending' | 'running' | 'completed';
 
 export interface WorkflowNode {
   id: string;
   name: string;
-  status: NodeStatus;
+  status: 'pending' | 'running' | 'completed' | 'failed';
   x: number;
   y: number;
   connections: string[];
   description?: string;
   duration?: number;
   transferAmount?: number;
+  level?: number; // Add level information for better layout
 }
 
 export interface Position {

@@ -22,6 +22,9 @@ export function NodeDetails ({selectedNode}: NodeDetailsProps) {
         {selectedNode.duration && (
           <p><span className="font-medium">Duration:</span> {selectedNode.duration}</p>
         )}
+        {selectedNode.transferAmount && (
+          <p><span className="font-medium">Transfer amount:</span> {selectedNode.transferAmount}</p>
+        )}
         {selectedNode.description && (
           <p><span className="font-medium">Description:</span> {selectedNode.description}</p>
         )}

@@ -33,7 +33,8 @@ function VisualWorkflow({
     const statusClasses = {
       completed: "border-green-300 bg-green-100 hover:bg-green-200",
       running: "border-blue-300 bg-blue-100 hover:bg-blue-200 animate-pulse",
-      pending: "border-gray-300 bg-gray-100 hover:bg-gray-200"
+      pending: "border-gray-300 bg-gray-100 hover:bg-gray-200",
+      failed: "border-red-300 bg-red-100 hover:bg-red-200"
     }[node.status];
 
     const selectedClasses = selectedNodeId === node.id ? "ring-4 ring-blue-300" : "";

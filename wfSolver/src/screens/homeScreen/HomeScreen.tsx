@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import type { ArbitraryWorkflowConfig } from '../../utils/generateArbitraryWorkflow'
 import { generateArbitraryWorkflow } from '../../utils/generateArbitraryWorkflow'
 
 function HomeScreen() {
@@ -7,10 +8,16 @@ function HomeScreen() {
     const [uploadStatus, setUploadStatus] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     
-    // Arbitrary workflow state
-    const [nodeCount, setNodeCount] = useState<number>(5)
-    const [workflowLayout, setWorkflowLayout] = useState<'linear' | 'branching' | 'parallel'>('linear')
+    // Arbitrary workflow state - following DAGGEN approach from the paper
+    const [nodeCount, setNodeCount] = useState<number>(10)
     const [generatingWorkflow, setGeneratingWorkflow] = useState(false)
+    
+    // Core DAG generation parameters (based on the research paper)
+    const [maxWidth, setMaxWidth] = useState<number>(4) // Maximum parallelism level
+    const [edgeProbability, setEdgeProbability] = useState<number>(0.4) // Edge density
+    const [maxEdgeSpan, setMaxEdgeSpan] = useState<number>(3) // Max levels an edge can span
+    const [singleSink, setSingleSink] = useState<boolean>(true) // Single end node
+    const [showAdvanced, setShowAdvanced] = useState<boolean>(false)
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
@@ -39,15 +46,33 @@ function HomeScreen() {
             return
         }
 
+        if (maxWidth < 1 || maxWidth > nodeCount) {
+            alert('Max width must be between 1 and the total node count')
+            return
+        }
+
+        if (edgeProbability < 0 || edgeProbability > 1) {
+            alert('Edge probability must be between 0 and 1')
+            return
+        }
+
         setGeneratingWorkflow(true)
 
         try {
-            const nodes = generateArbitraryWorkflow({
+            const config: ArbitraryWorkflowConfig = {
                 nodeCount,
-                layout: workflowLayout,
+                maxWidth,
+                edgeProbability,
+                maxEdgeSpan,
+                singleSink,
+                densityFactor: 0.6, // Fixed density factor
                 maxDuration: 10,
-                minDuration: 1
-            })
+                minDuration: 1,
+                maxTransferAmount: 100000,
+                minTransferAmount: 1000
+            }
+
+            const nodes = generateArbitraryWorkflow(config)
 
             setTimeout(() => {
                 setGeneratingWorkflow(false)
@@ -56,7 +81,7 @@ function HomeScreen() {
                         generatedNodes: nodes,
                         workflowType: 'arbitrary',
                         nodeCount,
-                        layout: workflowLayout
+                        config
                     } 
                 })
             }, 500)
@@ -65,6 +90,14 @@ function HomeScreen() {
             setGeneratingWorkflow(false)
             alert(`Error generating workflow: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
+    }
+
+    // Auto-calculate optimal maxWidth based on nodeCount
+    const handleNodeCountChange = (newNodeCount: number) => {
+        setNodeCount(newNodeCount)
+        // Auto-adjust maxWidth to a reasonable value
+        const optimalWidth = Math.max(2, Math.ceil(Math.sqrt(newNodeCount)))
+        setMaxWidth(Math.min(optimalWidth, 8)) // Cap at 8 for visualization
     }
 
     const isSuccess = uploadStatus.includes('Successfully')
@@ -114,73 +147,148 @@ function HomeScreen() {
 
             {/* Create Arbitrary Workflow Section */}
             <div className="bg-white rounded-lg shadow-lg p-8">
-                <h2 className="text-2xl font-semibold mb-4 text-center">Create Custom Workflow</h2>
+                <h2 className="text-2xl font-semibold mb-4 text-center">Generate Arbitrary Workflow</h2>
                 <p className="text-gray-700 mb-6 text-center">
-                    Generate a workflow with a specified number of nodes and layout pattern.
+                    Create a random workflow using DAGGEN-style parameters for realistic scientific workflow structures.
                 </p>
                 
-                <div className="space-y-4 max-w-md mx-auto">
-                    {/* Node Count Input */}
-                    <div>
-                        <label htmlFor="nodeCount" className="block text-sm font-medium text-gray-700 mb-1">
-                            Number of Nodes
-                        </label>
-                        <input
-                            id="nodeCount"
-                            type="number"
-                            min="1"
-                            max="50"
-                            value={nodeCount}
-                            onChange={(e) => setNodeCount(parseInt(e.target.value) || 1)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter number of nodes (1-50)"
-                        />
-                    </div>
-
-                    {/* Layout Selection */}
-                    <div>
-                        <label htmlFor="workflowLayout" className="block text-sm font-medium text-gray-700 mb-1">
-                            Workflow Layout
-                        </label>
-                        <select
-                            id="workflowLayout"
-                            value={workflowLayout}
-                            onChange={(e) => setWorkflowLayout(e.target.value as 'linear' | 'branching' | 'parallel')}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="linear">Linear (Sequential)</option>
-                            <option value="branching">Branching (Fork & Merge)</option>
-                            <option value="parallel">Parallel (Fan-out & Fan-in)</option>
-                        </select>
-                    </div>
-
-                    {/* Layout Descriptions */}
-                    <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-md">
-                        <div className="space-y-1">
-                            <p><strong>Linear:</strong> Tasks execute one after another in sequence</p>
-                            <p><strong>Branching:</strong> Fork into parallel paths that merge back together</p>
-                            <p><strong>Parallel:</strong> All tasks run in parallel after start, then merge to finish</p>
+                <div className="space-y-6 max-w-lg mx-auto">
+                    {/* Basic Parameters */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium text-gray-800 border-b pb-2">Basic Parameters</h3>
+                        
+                        {/* Node Count Input */}
+                        <div>
+                            <label htmlFor="nodeCount" className="block text-sm font-medium text-gray-700 mb-1">
+                                Number of Tasks
+                            </label>
+                            <input
+                                id="nodeCount"
+                                type="number"
+                                min="1"
+                                max="50"
+                                value={nodeCount}
+                                onChange={(e) => handleNodeCountChange(parseInt(e.target.value) || 1)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Enter number of tasks (1-50)"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Total number of tasks in the workflow</p>
                         </div>
+
+                        {/* Max Width Input */}
+                        <div>
+                            <label htmlFor="maxWidth" className="block text-sm font-medium text-gray-700 mb-1">
+                                Maximum Parallelism Level
+                            </label>
+                            <input
+                                id="maxWidth"
+                                type="number"
+                                min="1"
+                                max={Math.min(nodeCount, 8)}
+                                value={maxWidth}
+                                onChange={(e) => setMaxWidth(parseInt(e.target.value) || 1)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Maximum number of tasks that can run in parallel</p>
+                        </div>
+                    </div>
+
+                    {/* Advanced Parameters Toggle */}
+                    <div>
+                        <button
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            className="flex items-center justify-between w-full px-4 py-2 text-left text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <span>Advanced DAG Parameters</span>
+                            <span className={`transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`}>▼</span>
+                        </button>
+
+                        {showAdvanced && (
+                            <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-md">
+                                {/* Edge Probability */}
+                                <div>
+                                    <label htmlFor="edgeProbability" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Edge Probability: {edgeProbability.toFixed(2)}
+                                    </label>
+                                    <input
+                                        id="edgeProbability"
+                                        type="range"
+                                        min="0.1"
+                                        max="0.9"
+                                        step="0.1"
+                                        value={edgeProbability}
+                                        onChange={(e) => setEdgeProbability(parseFloat(e.target.value))}
+                                        className="w-full"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Probability of creating dependencies between tasks (higher = more connections)</p>
+                                </div>
+
+                                {/* Max Edge Span */}
+                                <div>
+                                    <label htmlFor="maxEdgeSpan" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Maximum Edge Span
+                                    </label>
+                                    <select
+                                        id="maxEdgeSpan"
+                                        value={maxEdgeSpan}
+                                        onChange={(e) => setMaxEdgeSpan(parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                        <option value={1}>1 - Direct connections only</option>
+                                        <option value={2}>2 - Skip one level</option>
+                                        <option value={3}>3 - Skip two levels</option>
+                                        <option value={4}>4 - Skip three levels</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Maximum number of levels a dependency can span</p>
+                                </div>
+
+                                {/* Single Sink Option */}
+                                <div>
+                                    <label className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={singleSink}
+                                            onChange={(e) => setSingleSink(e.target.checked)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">Single End Task</span>
+                                    </label>
+                                    <p className="text-xs text-gray-500 mt-1">Create a single final task that all paths converge to</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Generation Info */}
+                    <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded-md">
+                        <p className="font-medium mb-2">🔬 Research-Based Generation</p>
+                        <p>This generator uses the DAGGEN approach from scientific workflow research to create realistic arbitrary workflows with proper DAG properties including:</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Level-based task distribution</li>
+                            <li>Controlled parallelism and dependencies</li>
+                            <li>Guaranteed single entry point</li>
+                            <li>Acyclic structure preservation</li>
+                        </ul>
                     </div>
 
                     {/* Generate Button */}
                     <button
                         onClick={handleCreateArbitraryWorkflow}
-                        disabled={generatingWorkflow || nodeCount < 1 || nodeCount > 50}
+                        disabled={generatingWorkflow || nodeCount < 1 || nodeCount > 50 || maxWidth < 1}
                         className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
-                            !generatingWorkflow && nodeCount >= 1 && nodeCount <= 50
+                            !generatingWorkflow && nodeCount >= 1 && nodeCount <= 50 && maxWidth >= 1
                             ? 'bg-green-500 hover:bg-green-600'
                             : 'bg-gray-400 cursor-not-allowed'
                         }`}
                     >
-                        {generatingWorkflow ? 'Generating Workflow...' : `Create ${workflowLayout.charAt(0).toUpperCase() + workflowLayout.slice(1)} Workflow`}
+                        {generatingWorkflow ? 'Generating Arbitrary Workflow...' : `Generate ${nodeCount}-Task Workflow`}
                     </button>
                 </div>
             </div>
 
             {/* Footer */}
             <p className="text-center text-gray-600">
-                Upload workflow files to get scheduling optimization suggestions or create custom workflows for testing
+                Upload workflow files to get scheduling optimization suggestions or generate arbitrary workflows for research and testing
             </p>
             
             <div className="flex justify-center space-x-4">

@@ -1,7 +1,6 @@
 import { CheckCircle, Play, Clock } from 'lucide-react';
-import type { NodeStatus } from '../types';
 
-export function getStatusIcon (status: NodeStatus){
+export function getStatusIcon (status: 'pending' | 'running' | 'completed' | 'failed') {
   switch (status) {
     case 'completed':
       return <CheckCircle className="w-5 h-5 text-green-600" />;

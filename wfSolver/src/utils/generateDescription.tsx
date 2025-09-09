@@ -1,4 +1,4 @@
-import type { ArgoTemplate } from "../types/argo";
+import type { ArgoTemplate } from "../types";
 import { capitalizeTaskName } from "./capitalizeTaskName";
 
 function generateDescription(

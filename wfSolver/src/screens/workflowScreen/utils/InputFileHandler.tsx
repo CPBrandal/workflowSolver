@@ -1,8 +1,8 @@
 import * as yaml from 'js-yaml';
 import type { WorkflowNode } from '../../../types';
 import generateDescription from '../../../utils/generateDescription';
-import type { ArgoTask, ArgoWorkflow } from '../../../types/argo';
 import { capitalizeTaskName } from '../../../utils/capitalizeTaskName';
+import type { ArgoTask, ArgoWorkflow } from '../../../types';
 
 /**
  * This is a test
