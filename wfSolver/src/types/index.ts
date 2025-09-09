@@ -10,6 +10,15 @@ export interface WorkflowNode {
   duration?: number;
   transferAmount?: number;
   level?: number; // Add level information for better layout
+  assignedWorker?: string; // ID of the worker currently processing this task
+}
+
+export interface Worker {
+  id: string;
+  costPerHour?: number;
+  time: number; // Total time this worker has been used (in seconds)
+  isActive: boolean; // Whether currently processing a task
+  currentTask: string | null; // ID of the task currently being processed
 }
 
 export interface Position {
@@ -68,4 +77,16 @@ export interface VisualWorkflowProps {
   eventHandlers?: EventHandlers;
   showGrid?: boolean;
   enableSimulation?: boolean;
+  workers?: Worker[];
+  onWorkersUpdate?: (workers: Worker[]) => void;
+}
+
+export interface LocationState {
+  file?: File;
+  generatedNodes?: WorkflowNode[];
+  workflowType?: string;
+  nodeCount?: number;
+  layout?: string;
+  generatorType?: string;
+  message?: string;
 }

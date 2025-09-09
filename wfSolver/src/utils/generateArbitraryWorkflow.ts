@@ -242,6 +242,9 @@ function generateDAGWorkflow({
   // Step 4: Ensure workflow connectivity with proper sink handling
   ensureWorkflowConnectivity(nodes, levels, singleSink);
   
+  // Step 5: Ensure all non-terminal nodes have outgoing connections
+  ensureOutgoingConnections(nodes, levels, singleSink);
+  
   return nodes;
 }
 
@@ -446,6 +449,63 @@ function ensureWorkflowConnectivity(nodes: WorkflowNode[], levels: number[], sin
         const previousLevel = nodesByLevel[level - 1];
         const randomSource = previousLevel[Math.floor(Math.random() * previousLevel.length)];
         randomSource.connections.push(node.id);
+      }
+    }
+  }
+}
+
+function ensureOutgoingConnections(nodes: WorkflowNode[], levels: number[], singleSink: boolean): void {
+  // Group nodes by level
+  const nodesByLevel: WorkflowNode[][] = [];
+  let nodeIndex = 0;
+  
+  for (let level = 0; level < levels.length; level++) {
+    nodesByLevel[level] = nodes.slice(nodeIndex, nodeIndex + levels[level]);
+    nodeIndex += levels[level];
+  }
+  
+  const finalLevel = levels.length - 1;
+  
+  // Check each node (except those in the final level) to ensure it has outgoing connections
+  for (let level = 0; level < finalLevel; level++) {
+    const nodesInLevel = nodesByLevel[level];
+    
+    for (const node of nodesInLevel) {
+      // Skip if this node already has outgoing connections
+      if (node.connections.length > 0) continue;
+      
+      // Find available target nodes in subsequent levels
+      const availableTargets: WorkflowNode[] = [];
+      
+      // Look at all subsequent levels for potential targets
+      for (let targetLevel = level + 1; targetLevel < levels.length; targetLevel++) {
+        availableTargets.push(...nodesByLevel[targetLevel]);
+      }
+      
+      // If we have targets, connect to one randomly
+      if (availableTargets.length > 0) {
+        const randomTarget = availableTargets[Math.floor(Math.random() * availableTargets.length)];
+        node.connections.push(randomTarget.id);
+        console.log(`Added required outgoing connection: ${node.name} -> ${randomTarget.name}`);
+      } else {
+        console.warn(`Could not find target for node ${node.name} at level ${level}`);
+      }
+    }
+  }
+  
+  // Special handling for single sink: ensure all non-sink nodes in the final level connect to sink
+  if (singleSink && finalLevel > 0) {
+    const finalLevelNodes = nodesByLevel[finalLevel];
+    const sinkNode = finalLevelNodes.find(n => n.name === 'Complete');
+    
+    if (sinkNode && finalLevelNodes.length > 1) {
+      // If there are other nodes in the final level besides the sink, they should have connections too
+      for (const node of finalLevelNodes) {
+        if (node !== sinkNode && node.connections.length === 0) {
+          // These nodes shouldn't exist in a proper single-sink workflow, but if they do,
+          // we should connect them to the sink
+          node.connections.push(sinkNode.id);
+        }
       }
     }
   }

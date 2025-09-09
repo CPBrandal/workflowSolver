@@ -99,13 +99,17 @@ export async function InputFileHandler(file: File): Promise<WorkflowNode[]> {
             y: level,
             connections: connections,
             description: generateDescription(task.name, task.template, template, workflow.metadata),
-            duration: templateDurations.get(task.template) || 1
+            duration: templateDurations.get(task.template) || 1,
+            level: level
         };
         
         workflowNodes.push(node);
         nodeIdCounter++;
     }       
     );
+    
+    // Validate and fix outgoing connections for uploaded workflows
+    validateAndFixOutgoingConnections(workflowNodes);
     
     return workflowNodes;
     
@@ -145,4 +149,72 @@ function calculateNodeLevels(tasks: ArgoTask[]): Record<string, number> {
   });
   
   return levels;
+}
+
+function validateAndFixOutgoingConnections(nodes: WorkflowNode[]): void {
+  console.log('Validating outgoing connections for uploaded workflow...');
+  
+  // Group nodes by level
+  const nodesByLevel = new Map<number, WorkflowNode[]>();
+  let maxLevel = 0;
+  
+  for (const node of nodes) {
+    const level = node.level || node.y;
+    if (!nodesByLevel.has(level)) {
+      nodesByLevel.set(level, []);
+    }
+    nodesByLevel.get(level)!.push(node);
+    maxLevel = Math.max(maxLevel, level);
+  }
+  
+  // Check each node (except those in the final level) for outgoing connections
+  for (let level = 0; level < maxLevel; level++) {
+    const nodesInLevel = nodesByLevel.get(level) || [];
+    
+    for (const node of nodesInLevel) {
+      // Skip if this node already has outgoing connections
+      if (node.connections.length > 0) continue;
+      
+      // Find available target nodes in subsequent levels
+      const availableTargets: WorkflowNode[] = [];
+      
+      // Look at all subsequent levels for potential targets
+      for (let targetLevel = level + 1; targetLevel <= maxLevel; targetLevel++) {
+        const targetNodes = nodesByLevel.get(targetLevel) || [];
+        availableTargets.push(...targetNodes);
+      }
+      
+      // If we have targets, connect to one randomly (preferably in the next level)
+      if (availableTargets.length > 0) {
+        // Prefer nodes in the immediate next level
+        const nextLevelNodes = nodesByLevel.get(level + 1) || [];
+        const preferredTargets = nextLevelNodes.length > 0 ? nextLevelNodes : availableTargets;
+        
+        const randomTarget = preferredTargets[Math.floor(Math.random() * preferredTargets.length)];
+        node.connections.push(randomTarget.id);
+        console.log(`Fixed uploaded workflow: Added required outgoing connection: ${node.name} -> ${randomTarget.name}`);
+      } else {
+        console.warn(`Could not find target for node ${node.name} at level ${level} in uploaded workflow`);
+      }
+    }
+  }
+  
+  // Identify and validate terminal nodes (should be in the highest level and have no outgoing connections)
+  const finalLevelNodes = nodesByLevel.get(maxLevel) || [];
+  
+  // Clean up any connections from final level nodes to other final level nodes
+  for (const node of finalLevelNodes) {
+    // Remove any connections from final level nodes to other final level nodes
+    const originalConnectionCount = node.connections.length;
+    node.connections = node.connections.filter(targetId => {
+      const targetNode = nodes.find(n => n.id === targetId);
+      return targetNode && (targetNode.level || targetNode.y) !== maxLevel;
+    });
+    
+    if (node.connections.length !== originalConnectionCount) {
+      console.log(`Cleaned up ${originalConnectionCount - node.connections.length} invalid final-level connections for ${node.name}`);
+    }
+  }
+  
+  console.log('Outgoing connection validation completed for uploaded workflow.');
 }

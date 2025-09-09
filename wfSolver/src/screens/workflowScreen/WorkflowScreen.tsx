@@ -2,15 +2,9 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import VisualWorkflow from "./VisualWorkflow";
 import { InputFileHandler } from './utils/InputFileHandler';
-import type { WorkflowNode } from '../../types';
+import type { WorkflowNode, LocationState, Worker } from '../../types';
 
-interface LocationState {
-  file?: File;
-  generatedNodes?: WorkflowNode[];
-  workflowType?: string;
-  nodeCount?: number;
-  layout?: string;
-}
+
 
 function WorkflowScreen() {
   const location = useLocation();
@@ -20,11 +14,32 @@ function WorkflowScreen() {
   const file = state?.file;
   const generatedNodes = state?.generatedNodes;
   const workflowType = state?.workflowType;
-  
+
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workflowInfo, setWorkflowInfo] = useState<string>('');
+  const [workers, setWorkers] = useState<Worker[]>([]);
+
+  useEffect(() => {
+     if (nodes.length > 0) {
+      const workerCount = nodes.length + 1;
+      const newWorkers: Worker[] = [];
+      
+      for (let i = 0; i < workerCount; i++) {
+        newWorkers.push({
+          id: `worker-${i + 1}`,
+          costPerHour: 15 + Math.random() * 25, // Random cost between $15-40/hour
+          time: 0, // Total time used
+          isActive: false, // Whether currently processing a task
+          currentTask: null // Current task being processed
+        });
+      }
+      
+      setWorkers(newWorkers);
+      console.log(`Created ${workerCount} workers for ${nodes.length} tasks`);
+    }
+  }, [nodes]);
 
   useEffect(() => {
     const processWorkflow = async () => {
@@ -32,10 +47,15 @@ function WorkflowScreen() {
         setLoading(true);
         setError(null);
         
-        if (generatedNodes && workflowType === 'arbitrary') {
+        // Check if we have generated nodes from arbitrary workflow creation
+        if (generatedNodes && (workflowType === 'arbitrary' || ['workflow', 'daggen', 'preset'].includes(workflowType || ''))) {
           // Handle generated workflow
           setNodes(generatedNodes);
-          setWorkflowInfo(`Generated ${state?.layout || 'linear'} workflow with ${state?.nodeCount || generatedNodes.length} nodes`);
+          const generatorName = workflowType === 'workflow' ? 'Workflow-Optimized' :
+                               workflowType === 'daggen' ? 'DAGGEN Research' :
+                               workflowType === 'preset' ? 'Preset Configuration' :
+                               state?.layout || 'arbitrary';
+          setWorkflowInfo(`Generated ${generatorName} workflow with ${state?.nodeCount || generatedNodes.length} nodes`);
           setLoading(false);
           return;
         }
@@ -58,6 +78,8 @@ function WorkflowScreen() {
             } 
           });
         }, 100);
+
+        
         
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to process workflow');
@@ -74,7 +96,7 @@ function WorkflowScreen() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">
-            {workflowType === 'arbitrary' ? 'Generating workflow...' : 'Processing workflow...'}
+            {['workflow', 'daggen', 'preset'].includes(workflowType || '') ? 'Generating workflow...' : 'Processing workflow...'}
           </p>
         </div>
       </div>
@@ -113,7 +135,11 @@ function WorkflowScreen() {
           </div>
         </div>
       )}
-      <VisualWorkflow nodes={nodes} />
+      <VisualWorkflow 
+        nodes={nodes} 
+        workers={workers}
+        onWorkersUpdate={setWorkers}
+      />
     </div>
   );
 }
