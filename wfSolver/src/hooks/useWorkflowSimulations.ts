@@ -196,15 +196,6 @@ export function useWorkflowSimulation({
           if (allCompleted) {
             setIsRunning(false);
             eventHandlers?.onWorkflowComplete?.();
-            
-            // Log final worker statistics
-            if (workers.length > 0) {
-              console.log('Final Worker Statistics:');
-              workers.forEach(w => {
-                const cost = w.costPerHour ? (w.time / 3600) * w.costPerHour : 0;
-                console.log(`${w.id}: ${w.time.toFixed(1)}s worked, $${cost.toFixed(2)} cost`);
-              });
-            }
           }
           
           return updatedNodes;
