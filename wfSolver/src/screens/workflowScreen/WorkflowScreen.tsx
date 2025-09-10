@@ -42,8 +42,6 @@ function WorkflowScreen() {
       console.log('Total duration:', result.totalDuration);
       console.log('Critical path sequence:', result.orderedCriticalPath.map(n => n.name));
       
-      // Optional: Print detailed analysis for debugging
-      // analyzer.printDetailedResults();
     }
   }, [nodes]);
 
@@ -55,10 +53,9 @@ function WorkflowScreen() {
       for (let i = 0; i < workerCount; i++) {
         newWorkers.push({
           id: `worker-${i + 1}`,
-          costPerHour: 15 + Math.random() * 25, // Random cost between $15-40/hour
-          time: 0, // Total time used
-          isActive: false, // Whether currently processing a task
-          currentTask: null // Current task being processed
+          time: 0,
+          isActive: false, 
+          currentTask: null
         });
       }
       
@@ -153,8 +150,13 @@ function WorkflowScreen() {
   return (
     <div>
       {workflowInfo && (
-        <div className="max-w-5xl mx-auto px-6 pt-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <div className="max-w-7xl mx-auto px-6 pt-6 flex flex-col md:flex-row md:justify-between items-start md:items-center">
+          <button
+            onClick={() => navigate('/')}
+            className="px-4 bg-gray-600 py-2 text-white rounded hover:bg-gray-700 transition-colors">
+            Go Back Home
+          </button>
+          <div className="px-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-blue-800 text-sm font-medium">{workflowInfo}</p>
           </div>
         </div>

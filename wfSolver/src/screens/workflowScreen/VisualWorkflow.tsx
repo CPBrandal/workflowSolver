@@ -4,7 +4,6 @@ import type { WorkflowNode, VisualWorkflowProps } from '../../types';
 import { useWorkflowSimulation } from '../../hooks/useWorkflowSimulations';
 import { getStatusIcon } from '../../utils/getStatusIcon';
 import { formatTime } from '../../utils/formatTime';
-import { StatusInfo } from './components/StatusInfo';
 import { NodeDetails } from './components/NodeDetails';
 import { WorkflowConnections } from './components/WorkflowConnections';
 import WorkflowProgress from './components/WorkflowProgress';
@@ -38,6 +37,7 @@ function VisualWorkflow({
     workers,
     onWorkersUpdate
   });
+  
 
   const getNodeClasses = (node: WorkflowNode): string => {
     const baseClasses = "absolute flex flex-col items-center justify-center w-36 h-24 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg";
@@ -67,7 +67,7 @@ function VisualWorkflow({
   const totalWorkerTime = workers.reduce((sum, w) => sum + w.time, 0);
 
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-white">
+    <div className="max-w-7xl mx-auto p-6 bg-white">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Visual Workflow</h2>
@@ -244,8 +244,7 @@ function VisualWorkflow({
       {/* Node Details */}
       {selectedNode && <NodeDetails selectedNode={selectedNode} />}
 
-      {/* Status Info */}
-      <StatusInfo />
+      {/* <StatusInfo /> */}
       
       {/* Runtime Display */}
       <div className="mt-6 p-4 bg-gray-100 rounded-lg">
@@ -257,11 +256,6 @@ function VisualWorkflow({
           {isRunning && (
             <span className="text-sm text-blue-600 animate-pulse">
               Running
-            </span>
-          )}
-          {workers.length > 0 && (
-            <span className="text-sm text-gray-600 ml-4">
-              Worker time: {formatTime(totalWorkerTime * 1000)}
             </span>
           )}
         </div>
