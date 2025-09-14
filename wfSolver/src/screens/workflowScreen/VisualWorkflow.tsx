@@ -63,9 +63,6 @@ function VisualWorkflow({
   const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
   const usingDefaultNodes = !propNodes || propNodes.length === 0;
 
-  // Calculate worker statistics
-  const totalWorkerTime = workers.reduce((sum, w) => sum + w.time, 0);
-
   return (
     <div className="max-w-7xl mx-auto p-6 bg-white">
       {/* Header */}
