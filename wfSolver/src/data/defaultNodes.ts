@@ -5,60 +5,65 @@ export const defaultNodes: WorkflowNode[] = [
       id: '1',
       name: 'Start',
       status: 'pending',
-      x: 2,
-      y: 0,
-      connections: ['2'],
+      position: { x: 2, y: 0 },
+      connections: [
+      { sourceNodeId: '1', targetNodeId: '2', transferTime: 0.5, label: 'Start → Data Validation' }
+      ],
       description: 'Initialize the workflow process',
-      duration: 1
+      executionTime: 1,
     },
     {
       id: '2',
       name: 'Data Validation',
       status: 'pending',
-      x: 2,
-      y: 1,
-      connections: ['3', '4'],
+      position: { x: 2, y: 1 },
+      connections: [
+      { sourceNodeId: '2', targetNodeId: '3', transferTime: 1, label: 'Data Validation → Process A' },
+      { sourceNodeId: '2', targetNodeId: '4', transferTime: 1, label: 'Data Validation → Process B' }
+      ],
       description: 'Validate incoming data format and integrity',
-      duration: 3
+      executionTime: 3
     },
     {
       id: '3',
       name: 'Process A',
       status: 'pending',
-      x: 1,
-      y: 2,
-      connections: ['5'],
+      position: { x: 1, y: 2 },
+      connections: [
+      { sourceNodeId: '3', targetNodeId: '5', transferTime: 2, label: 'Process A → Merge Results' }
+      ],
       description: 'Execute primary processing logic',
-      duration: 10
+      executionTime: 10
     },
     {
       id: '4',
       name: 'Process B',
       status: 'pending',
-      x: 3,
-      y: 2,
-      connections: ['5'],
+      position: { x: 3, y: 2 },
+      connections: [
+      { sourceNodeId: '4', targetNodeId: '5', transferTime: 2, label: 'Process B → Merge Results' }
+      ],
       description: 'Execute secondary processing logic',
-      duration: 8
+      executionTime: 8
     },
     {
       id: '5',
       name: 'Merge Results',
       status: 'pending',
-      x: 2,
-      y: 3,
-      connections: ['6'],
+      position: { x: 2, y: 3 },
+      connections: [
+      { sourceNodeId: '5', targetNodeId: '6', transferTime: 1, label: 'Merge Results → Complete' }
+      ],
       description: 'Combine results from parallel processes',
-      duration: 3
+      executionTime: 3
     },
     {
       id: '6',
       name: 'Complete',
       status: 'pending',
-      x: 2,
-      y: 4,
+      position: { x: 2, y: 4 },
       connections: [],
-      description: 'Finalize and cleanup workflow',
-      duration: 1
-    }
+      description: 'Finalize and complete the workflow',
+      executionTime: 1
+    },
   ];

@@ -1,13 +1,12 @@
-import type { ArgoTemplate } from "../types";
-import { capitalizeTaskName } from "./capitalizeTaskName";
+import type { ArgoTemplate } from '../types';
+import { capitalizeTaskName } from './capitalizeTaskName';
 
 function generateDescription(
-  taskName: string, 
-  templateName: string, 
+  taskName: string,
+  templateName: string,
   template?: ArgoTemplate,
   workflowMeta?: { annotations?: Record<string, string>; labels?: Record<string, string> }
 ): string {
-
   if (template?.metadata?.annotations) {
     const annotations = template.metadata.annotations;
     const descriptionKeys = [
@@ -16,9 +15,9 @@ function generateDescription(
       'summary',
       'documentation',
       'doc',
-      'info'
+      'info',
     ];
-    
+
     for (const key of descriptionKeys) {
       if (annotations[key]) {
         return annotations[key];
@@ -36,7 +35,7 @@ function generateDescription(
   if (workflowMeta?.annotations) {
     const taskSpecificKey = `${taskName}.description`;
     const templateSpecificKey = `${templateName}.description`;
-    
+
     if (workflowMeta.annotations[taskSpecificKey]) {
       return workflowMeta.annotations[taskSpecificKey];
     }
@@ -46,8 +45,8 @@ function generateDescription(
   }
 
   if (template?.container?.args) {
-    const echoArg = template.container.args.find(arg => 
-      arg.includes('echo') && arg.includes('Executing')
+    const echoArg = template.container.args.find(
+      arg => arg.includes('echo') && arg.includes('Executing')
     );
     if (echoArg) {
       const match = echoArg.match(/echo\s+['"]([^'"]+)['"]/);
@@ -68,7 +67,5 @@ function generateDescription(
 
   return `Execute ${capitalizeTaskName(taskName)} task`;
 }
-
-
 
 export default generateDescription;

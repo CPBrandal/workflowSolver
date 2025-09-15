@@ -172,8 +172,8 @@ function VisualWorkflow({
               key={node.id}
               className={getNodeClasses(node)}
               style={{
-                left: node.x * 180,
-                top: node.y * 120
+                left: node.position.x * 180,
+                top: node.position.y * 120
               }}
               onClick={() => handleNodeClick(node)}
               title={`${node.description}${assignedWorker ? `\nWorker: ${assignedWorker.id}` : ''}`}
@@ -184,9 +184,9 @@ function VisualWorkflow({
               <span className="text-sm font-medium text-center px-2 text-gray-800">
                 {node.name}
               </span>
-              {node.duration && (
+              {node.executionTime && (
                 <span className="text-xs text-gray-500 mt-1">
-                  {node.duration}s
+                  {node.executionTime}s
                 </span>
               )}
               {assignedWorker && (

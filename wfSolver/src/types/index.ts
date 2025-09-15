@@ -4,12 +4,11 @@ export interface WorkflowNode {
   id: string;
   name: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
-  x: number;
-  y: number;
-  connections: string[];
+  position: Position;
+  connections: Edge[];
   description?: string;
-  duration?: number;
-  transferAmount?: number;
+  executionTime?: number;
+  transferTime?: number;
   level?: number; // Add level information for better layout
   assignedWorker?: string; // ID of the worker currently processing this task
 }
@@ -20,6 +19,13 @@ export interface Worker {
   time: number; // Total time this worker has been used (in seconds)
   isActive: boolean; // Whether currently processing a task
   currentTask: string | null; // ID of the task currently being processed
+}
+
+export interface Edge {
+  sourceNodeId: string;
+  targetNodeId: string;
+  transferTime: number;
+  label?: string;
 }
 
 export interface Position {
