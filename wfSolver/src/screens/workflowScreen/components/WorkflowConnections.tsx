@@ -5,9 +5,12 @@ interface WorkflowConnectionsProps {
 }
 
 export function WorkflowConnections({ nodes }: WorkflowConnectionsProps) {
-  const getStrokeColor = (sourceStatus: string, targetStatus: string) => {
-    if (sourceStatus === 'completed' && targetStatus === 'running') return '#3b82f6';
-    if (sourceStatus === 'completed' && targetStatus === 'completed') return '#10b981';
+  const getStrokeColor = (sourceNode: WorkflowNode, targetNode: WorkflowNode) => {
+    // Check if both nodes are on critical path first
+    if (sourceNode.criticalPath && targetNode.criticalPath) return '#ef4444'; // red-500
+
+    if (sourceNode.status === 'completed' && targetNode.status === 'running') return '#3b82f6';
+    if (sourceNode.status === 'completed' && targetNode.status === 'completed') return '#10b981';
     return '#6b7280';
   };
 
@@ -26,7 +29,7 @@ export function WorkflowConnections({ nodes }: WorkflowConnectionsProps) {
           const midX = (startX + endX) / 2;
           const midY = (startY + endY) / 2;
 
-          const strokeColor = getStrokeColor(node.status, target.status);
+          const strokeColor = getStrokeColor(node, target);
 
           return (
             <g key={`${node.id}-${edge.targetNodeId}`}>

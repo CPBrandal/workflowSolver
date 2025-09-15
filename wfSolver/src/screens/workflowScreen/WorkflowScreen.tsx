@@ -49,6 +49,14 @@ function WorkflowScreen() {
         'Critical path sequence:',
         result.orderedCriticalPath.map(n => n.name)
       );
+
+      const orderedCriticalPath = result.orderedCriticalPath;
+      for (const node of orderedCriticalPath) {
+        const criticalNode = nodes.find(n => n.id === node.id);
+        if (criticalNode) {
+          criticalNode.criticalPath = true;
+        }
+      }
     }
   }, [nodes]);
 

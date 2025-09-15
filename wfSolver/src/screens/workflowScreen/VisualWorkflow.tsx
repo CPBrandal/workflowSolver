@@ -43,16 +43,17 @@ function VisualWorkflow({
       'absolute flex flex-col items-center justify-center w-40 h-28 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105';
 
     const statusClasses = {
-      completed: 'border-green-400 bg-green-50 hover:bg-green-100 shadow-green-200',
-      running: 'border-blue-400 bg-blue-50 hover:bg-blue-100 animate-pulse shadow-blue-200',
-      pending: 'border-gray-300 bg-gray-50 hover:bg-gray-100 shadow-gray-200',
-      failed: 'border-red-400 bg-red-50 hover:bg-red-100 shadow-red-200',
+      completed: 'bg-green-50 hover:bg-green-100 shadow-green-200',
+      running: 'bg-blue-100 hover:bg-blue-100 animate-pulse shadow-blue-200',
+      pending: 'bg-gray-50 hover:bg-gray-100 shadow-gray-200',
     }[node.status];
+
+    const borderClasses = node.criticalPath ? 'border-red-500' : 'border-gray-300';
 
     const selectedClasses =
       selectedNodeId === node.id ? 'ring-4 ring-blue-400 ring-opacity-60 shadow-lg' : 'shadow-md';
 
-    return `${baseClasses} ${statusClasses} ${selectedClasses}`;
+    return `${baseClasses} ${statusClasses} ${borderClasses} ${selectedClasses}`;
   };
 
   const handleNodeClick = (node: WorkflowNode): void => {

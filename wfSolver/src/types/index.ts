@@ -3,14 +3,15 @@ import type { Dispatch, SetStateAction } from 'react';
 export interface WorkflowNode {
   id: string;
   name: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed';
   position: Position;
   connections: Edge[];
   description?: string;
   executionTime?: number;
   transferTime?: number;
-  level?: number; // Add level information for better layout
+  level?: number;
   assignedWorker?: string; // ID of the worker currently processing this task
+  criticalPath: boolean;
 }
 
 export interface Worker {
@@ -78,7 +79,6 @@ export interface EventHandlers {
   onWorkflowReset?: () => void;
 }
 
-
 export interface VisualWorkflowProps {
   nodes?: WorkflowNode[];
   selectedNodeId?: string | null;
@@ -86,7 +86,7 @@ export interface VisualWorkflowProps {
   showGrid?: boolean;
   enableSimulation?: boolean;
   workers?: Worker[];
-  onWorkersUpdate?: Dispatch<SetStateAction<Worker[]>>;  // ← Fixed
+  onWorkersUpdate?: Dispatch<SetStateAction<Worker[]>>; // ← Fixed
 }
 export interface LocationState {
   file?: File;

@@ -150,6 +150,7 @@ function generateDAGWorkflow({
               : `Execute task ${nodeId}`,
         executionTime: getDuration(),
         transferTime: getDuration(),
+        criticalPath: false,
       };
 
       nodes.push(node);
