@@ -418,6 +418,7 @@ function ensureOutgoingConnections(
   }
 
   const finalLevel = levels.length - 1;
+  const sinkNode = singleSink && finalLevel >= 0 ? nodesByLevel[finalLevel][0] : null;
 
   // Check each node (except those in the final level) to ensure it has outgoing connections
   for (let level = 0; level < finalLevel; level++) {
@@ -426,45 +427,66 @@ function ensureOutgoingConnections(
     for (const node of nodesInLevel) {
       if (node.connections.length > 0) continue;
 
-      const availableTargets: WorkflowNode[] = [];
-      for (let targetLevel = level + 1; targetLevel < levels.length; targetLevel++) {
-        availableTargets.push(...nodesByLevel[targetLevel]);
+      let availableTargets: WorkflowNode[] = [];
+
+      if (singleSink && sinkNode) {
+        // In single sink mode, determine appropriate targets
+        if (level === finalLevel - 1) {
+          // Second-to-last level should connect to sink
+          availableTargets = [sinkNode];
+        } else {
+          // Earlier levels should connect to intermediate levels, not directly to sink
+          for (let targetLevel = level + 1; targetLevel < finalLevel; targetLevel++) {
+            availableTargets.push(...nodesByLevel[targetLevel]);
+          }
+          // If no intermediate levels, then connect to sink
+          if (availableTargets.length === 0 && sinkNode) {
+            availableTargets = [sinkNode];
+          }
+        }
+      } else {
+        // Non-single sink mode: can connect to any subsequent level
+        for (let targetLevel = level + 1; targetLevel < levels.length; targetLevel++) {
+          availableTargets.push(...nodesByLevel[targetLevel]);
+        }
       }
 
       if (availableTargets.length > 0) {
         const randomTarget = availableTargets[Math.floor(Math.random() * availableTargets.length)];
 
-        const newEdge: Edge = {
+        const newEdge = {
           sourceNodeId: node.id,
           targetNodeId: randomTarget.id,
           transferTime: getTransferTime(),
           label: `${node.name} → ${randomTarget.name}`,
         };
+
         node.connections.push(newEdge);
-        console.log(`Added required outgoing connection: ${node.name} -> ${randomTarget.name}`);
+        console.log(
+          `Added required outgoing connection: ${node.name} -> ${randomTarget.name} (${newEdge.transferTime}s)`
+        );
       }
     }
   }
 
-  // Special handling for single sink: ensure all non-sink nodes in the final level connect to sink
-  if (singleSink && finalLevel > 0) {
+  // Special handling for single sink: ensure all non-sink final level nodes connect to sink
+  if (singleSink && sinkNode && finalLevel > 0) {
     const finalLevelNodes = nodesByLevel[finalLevel];
-    const sinkNode = finalLevelNodes.find(n => n.name === 'Complete');
 
-    if (sinkNode && finalLevelNodes.length > 1) {
-      // If there are other nodes in the final level besides the sink, they should have connections too
-      for (const node of finalLevelNodes) {
-        if (node !== sinkNode && node.connections.length === 0) {
-          // These nodes shouldn't exist in a proper single-sink workflow, but if they do,
-          // we should connect them to the sink
-          const sinkEdge: Edge = {
-            sourceNodeId: node.id,
-            targetNodeId: sinkNode.id,
-            transferTime: getTransferTime(),
-            label: `${node.name} → ${sinkNode.name}`,
-          };
-          node.connections.push(sinkEdge);
-        }
+    for (const node of finalLevelNodes) {
+      if (node !== sinkNode && node.connections.length === 0) {
+        // These nodes shouldn't exist in a proper single-sink workflow, but if they do,
+        // connect them to the sink
+        const sinkEdge = {
+          sourceNodeId: node.id,
+          targetNodeId: sinkNode.id,
+          transferTime: getTransferTime(),
+          label: `${node.name} → ${sinkNode.name}`,
+        };
+        node.connections.push(sinkEdge);
+        console.log(
+          `Connected orphaned final-level node to sink: ${node.name} -> ${sinkNode.name} (${sinkEdge.transferTime}s)`
+        );
       }
     }
   }
