@@ -102,7 +102,7 @@ export function useWorkflowSimulation({
       // For now, we'll process them in order, but you could prioritize by duration, criticality, etc.
       readyNodes.sort((a, b) => {
         // Simple heuristic: shorter tasks first (or could be longest first for different strategy)
-        return (a.duration || 1) - (b.duration || 1);
+        return (a.executionTime || 1) - (b.executionTime || 1);
       });
 
       for (const node of readyNodes) {
@@ -129,7 +129,7 @@ export function useWorkflowSimulation({
         // 1. When dependencies are complete
         // 2. When the worker becomes available
         const actualStartTime = Math.max(earliestStart, workerAvailableTime);
-        const taskDuration = node.duration || 1;
+        const taskDuration = node.executionTime || 1;
         const completionTime = actualStartTime + taskDuration;
         
         // Schedule the task

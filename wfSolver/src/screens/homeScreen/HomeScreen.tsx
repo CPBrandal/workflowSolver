@@ -8,7 +8,7 @@ function HomeScreen() {
     const navigate = useNavigate()
     const [uploadStatus, setUploadStatus] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
-    const [showUploadOption, setShowUploadOption] = useState(false)
+    const [showUploadOption, setShowUploadOption] = useState(false) // Used to hide upload option temporarily
     
     // Generator selection
     const [generatorType, setGeneratorType] = useState<'workflow' | 'preset'>('workflow')
@@ -74,7 +74,6 @@ function HomeScreen() {
             if (generatorType === 'preset') {
                 nodes = createComplexArbitraryWorkflow(nodeCount)
             } else {
-                // Use custom workflow configuration
                 const config: ArbitraryWorkflowConfig = {
                     nodeCount,
                     maxWidth,
@@ -82,10 +81,6 @@ function HomeScreen() {
                     maxEdgeSpan,
                     singleSink,
                     densityFactor: 0.6,
-                    maxDuration: 10,
-                    minDuration: 1,
-                    maxTransferAmount: 100000,
-                    minTransferAmount: 1000
                 }
                 nodes = generateArbitraryWorkflow(config)
             }
@@ -111,12 +106,10 @@ function HomeScreen() {
         }
     }
 
-    // Auto-calculate optimal maxWidth based on nodeCount
     const handleNodeCountChange = (newNodeCount: number) => {
         setNodeCount(newNodeCount)
-        // Auto-adjust maxWidth to a reasonable value
         const optimalWidth = Math.max(2, Math.ceil(Math.sqrt(newNodeCount)))
-        setMaxWidth(Math.min(optimalWidth, 8)) // Cap at 8 for visualization
+        setMaxWidth(Math.min(optimalWidth, 8))
     }
 
     const isSuccess = uploadStatus.includes('Successfully')

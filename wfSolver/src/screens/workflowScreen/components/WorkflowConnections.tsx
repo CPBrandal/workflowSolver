@@ -14,18 +14,18 @@ export function WorkflowConnections({ nodes }: WorkflowConnectionsProps) {
   return (
     <>
       {nodes.map((node) =>
-        node.connections.map((targetId) => {
-          const target = nodes.find((n) => n.id === targetId);
+        node.connections.map((edge) => {
+          const target = nodes.find((n) => n.id === edge.targetNodeId);
           if (!target) return null;
 
-          const startX = (node.x * 180) + 72;
-          const startY = (node.y * 120) + 48;
-          const endX = (target.x * 180) + 72;
-          const endY = (target.y * 120) + 48;
+          const startX = (node.position.x * 180) + 72;
+          const startY = (node.position.y * 120) + 48;
+          const endX = (target.position.x * 180) + 72;
+          const endY = (target.position.y * 120) + 48;
 
           return (
             <line
-              key={`${node.id}-${targetId}`}
+              key={`${node.id}-${edge.targetNodeId}`}
               x1={startX}
               y1={startY}
               x2={endX}

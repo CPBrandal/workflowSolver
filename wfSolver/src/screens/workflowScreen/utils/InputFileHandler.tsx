@@ -95,11 +95,10 @@ export async function InputFileHandler(file: File): Promise<WorkflowNode[]> {
             id: nodeIdCounter.toString(),
             name: capitalizeTaskName(task.name),
             status: 'pending',
-            x: x,
-            y: level,
-            connections: connections,
+            position: { x: x, y: level },
+            connections: [],
             description: generateDescription(task.name, task.template, template, workflow.metadata),
-            duration: templateDurations.get(task.template) || 1,
+            executionTime: templateDurations.get(task.template) || 1,
             level: level
         };
         
@@ -159,7 +158,7 @@ function validateAndFixOutgoingConnections(nodes: WorkflowNode[]): void {
   let maxLevel = 0;
   
   for (const node of nodes) {
-    const level = node.level || node.y;
+    const level = node.level || node.position.y;
     if (!nodesByLevel.has(level)) {
       nodesByLevel.set(level, []);
     }
@@ -191,7 +190,7 @@ function validateAndFixOutgoingConnections(nodes: WorkflowNode[]): void {
         const preferredTargets = nextLevelNodes.length > 0 ? nextLevelNodes : availableTargets;
         
         const randomTarget = preferredTargets[Math.floor(Math.random() * preferredTargets.length)];
-        node.connections.push(randomTarget.id);
+        node.connections.push( { sourceNodeId: node.id, targetNodeId: randomTarget.id, transferTime: 1, label: 'Merge Results → Complete' }); // TODO fix transfer time and label
         console.log(`Fixed uploaded workflow: Added required outgoing connection: ${node.name} -> ${randomTarget.name}`);
       } else {
         console.warn(`Could not find target for node ${node.name} at level ${level} in uploaded workflow`);
@@ -206,9 +205,9 @@ function validateAndFixOutgoingConnections(nodes: WorkflowNode[]): void {
   for (const node of finalLevelNodes) {
     // Remove any connections from final level nodes to other final level nodes
     const originalConnectionCount = node.connections.length;
-    node.connections = node.connections.filter(targetId => {
-      const targetNode = nodes.find(n => n.id === targetId);
-      return targetNode && (targetNode.level || targetNode.y) !== maxLevel;
+    node.connections = node.connections.filter(edge => {
+      const targetNode = nodes.find(n => n.id === edge.targetNodeId);
+      return targetNode && (targetNode.level || targetNode.position.y) !== maxLevel;
     });
     
     if (node.connections.length !== originalConnectionCount) {

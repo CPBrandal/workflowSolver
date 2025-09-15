@@ -49,36 +49,37 @@ export class CriticalPathAnalyzer {
   /**
    * Performs topological sort using DFS
    */
-  private topologicalSort(): string[] {
-    const visited = new Set<string>();
-    const stack: string[] = [];
+private topologicalSort(): string[] {
+  const visited = new Set<string>();
+  const stack: string[] = [];
 
-    const dfsVisit = (nodeId: string) => {
-      visited.add(nodeId);
-      
-      // Visit all successors (outgoing connections)
-      const node = this.nodes.find(n => n.id === nodeId);
-      if (node) {
-        for (const successorId of node.connections) {
-          if (!visited.has(successorId)) {
-            dfsVisit(successorId);
-          }
+  const dfsVisit = (nodeId: string) => {
+    visited.add(nodeId);
+    
+    // Visit all successors (outgoing connections)
+    const node = this.nodes.find(n => n.id === nodeId);
+    if (node) {
+      for (const edge of node.connections) {
+        const successorId = edge.targetNodeId;
+        if (!visited.has(successorId)) {
+          dfsVisit(successorId);
         }
       }
-      
-      stack.push(nodeId);
-    };
-
-    // Visit all nodes
-    for (const node of this.nodes) {
-      if (!visited.has(node.id)) {
-        dfsVisit(node.id);
-      }
     }
+    
+    stack.push(nodeId);
+  };
 
-    // Return in reverse order (topological order)
-    return stack.reverse();
+  // Visit all nodes
+  for (const node of this.nodes) {
+    if (!visited.has(node.id)) {
+      dfsVisit(node.id);
+    }
   }
+
+  // Return in reverse order (topological order)
+  return stack.reverse();
+}
 
   /**
    * Forward pass: Calculate earliest start and finish times
@@ -100,7 +101,7 @@ export class CriticalPathAnalyzer {
       }
 
       node.earliestStart = maxPredecessorFinish;
-      node.earliestFinish = node.earliestStart + (node.duration || 1);
+      node.earliestFinish = node.earliestStart + (node.executionTime || 1);
     }
   }
 
@@ -130,15 +131,15 @@ export class CriticalPathAnalyzer {
       let minSuccessorStart = node.latestFinish;
 
       // Check all successors
-      for (const successorId of node.connections) {
-        const successor = this.nodes.find(n => n.id === successorId);
+      for (const edge of node.connections) {
+        const successor = this.nodes.find(n => n.id === edge.targetNodeId);
         if (successor) {
           minSuccessorStart = Math.min(minSuccessorStart, successor.latestStart);
         }
       }
 
       node.latestFinish = minSuccessorStart;
-      node.latestStart = node.latestFinish - (node.duration || 1);
+      node.latestStart = node.latestFinish - (node.executionTime || 1);
     }
   }
 
@@ -206,8 +207,8 @@ export class CriticalPathAnalyzer {
     path.push(current);
 
     // Find next critical node in the sequence
-    for (const successorId of current.connections) {
-      const successor = criticalNodes.find(node => node.id === successorId);
+    for (const edge of current.connections) {
+      const successor = criticalNodes.find(node => node.id === edge.targetNodeId);
       if (successor && !visited.has(successor.id)) {
         // Verify this is a critical connection (timing consistency)
         const expectedStart = current.earliestFinish;
