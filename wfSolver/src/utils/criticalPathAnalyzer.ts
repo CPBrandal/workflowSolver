@@ -42,44 +42,44 @@ export class CriticalPathAnalyzer {
       latestStart: 0,
       latestFinish: 0,
       slack: 0,
-      isOnCriticalPath: false
+      isOnCriticalPath: false,
     }));
   }
 
   /**
    * Performs topological sort using DFS
    */
-private topologicalSort(): string[] {
-  const visited = new Set<string>();
-  const stack: string[] = [];
+  private topologicalSort(): string[] {
+    const visited = new Set<string>();
+    const stack: string[] = [];
 
-  const dfsVisit = (nodeId: string) => {
-    visited.add(nodeId);
-    
-    // Visit all successors (outgoing connections)
-    const node = this.nodes.find(n => n.id === nodeId);
-    if (node) {
-      for (const edge of node.connections) {
-        const successorId = edge.targetNodeId;
-        if (!visited.has(successorId)) {
-          dfsVisit(successorId);
+    const dfsVisit = (nodeId: string) => {
+      visited.add(nodeId);
+
+      // Visit all successors (outgoing connections)
+      const node = this.nodes.find(n => n.id === nodeId);
+      if (node) {
+        for (const edge of node.connections) {
+          const successorId = edge.targetNodeId;
+          if (!visited.has(successorId)) {
+            dfsVisit(successorId);
+          }
         }
       }
-    }
-    
-    stack.push(nodeId);
-  };
 
-  // Visit all nodes
-  for (const node of this.nodes) {
-    if (!visited.has(node.id)) {
-      dfsVisit(node.id);
+      stack.push(nodeId);
+    };
+
+    // Visit all nodes
+    for (const node of this.nodes) {
+      if (!visited.has(node.id)) {
+        dfsVisit(node.id);
+      }
     }
+
+    // Return in reverse order (topological order)
+    return stack.reverse();
   }
-
-  // Return in reverse order (topological order)
-  return stack.reverse();
-}
 
   /**
    * Forward pass: Calculate earliest start and finish times
@@ -91,7 +91,7 @@ private topologicalSort(): string[] {
 
       // Get all predecessors (dependencies)
       const predecessorIds = getNodeDependencies(nodeId, this.workflowNodes);
-      
+
       let maxPredecessorFinish = 0;
       for (const predId of predecessorIds) {
         const predecessor = this.nodes.find(n => n.id === predId);
@@ -111,7 +111,7 @@ private topologicalSort(): string[] {
   private backwardPass(sortedNodeIds: string[]): void {
     // Find maximum earliest finish time
     const maxFinish = Math.max(...this.nodes.map(n => n.earliestFinish));
-    
+
     // Initialize all latest finish times to the project completion time
     for (const node of this.nodes) {
       // For nodes with no successors, set latest finish to earliest finish
@@ -149,7 +149,7 @@ private topologicalSort(): string[] {
   private calculateSlackAndCriticalPath(): void {
     for (const node of this.nodes) {
       node.slack = node.latestStart - node.earliestStart;
-      
+
       // Mark as critical if slack is near zero (accounting for floating point precision)
       node.isOnCriticalPath = Math.abs(node.slack) < 0.001;
     }
@@ -175,14 +175,12 @@ private topologicalSort(): string[] {
     // Find the starting node (no critical predecessors)
     const startNode = criticalNodes.find(node => {
       const predecessors = getNodeDependencies(node.id, this.workflowNodes);
-      return !predecessors.some(predId => 
-        criticalNodes.some(critNode => critNode.id === predId)
-      );
+      return !predecessors.some(predId => criticalNodes.some(critNode => critNode.id === predId));
     });
 
     if (!startNode) {
       // If no clear start, use the one with earliest start time
-      const earliestNode = criticalNodes.reduce((earliest, current) => 
+      const earliestNode = criticalNodes.reduce((earliest, current) =>
         current.earliestStart < earliest.earliestStart ? current : earliest
       );
       return this.buildOrderedPath(earliestNode, criticalNodes, visited);
@@ -195,14 +193,14 @@ private topologicalSort(): string[] {
    * Recursively build the ordered critical path
    */
   private buildOrderedPath(
-    current: CriticalPathNode, 
-    criticalNodes: CriticalPathNode[], 
+    current: CriticalPathNode,
+    criticalNodes: CriticalPathNode[],
     visited: Set<string>
   ): CriticalPathNode[] {
     const path: CriticalPathNode[] = [];
-    
+
     if (visited.has(current.id)) return path;
-    
+
     visited.add(current.id);
     path.push(current);
 
@@ -227,32 +225,33 @@ private topologicalSort(): string[] {
   public analyze(): CriticalPathResult {
     // 1. Topological sort
     const sortedNodeIds = this.topologicalSort();
-    
+
     // 2. Forward pass
     this.forwardPass(sortedNodeIds);
-    
+
     // 3. Backward pass
     this.backwardPass(sortedNodeIds);
-    
+
     // 4. Calculate slack and identify critical path
     this.calculateSlackAndCriticalPath();
-    
+
     // 5. Get results
     const criticalPath = this.getCriticalPathNodes();
     const orderedCriticalPath = this.getOrderedCriticalPath();
     const minimumProjectDuration = Math.max(...this.nodes.map(n => n.earliestFinish));
-    
+
     // Calculate critical path duration
-    const criticalPathDuration = orderedCriticalPath.length > 0
-      ? orderedCriticalPath[orderedCriticalPath.length - 1].earliestFinish
-      : 0;
+    const criticalPathDuration =
+      orderedCriticalPath.length > 0
+        ? orderedCriticalPath[orderedCriticalPath.length - 1].earliestFinish
+        : 0;
 
     return {
       nodes: this.nodes,
       criticalPath,
       orderedCriticalPath,
       minimumProjectDuration,
-      criticalPathDuration
+      criticalPathDuration,
     };
   }
 
@@ -262,38 +261,44 @@ private topologicalSort(): string[] {
   public printDetailedResults(): void {
     const result = this.analyze();
     const sortedNodeIds = this.topologicalSort();
-    
+
     console.log('=== Critical Path Analysis Results ===\n');
-    
+
     // Forward pass
     console.log('Forward pass:');
     for (const nodeId of sortedNodeIds) {
       const node = result.nodes.find(n => n.id === nodeId);
       if (node) {
-        console.log(`${node.name} (${nodeId}): EST = ${node.earliestStart.toFixed(1)}, EFT = ${node.earliestFinish.toFixed(1)}`);
+        console.log(
+          `${node.name} (${nodeId}): EST = ${node.earliestStart.toFixed(1)}, EFT = ${node.earliestFinish.toFixed(1)}`
+        );
       }
     }
-    
+
     // Backward pass
     console.log('\nBackward pass:');
     for (let i = sortedNodeIds.length - 1; i >= 0; i--) {
       const nodeId = sortedNodeIds[i];
       const node = result.nodes.find(n => n.id === nodeId);
       if (node) {
-        console.log(`${node.name} (${nodeId}): LFT = ${node.latestFinish.toFixed(1)}, LST = ${node.latestStart.toFixed(1)}`);
+        console.log(
+          `${node.name} (${nodeId}): LFT = ${node.latestFinish.toFixed(1)}, LST = ${node.latestStart.toFixed(1)}`
+        );
       }
     }
-    
+
     // Slack calculations
     console.log('\nSlack calculations:');
     for (const nodeId of sortedNodeIds) {
       const node = result.nodes.find(n => n.id === nodeId);
       if (node) {
         const criticalStatus = node.isOnCriticalPath ? '(Critical)' : '(Not Critical)';
-        console.log(`${node.name} (${nodeId}): Slack = ${node.latestStart.toFixed(1)} - ${node.earliestStart.toFixed(1)} = ${node.slack.toFixed(1)} ${criticalStatus}`);
+        console.log(
+          `${node.name} (${nodeId}): Slack = ${node.latestStart.toFixed(1)} - ${node.earliestStart.toFixed(1)} = ${node.slack.toFixed(1)} ${criticalStatus}`
+        );
       }
     }
-    
+
     // Critical path
     if (result.orderedCriticalPath.length > 0) {
       const pathNames = result.orderedCriticalPath.map(node => node.name).join(' → ');
