@@ -2,17 +2,17 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ArbitraryWorkflowConfig } from '../../utils/generateArbitraryWorkflow'
 import { generateArbitraryWorkflow, createComplexArbitraryWorkflow } from '../../utils/generateArbitraryWorkflow'
-import { generateDAGGENWorkflow, createDAGGENConfig, type DAGGENConfig } from '../../utils/generateDaggenWorkflow'
 import type { LocationState } from '../../types'
 
 function HomeScreen() {
     const navigate = useNavigate()
     const [uploadStatus, setUploadStatus] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [showUploadOption, setShowUploadOption] = useState(false)
     
     // Generator selection
-    const [generatorType, setGeneratorType] = useState<'workflow' | 'daggen' | 'preset'>('workflow')
-    const [presetType, setPresetType] = useState<'complex' | 'daggen-default'>('complex')
+    const [generatorType, setGeneratorType] = useState<'workflow' | 'preset'>('workflow')
+    const [presetType, setPresetType] = useState<'complex'>('complex')
     
     // Common parameters
     const [nodeCount, setNodeCount] = useState<number>(10)
@@ -23,12 +23,6 @@ function HomeScreen() {
     const [edgeProbability, setEdgeProbability] = useState<number>(0.4)
     const [maxEdgeSpan, setMaxEdgeSpan] = useState<number>(3)
     const [singleSink, setSingleSink] = useState<boolean>(true)
-    
-    // DAGGEN generator parameters
-    const [fat, setFat] = useState<number>(0.8)
-    const [regular, setRegular] = useState<number>(0.3)
-    const [density, setDensity] = useState<number>(0.6)
-    const [jump, setJump] = useState<number>(2)
     
     const [showAdvanced, setShowAdvanced] = useState<boolean>(false)
 
@@ -72,43 +66,14 @@ function HomeScreen() {
             }
         }
 
-        // Validation for DAGGEN generator
-        if (generatorType === 'daggen') {
-            if (fat < 0.1 || fat > 2) {
-                alert('Fat parameter must be between 0.1 and 2')
-                return
-            }
-
-            if (regular < 0 || regular > 1) {
-                alert('Regular parameter must be between 0 and 1')
-                return
-            }
-
-            if (density < 0 || density > 1) {
-                alert('Density parameter must be between 0 and 1')
-                return
-            }
-
-            if (jump < 1 || jump > 5) {
-                alert('Jump parameter must be between 1 and 5')
-                return
-            }
-        }
-
         setGeneratingWorkflow(true)
 
         try {
             let nodes;
 
             if (generatorType === 'preset') {
-                // Use preset configurations
-                if (presetType === 'complex') {
-                    nodes = createComplexArbitraryWorkflow(nodeCount)
-                } else if (presetType === 'daggen-default') {
-                    const daggenConfig = createDAGGENConfig(nodeCount)
-                    nodes = generateDAGGENWorkflow(daggenConfig)
-                }
-            } else if (generatorType === 'workflow') {
+                nodes = createComplexArbitraryWorkflow(nodeCount)
+            } else {
                 // Use custom workflow configuration
                 const config: ArbitraryWorkflowConfig = {
                     nodeCount,
@@ -123,22 +88,7 @@ function HomeScreen() {
                     minTransferAmount: 1000
                 }
                 nodes = generateArbitraryWorkflow(config)
-            } else if (generatorType === 'daggen') {
-                // Use custom DAGGEN configuration
-                const daggenConfig: DAGGENConfig = {
-                    nodeCount,
-                    fat,
-                    regular,
-                    density,
-                    jump,
-                    minDuration: 1,
-                    maxDuration: 10,
-                    minTransferAmount: 1000,
-                    maxTransferAmount: 100000
-                }
-                nodes = generateDAGGENWorkflow(daggenConfig)
             }
-
             if (!nodes) {
                 throw new Error('Failed to generate nodes')
             }
@@ -176,7 +126,8 @@ function HomeScreen() {
             <h1 className="text-4xl font-bold text-center mb-8">Workflow Solver</h1>
             
             {/* Upload Workflow Section */}
-            <div className="bg-white rounded-lg shadow-lg p-8">
+            {showUploadOption && (
+                 <div className="bg-white rounded-lg shadow-lg p-8">
                 <h2 className="text-2xl font-semibold mb-4 text-center">Upload Your Workflow</h2>
                 <p className="text-gray-700 mb-6 text-center">
                     Select a workflow configuration file (YAML).
@@ -213,6 +164,9 @@ function HomeScreen() {
                     Supported formats: YAML - Max file size: 10MB
                 </p>
             </div>
+            )
+        }
+           
 
             {/* Create Arbitrary Workflow Section */}
             <div className="bg-white rounded-lg shadow-lg p-8">
@@ -233,7 +187,7 @@ function HomeScreen() {
                                     name="generatorType"
                                     value="workflow"
                                     checked={generatorType === 'workflow'}
-                                    onChange={(e) => setGeneratorType(e.target.value as 'workflow' | 'daggen' | 'preset')}
+                                    onChange={(e) => setGeneratorType(e.target.value as 'workflow' | 'preset')}
                                     className="text-blue-600 focus:ring-blue-500"
                                 />
                                 <div>
@@ -246,24 +200,9 @@ function HomeScreen() {
                                 <input
                                     type="radio"
                                     name="generatorType"
-                                    value="daggen"
-                                    checked={generatorType === 'daggen'}
-                                    onChange={(e) => setGeneratorType(e.target.value as 'workflow' | 'daggen' | 'preset')}
-                                    className="text-blue-600 focus:ring-blue-500"
-                                />
-                                <div>
-                                    <span className="text-sm font-medium text-gray-700">DAGGEN Research</span>
-                                    <p className="text-xs text-gray-500">Academic standard, more diverse structures</p>
-                                </div>
-                            </label>
-                            
-                            <label className="flex items-center space-x-3">
-                                <input
-                                    type="radio"
-                                    name="generatorType"
                                     value="preset"
                                     checked={generatorType === 'preset'}
-                                    onChange={(e) => setGeneratorType(e.target.value as 'workflow' | 'daggen' | 'preset')}
+                                    onChange={(e) => setGeneratorType(e.target.value as 'workflow' | 'preset')}
                                     className="text-blue-600 focus:ring-blue-500"
                                 />
                                 <div>
@@ -283,11 +222,10 @@ function HomeScreen() {
                             <select
                                 id="presetType"
                                 value={presetType}
-                                onChange={(e) => setPresetType(e.target.value as 'complex' | 'daggen-default')}
+                                onChange={(e) => setPresetType(e.target.value as 'complex')}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
                                 <option value="complex">Complex Workflow (Gamma/Beta distributions)</option>
-                                <option value="daggen-default">DAGGEN Default Settings</option>
                             </select>
                         </div>
                     )}
@@ -330,81 +268,6 @@ function HomeScreen() {
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Maximum number of tasks that can run in parallel</p>
-                            </div>
-                        )}
-
-                        {/* DAGGEN-specific parameters */}
-                        {generatorType === 'daggen' && (
-                            <div className="space-y-4">
-                                <div>
-                                    <label htmlFor="fat" className="block text-sm font-medium text-gray-700 mb-1">
-                                        Fat Parameter: {fat.toFixed(1)}
-                                    </label>
-                                    <input
-                                        id="fat"
-                                        type="range"
-                                        min="0.1"
-                                        max="2.0"
-                                        step="0.1"
-                                        value={fat}
-                                        onChange={(e) => setFat(parseFloat(e.target.value))}
-                                        className="w-full"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Controls tasks per level (fat * log(n))</p>
-                                </div>
-
-                                <div>
-                                    <label htmlFor="regular" className="block text-sm font-medium text-gray-700 mb-1">
-                                        Regularity: {(regular * 100).toFixed(0)}%
-                                    </label>
-                                    <input
-                                        id="regular"
-                                        type="range"
-                                        min="0.0"
-                                        max="1.0"
-                                        step="0.1"
-                                        value={regular}
-                                        onChange={(e) => setRegular(parseFloat(e.target.value))}
-                                        className="w-full"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">How regular the level sizes are (higher = more predictable)</p>
-                                </div>
-
-                                <div>
-                                    <label htmlFor="density" className="block text-sm font-medium text-gray-700 mb-1">
-                                        Density: {(density * 100).toFixed(0)}%
-                                    </label>
-                                    <input
-                                        id="density"
-                                        type="range"
-                                        min="0.1"
-                                        max="1.0"
-                                        step="0.1"
-                                        value={density}
-                                        onChange={(e) => setDensity(parseFloat(e.target.value))}
-                                        className="w-full"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Controls dependency density (higher = more connections)</p>
-                                </div>
-
-                                <div>
-                                    <label htmlFor="jump" className="block text-sm font-medium text-gray-700 mb-1">
-                                        Jump Distance
-                                    </label>
-                                    <select
-                                        id="jump"
-                                        value={jump}
-                                        onChange={(e) => setJump(parseInt(e.target.value))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    >
-                                        <option value={1}>1 - Only adjacent levels</option>
-                                        <option value={2}>2 - Skip one level</option>
-                                        <option value={3}>3 - Skip two levels</option>
-                                        <option value={4}>4 - Skip three levels</option>
-                                        <option value={5}>5 - Skip four levels</option>
-                                    </select>
-                                    <p className="text-xs text-gray-500 mt-1">Maximum levels a dependency can span</p>
-                                </div>
                             </div>
                         )}
                     </div>
@@ -477,15 +340,10 @@ function HomeScreen() {
                     {/* Generation Info */}
                     <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded-md">
                         <p className="font-medium mb-2">
-                            {generatorType === 'workflow' ? '🔧 Workflow-Optimized Generation' : 
-                             generatorType === 'daggen' ? '🔬 DAGGEN Research Standard' : 
-                             '⚡ Preset Configuration'}
+                            {generatorType === 'workflow' ? '🔧 Workflow-Optimized Generation' : '⚡ Preset Configuration'}
                         </p>
                         {generatorType === 'workflow' && (
                             <p>Creates workflow-friendly structures with predictable layouts, guaranteed single endpoints, and visual optimization.</p>
-                        )}
-                        {generatorType === 'daggen' && (
-                            <p>Uses the academic DAGGEN approach for diverse DAG structures following research standards with configurable parameters.</p>
                         )}
                         {generatorType === 'preset' && (
                             <p>Uses pre-configured settings optimized for common workflow patterns and research scenarios.</p>
@@ -503,9 +361,7 @@ function HomeScreen() {
                         }`}
                     >
                         {generatingWorkflow ? 'Generating Workflow...' : 
-                         `Generate ${nodeCount}-Task ${generatorType === 'workflow' ? 'Workflow' : 
-                                                      generatorType === 'daggen' ? 'DAG' : 
-                                                      'Preset'}`}
+                         `Generate ${nodeCount}-Task ${generatorType === 'workflow' ? 'Workflow' : 'Preset'}`}
                     </button>
                 </div>
             </div>
@@ -514,14 +370,6 @@ function HomeScreen() {
             <p className="text-center text-gray-600">
                 Upload workflow files to get scheduling optimization suggestions or generate arbitrary workflows for research and testing
             </p>
-            
-            <div className="flex justify-center space-x-4">
-                <button
-                    onClick={() => navigate('/test')}
-                    className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">
-                    Test Default Workflow
-                </button>
-            </div>
         </div>
     )
 }

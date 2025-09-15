@@ -28,7 +28,9 @@ export function NodeDetails ({selectedNode}: NodeDetailsProps) {
         {selectedNode.description && (
           <p><span className="font-medium">Description:</span> {selectedNode.description}</p>
         )}
-        <p><span className="font-medium">Connections:</span> {selectedNode.connections.length} outgoing</p>
+        <p><span className="font-medium">Connections:</span> {selectedNode.connections.length} outgoing</p> 
+        <p><span className="font-medium">Assigned worker:</span> {selectedNode.assignedWorker}</p>
+        <p><span className="font-medium">Node level:</span> {selectedNode.level}</p>
       </div>
     </div>
   )

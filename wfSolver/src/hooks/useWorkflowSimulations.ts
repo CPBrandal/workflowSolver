@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react';
 import type { WorkflowNode, EventHandlers, Worker } from '../types';
 import { getNodeDependencies } from '../utils/getNodeDependencies';
 
@@ -6,7 +6,14 @@ interface UseWorkflowSimulationProps {
   initialNodes: WorkflowNode[];
   eventHandlers?: EventHandlers;
   workers?: Worker[];
-  onWorkersUpdate?: (workers: Worker[]) => void;
+  onWorkersUpdate?: Dispatch<SetStateAction<Worker[]>>;
+}
+
+interface ScheduledTask {
+  nodeId: string;
+  startTime: number;
+  endTime: number;
+  workerId: string;
 }
 
 export function useWorkflowSimulation({ 
@@ -19,25 +26,11 @@ export function useWorkflowSimulation({
   const [isRunning, setIsRunning] = useState(false);
   const [runtime, setRuntime] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [workerStack, setWorkerStack] = useState<Worker[]>([]);
 
   // Update nodes when initial nodes change
   useEffect(() => {
     setNodes(initialNodes);
   }, [initialNodes]);
-
-  // Initialize worker stack when workers change
-  useEffect(() => {
-    if (workers.length > 0) {
-      // Create a copy of workers for the stack (reverse for LIFO behavior)
-      const availableWorkers = workers
-        .filter(w => !w.isActive)
-        .map(w => ({ ...w }))
-        .reverse();
-      setWorkerStack(availableWorkers);
-      console.log(`Initialized worker stack with ${availableWorkers.length} available workers`);
-    }
-  }, [workers]);
 
   // Runtime timer
   useEffect(() => {
@@ -69,35 +62,109 @@ export function useWorkflowSimulation({
     
     // Reset all workers
     if (workers.length > 0 && onWorkersUpdate) {
-      const resetWorkers = workers.map(w => ({
+      onWorkersUpdate(prevWorkers => prevWorkers.map(w => ({
         ...w,
         time: 0,
         isActive: false,
         currentTask: null
-      }));
-      onWorkersUpdate(resetWorkers);
-      setWorkerStack(resetWorkers.slice().reverse());
+      })));
     }
     
     eventHandlers?.onWorkflowReset?.();
   }, [eventHandlers, workers, onWorkersUpdate]);
 
-  const popWorker = useCallback((): Worker | null => {
-    if (workerStack.length === 0) {
-      console.warn('No available workers in stack!');
-      return null;
+  // Resource-constrained scheduling algorithm
+  const scheduleWithWorkerConstraints = useCallback((nodes: WorkflowNode[], workers: Worker[]) => {
+    const scheduledTasks: ScheduledTask[] = [];
+    const completionTimes: { [nodeId: string]: number } = {};
+    const processedNodes = new Set<string>();
+    const nodesToProcess = [...nodes];
+    
+    // Track when each worker becomes available
+    const workerAvailability: { [workerId: string]: number } = {};
+    workers.forEach(worker => {
+      workerAvailability[worker.id] = 0; // All workers available at time 0
+    });
+
+    while (nodesToProcess.length > 0) {
+      // Find nodes that have all dependencies completed
+      const readyNodes = nodesToProcess.filter(node => {
+        const dependencies = getNodeDependencies(node.id, nodes);
+        return dependencies.every(depId => processedNodes.has(depId));
+      });
+      
+      if (readyNodes.length === 0) {
+        console.warn('No ready nodes found, but nodes remain unprocessed. Possible circular dependency.');
+        break;
+      }
+
+      // Sort ready nodes by priority (could be enhanced with different strategies)
+      // For now, we'll process them in order, but you could prioritize by duration, criticality, etc.
+      readyNodes.sort((a, b) => {
+        // Simple heuristic: shorter tasks first (or could be longest first for different strategy)
+        return (a.duration || 1) - (b.duration || 1);
+      });
+
+      for (const node of readyNodes) {
+        const dependencies = getNodeDependencies(node.id, nodes);
+        
+        // Calculate earliest start time based on dependencies
+        let earliestStart = 0;
+        if (dependencies.length > 0) {
+          earliestStart = Math.max(...dependencies.map(depId => completionTimes[depId] || 0));
+        }
+        
+        // Find the earliest available worker
+        const availableWorkers = Object.entries(workerAvailability)
+          .sort(([, timeA], [, timeB]) => timeA - timeB); // Sort by availability time
+        
+        if (availableWorkers.length === 0) {
+          console.error('No workers available!');
+          continue;
+        }
+        
+        const [workerId, workerAvailableTime] = availableWorkers[0];
+        
+        // The actual start time is the maximum of:
+        // 1. When dependencies are complete
+        // 2. When the worker becomes available
+        const actualStartTime = Math.max(earliestStart, workerAvailableTime);
+        const taskDuration = node.duration || 1;
+        const completionTime = actualStartTime + taskDuration;
+        
+        // Schedule the task
+        const scheduledTask: ScheduledTask = {
+          nodeId: node.id,
+          startTime: actualStartTime,
+          endTime: completionTime,
+          workerId: workerId
+        };
+        
+        scheduledTasks.push(scheduledTask);
+        completionTimes[node.id] = completionTime;
+        processedNodes.add(node.id);
+        
+        // Update worker availability
+        workerAvailability[workerId] = completionTime;
+        
+        // Remove from processing queue
+        const index = nodesToProcess.findIndex(n => n.id === node.id);
+        if (index > -1) {
+          nodesToProcess.splice(index, 1);
+        }
+        
+        console.log(`Scheduled task ${node.name} (${node.id}) on worker ${workerId}: ${actualStartTime}s - ${completionTime}s`);
+      }
     }
     
-    const worker = workerStack[workerStack.length - 1];
-    setWorkerStack(prev => prev.slice(0, -1));
-    console.log(`Popped worker ${worker.id} from stack. Remaining: ${workerStack.length - 1}`);
-    return worker;
-  }, [workerStack]);
-
-  const pushWorker = useCallback((worker: Worker) => {
-    setWorkerStack(prev => [...prev, worker]);
-    console.log(`Pushed worker ${worker.id} back to stack. Available: ${workerStack.length + 1}`);
-  }, [workerStack.length]);
+    console.log('=== Final Schedule ===');
+    scheduledTasks.forEach(task => {
+      const node = nodes.find(n => n.id === task.nodeId);
+      console.log(`${node?.name}: ${task.startTime}s - ${task.endTime}s (Worker: ${task.workerId})`);
+    });
+    
+    return scheduledTasks;
+  }, []);
 
   const simulateWorkflow = useCallback(() => {
     resetWorkflow();
@@ -107,85 +174,46 @@ export function useWorkflowSimulation({
     
     eventHandlers?.onWorkflowStart?.();
 
-    const completionTimes: { [nodeId: string]: number } = {};
     const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
-    const taskWorkerMap: { [nodeId: string]: Worker } = {};
     
-    const startNode = (nodeId: string, startTime: number) => {
+    // Generate the schedule using resource-constrained scheduling
+    const schedule = scheduleWithWorkerConstraints(nodes, workers);
+    
+    const startNode = (scheduledTask: ScheduledTask) => {
       const timeout = setTimeout(() => {
-        // Assign a worker to this task
-        const assignedWorker = popWorker();
-        if (!assignedWorker) {
-          console.error(`No available worker for task ${nodeId}`);
-          return;
-        }
-
         // Update task with worker assignment
         setNodes(prev => prev.map(node =>
-          node.id === nodeId ? { 
+          node.id === scheduledTask.nodeId ? { 
             ...node, 
             status: 'running',
-            assignedWorker: assignedWorker.id
+            assignedWorker: scheduledTask.workerId
           } : node
         ));
 
-        // Update worker state
-        const updatedWorker = {
-          ...assignedWorker,
-          isActive: true,
-          currentTask: nodeId
-        };
-        taskWorkerMap[nodeId] = updatedWorker;
-
-        // Update workers in parent component - FIXED VERSION
-        if (onWorkersUpdate && workers.length > 0) {
-          const updatedWorkers = workers.map(w => 
-            w.id === assignedWorker.id ? updatedWorker : w
-          );
-          onWorkersUpdate(updatedWorkers);
+        // Update workers state immediately
+        if (onWorkersUpdate) {
+          onWorkersUpdate(prevWorkers => {
+            return prevWorkers.map(w => 
+              w.id === scheduledTask.workerId ? {
+                ...w,
+                isActive: true,
+                currentTask: scheduledTask.nodeId
+              } : w
+            );
+          });
         }
-
-        console.log(`Started task ${nodeId} with worker ${assignedWorker.id} at time ${startTime}s`);
-      }, startTime * 1000);
+        
+        console.log(`Started task ${scheduledTask.nodeId} with worker ${scheduledTask.workerId} - Worker is now active`);
+      }, scheduledTask.startTime * 1000);
       activeTimeouts.push(timeout);
     };
 
-    const completeNode = (nodeId: string, completionTime: number) => {
-      completionTimes[nodeId] = completionTime;
-      
+    const completeNode = (scheduledTask: ScheduledTask) => {
       const timeout = setTimeout(() => {
-        // Get the worker that was assigned to this task
-        const assignedWorker = taskWorkerMap[nodeId];
-        if (assignedWorker) {
-          const nodeStartTime = Object.keys(completionTimes).find(id => id === nodeId);
-          const taskStartTime = nodeStartTime ? completionTimes[nodeStartTime] - (assignedWorker.currentTask ? 1 : 0) : 0;
-          const taskDuration = completionTime - taskStartTime;
-          
-          // Update worker with accumulated time and make available
-          const updatedWorker = {
-            ...assignedWorker,
-            time: assignedWorker.time + taskDuration,
-            isActive: false,
-            currentTask: null
-          };
-
-          // Push worker back to stack
-          pushWorker(updatedWorker);
-
-          // Update workers in parent component - FIXED VERSION
-          if (onWorkersUpdate && workers.length > 0) {
-            const updatedWorkers = workers.map(w => 
-              w.id === assignedWorker.id ? updatedWorker : w
-            );
-            onWorkersUpdate(updatedWorkers);
-          }
-
-          console.log(`Completed task ${nodeId}, worker ${assignedWorker.id} worked for ${taskDuration}s (total: ${updatedWorker.time}s)`);
-        }
-
+        // Update node status
         setNodes(prev => {
           const updatedNodes = prev.map(node =>
-            node.id === nodeId ? { 
+            node.id === scheduledTask.nodeId ? { 
               ...node, 
               status: 'completed' as WorkflowNode['status'],
               assignedWorker: undefined
@@ -200,53 +228,38 @@ export function useWorkflowSimulation({
           
           return updatedNodes;
         });
-      }, completionTime * 1000);
+
+        // Update workers state immediately
+        const taskDuration = scheduledTask.endTime - scheduledTask.startTime;
+        if (onWorkersUpdate) {
+          onWorkersUpdate(prevWorkers => {
+            return prevWorkers.map(w => 
+              w.id === scheduledTask.workerId ? {
+                ...w,
+                time: w.time + taskDuration,
+                isActive: false,
+                currentTask: null
+              } : w
+            );
+          });
+        }
+        
+        console.log(`Completed task ${scheduledTask.nodeId}, worker ${scheduledTask.workerId} worked for ${taskDuration}s - Worker is now inactive`);
+      }, scheduledTask.endTime * 1000);
       activeTimeouts.push(timeout);
     };
 
-    // Calculate timing for all nodes using greedy algorithm
-    const processedNodes = new Set<string>();
-    const nodesToProcess = [...nodes];
-    
-    let currentTime = 0;
-    
-    while (nodesToProcess.length > 0) {
-      const readyNodes = nodesToProcess.filter(node => {
-        const dependencies = getNodeDependencies(node.id, nodes);
-        return dependencies.every(depId => processedNodes.has(depId));
-      });
-      
-      if (readyNodes.length === 0) break;
-      
-      readyNodes.forEach(node => {
-        const dependencies = getNodeDependencies(node.id, nodes);
-        
-        let earliestStart = currentTime;
-        if (dependencies.length > 0) {
-          earliestStart = Math.max(currentTime, Math.max(...dependencies.map(depId => completionTimes[depId] || 0)));
-        }
-        
-        const nodeStartTime = earliestStart;
-        const nodeCompletionTime = earliestStart + (node.duration || 1);
-        
-        startNode(node.id, nodeStartTime);
-        completeNode(node.id, nodeCompletionTime);
-        
-        completionTimes[node.id] = nodeCompletionTime;
-        processedNodes.add(node.id);
-        
-        const index = nodesToProcess.findIndex(n => n.id === node.id);
-        if (index > -1) nodesToProcess.splice(index, 1);
-        
-        currentTime = Math.max(currentTime, nodeCompletionTime);
-      });
-    }
+    // Schedule all tasks based on the computed schedule
+    schedule.forEach(scheduledTask => {
+      startNode(scheduledTask);
+      completeNode(scheduledTask);
+    });
 
     // Cleanup function
     return () => {
       activeTimeouts.forEach(timeout => clearTimeout(timeout));
     };
-  }, [nodes, resetWorkflow, eventHandlers, popWorker, pushWorker, onWorkersUpdate, workers]);
+  }, [nodes, resetWorkflow, eventHandlers, scheduleWithWorkerConstraints, onWorkersUpdate]);
 
   return {
     nodes,
@@ -254,7 +267,7 @@ export function useWorkflowSimulation({
     runtime,
     simulateWorkflow,
     resetWorkflow,
-    availableWorkers: workerStack.length,
+    availableWorkers: workers.filter(w => !w.isActive).length,
     activeWorkers: workers.filter(w => w.isActive).length
   };
 }

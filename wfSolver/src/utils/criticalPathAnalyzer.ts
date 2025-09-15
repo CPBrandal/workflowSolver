@@ -14,7 +14,7 @@ export interface CriticalPathResult {
   nodes: CriticalPathNode[];
   criticalPath: CriticalPathNode[];
   orderedCriticalPath: CriticalPathNode[];
-  totalDuration: number;
+  minimumProjectDuration: number;
   criticalPathDuration: number;
 }
 
@@ -239,7 +239,7 @@ export class CriticalPathAnalyzer {
     // 5. Get results
     const criticalPath = this.getCriticalPathNodes();
     const orderedCriticalPath = this.getOrderedCriticalPath();
-    const totalDuration = Math.max(...this.nodes.map(n => n.earliestFinish));
+    const minimumProjectDuration = Math.max(...this.nodes.map(n => n.earliestFinish));
     
     // Calculate critical path duration
     const criticalPathDuration = orderedCriticalPath.length > 0
@@ -250,7 +250,7 @@ export class CriticalPathAnalyzer {
       nodes: this.nodes,
       criticalPath,
       orderedCriticalPath,
-      totalDuration,
+      minimumProjectDuration,
       criticalPathDuration
     };
   }
@@ -297,7 +297,7 @@ export class CriticalPathAnalyzer {
     if (result.orderedCriticalPath.length > 0) {
       const pathNames = result.orderedCriticalPath.map(node => node.name).join(' → ');
       console.log(`\nCritical path: ${pathNames}`);
-      console.log(`Total project duration: ${result.totalDuration.toFixed(1)} time units`);
+      console.log(`Total project duration: ${result.minimumProjectDuration.toFixed(1)} time units`);
     } else {
       console.log('\nNo critical path found.');
     }
@@ -325,5 +325,5 @@ export function getCriticalPath(nodes: WorkflowNode[]): WorkflowNode[] {
  */
 export function getProjectDuration(nodes: WorkflowNode[]): number {
   const result = analyzeCriticalPath(nodes);
-  return result.totalDuration;
+  return result.minimumProjectDuration;
 }

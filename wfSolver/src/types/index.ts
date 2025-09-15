@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from 'react';
 
 export interface WorkflowNode {
   id: string;
@@ -71,6 +72,7 @@ export interface EventHandlers {
   onWorkflowReset?: () => void;
 }
 
+
 export interface VisualWorkflowProps {
   nodes?: WorkflowNode[];
   selectedNodeId?: string | null;
@@ -78,9 +80,8 @@ export interface VisualWorkflowProps {
   showGrid?: boolean;
   enableSimulation?: boolean;
   workers?: Worker[];
-  onWorkersUpdate?: (workers: Worker[]) => void;
+  onWorkersUpdate?: Dispatch<SetStateAction<Worker[]>>;  // ← Fixed
 }
-
 export interface LocationState {
   file?: File;
   generatedNodes?: WorkflowNode[];

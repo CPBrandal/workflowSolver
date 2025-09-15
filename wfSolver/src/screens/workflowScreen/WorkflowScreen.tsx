@@ -21,7 +21,6 @@ function WorkflowScreen() {
   const [workflowInfo, setWorkflowInfo] = useState<string>('');
   const [workers, setWorkers] = useState<Worker[]>([]);
 
-  // Critical Path Analysis - runs when nodes change
   useEffect(() => {
     if (nodes.length > 0) {
       console.log('=== Performing Critical Path Analysis ===');
@@ -32,14 +31,14 @@ function WorkflowScreen() {
       
       // Get project duration
       const duration = getProjectDuration(nodes);
-      console.log('Project will take:', duration, 'time units');
+      console.log('The minimum time the project will take is: ', duration, ' seconds');
       
       // Full analysis with detailed results
       const analyzer = new CriticalPathAnalyzer(nodes);
       const result = analyzer.analyze();
 
       console.log('Critical path nodes:', result.criticalPath.length);
-      console.log('Total duration:', result.totalDuration);
+      console.log('Total duration:', result.minimumProjectDuration);
       console.log('Critical path sequence:', result.orderedCriticalPath.map(n => n.name));
       
     }
@@ -71,11 +70,10 @@ function WorkflowScreen() {
         setError(null);
         
         // Check if we have generated nodes from arbitrary workflow creation
-        if (generatedNodes && (workflowType === 'arbitrary' || ['workflow', 'daggen', 'preset'].includes(workflowType || ''))) {
+        if (generatedNodes && (workflowType === 'arbitrary' || ['workflow', 'preset'].includes(workflowType || ''))) {
           // Handle generated workflow
           setNodes(generatedNodes);
           const generatorName = workflowType === 'workflow' ? 'Workflow-Optimized' :
-                               workflowType === 'daggen' ? 'DAGGEN Research' :
                                workflowType === 'preset' ? 'Preset Configuration' :
                                state?.layout || 'arbitrary';
           setWorkflowInfo(`Generated ${generatorName} workflow with ${state?.nodeCount || generatedNodes.length} nodes`);
@@ -117,7 +115,7 @@ function WorkflowScreen() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">
-            {['workflow', 'daggen', 'preset'].includes(workflowType || '') ? 'Generating workflow...' : 'Processing workflow...'}
+            {['workflow', 'preset'].includes(workflowType || '') ? 'Generating workflow...' : 'Processing workflow...'}
           </p>
         </div>
       </div>
