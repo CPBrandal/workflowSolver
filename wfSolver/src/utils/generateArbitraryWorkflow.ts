@@ -28,7 +28,7 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
   const {
     nodeCount,
     maxWidth = Math.max(2, Math.ceil(Math.sqrt(nodeCount))),
-    maxDepth = Math.max(4, Math.ceil(nodeCount / 2)),
+    maxDepth = Math.max(4, Math.ceil(nodeCount / 1.5)),
     edgeProbability = 0.4,
     maxEdgeSpan = 3,
     singleSink = true,

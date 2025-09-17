@@ -17,6 +17,7 @@ function VisualWorkflow({
   enableSimulation = true,
   workers = [],
   onWorkersUpdate,
+  cpmAnalysis,
 }: VisualWorkflowProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(propSelectedNodeId || null);
 
@@ -201,7 +202,10 @@ function VisualWorkflow({
                 <feDropShadow dx="1" dy="1" stdDeviation="1" floodOpacity="0.3" />
               </filter>
             </defs>
-            <WorkflowConnections nodes={nodes} />
+            <WorkflowConnections
+              nodes={nodes}
+              criticalPathNodes={cpmAnalysis?.orderedCriticalPath || []}
+            />
           </svg>
 
           {/* Workflow Nodes */}

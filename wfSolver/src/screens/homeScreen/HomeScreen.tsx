@@ -23,7 +23,7 @@ function HomeScreen() {
 
   // Workflow generator parameters
   const [maxWidth, setMaxWidth] = useState<number>(4);
-  const [edgeProbability, setEdgeProbability] = useState<number>(0.4);
+  const [edgeProbability, setEdgeProbability] = useState<number>(0.2);
   const [maxEdgeSpan, setMaxEdgeSpan] = useState<number>(3);
   const [singleSink, setSingleSink] = useState<boolean>(true);
 
@@ -359,8 +359,8 @@ function HomeScreen() {
           <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded-md">
             <p className="font-medium mb-2">
               {generatorType === 'workflow'
-                ? '🔧 Workflow-Optimized Generation'
-                : '⚡ Preset Configuration'}
+                ? 'Workflow-Optimized Generation'
+                : 'Preset Configuration'}
             </p>
             {generatorType === 'workflow' && (
               <p>
