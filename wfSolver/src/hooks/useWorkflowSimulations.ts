@@ -113,7 +113,13 @@ export function useWorkflowSimulation({
 
         let earliestStart = 0;
         if (dependencies.length > 0) {
-          earliestStart = Math.max(...dependencies.map(depId => completionTimes[depId] || 0));
+          earliestStart = Math.max(
+            ...dependencies.map(depId => {
+              const depCompletionTime = completionTimes[depId] || 0;
+              const transferTime = findTransferTime(depId, node.id);
+              return depCompletionTime + transferTime;
+            })
+          );
         }
 
         let workerId: string;
@@ -196,6 +202,13 @@ export function useWorkflowSimulation({
     return scheduledTasks;
   }, []);
 
+  function findTransferTime(sourceNodeId: string, targetNodeId: string): number {
+    const sourceNode = nodes.find(n => n.id === sourceNodeId);
+    if (!sourceNode) return 0;
+    const connection = sourceNode.connections.find(conn => conn.targetNodeId === targetNodeId);
+    return connection ? connection.transferTime : 0;
+  }
+
   const simulateWorkflow = useCallback(() => {
     resetWorkflow();
     setIsRunning(true);
@@ -208,6 +221,10 @@ export function useWorkflowSimulation({
 
     // Generate the schedule using resource-constrained scheduling
     const schedule = scheduleWithWorkerConstraints(nodes, workers);
+
+    const workflowCompletionTime =
+      schedule.length > 0 ? Math.max(...schedule.map(task => task.endTime)) : 0;
+    console.log(`Total workflow duration (including transfer times): ${workflowCompletionTime}s`);
 
     const startNode = (scheduledTask: ScheduledTask) => {
       const timeout = setTimeout(() => {
@@ -263,6 +280,7 @@ export function useWorkflowSimulation({
           const allCompleted = updatedNodes.every(n => n.status === 'completed');
           if (allCompleted) {
             setIsRunning(false);
+            setRuntime(workflowCompletionTime * 1000); // Convert to milliseconds
             eventHandlers?.onWorkflowComplete?.();
           }
 
