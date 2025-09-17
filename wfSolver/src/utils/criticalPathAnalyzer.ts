@@ -1,22 +1,5 @@
-import type { WorkflowNode } from '../types';
+import type { CriticalPathNode, CriticalPathResult, WorkflowNode } from '../types';
 import { getNodeDependencies } from './getNodeDependencies';
-
-export interface CriticalPathNode extends WorkflowNode {
-  earliestStart: number;
-  earliestFinish: number;
-  latestStart: number;
-  latestFinish: number;
-  slack: number;
-  isOnCriticalPath: boolean;
-}
-
-export interface CriticalPathResult {
-  nodes: CriticalPathNode[];
-  criticalPath: CriticalPathNode[];
-  orderedCriticalPath: CriticalPathNode[];
-  minimumProjectDuration: number;
-  criticalPathDuration: number;
-}
 
 /**
  * Performs Critical Path Method (CPM) analysis on a workflow including transfer times

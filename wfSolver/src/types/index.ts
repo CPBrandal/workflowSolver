@@ -1,5 +1,11 @@
 import type { Dispatch, SetStateAction } from 'react';
 
+export interface Workflow {
+  name: string;
+  tasks: WorkflowNode[];
+  criticalPath: WorkflowNode[];
+}
+
 export interface WorkflowNode {
   id: string;
   name: string;
@@ -17,9 +23,10 @@ export interface WorkflowNode {
 export interface Worker {
   id: string;
   costPerHour?: number;
-  time: number; // Total time this worker has been used (in seconds)
-  isActive: boolean; // Whether currently processing a task
-  currentTask: string | null; // ID of the task currently being processed
+  time: number;
+  isActive: boolean;
+  currentTask: string | null;
+  criticalPathWorker: boolean;
 }
 
 export interface Edge {
@@ -86,7 +93,8 @@ export interface VisualWorkflowProps {
   showGrid?: boolean;
   enableSimulation?: boolean;
   workers?: Worker[];
-  onWorkersUpdate?: Dispatch<SetStateAction<Worker[]>>; // ← Fixed
+  onWorkersUpdate?: Dispatch<SetStateAction<Worker[]>>;
+  cpmAnalysis: CriticalPathResult | null;
 }
 export interface LocationState {
   file?: File;
@@ -96,4 +104,35 @@ export interface LocationState {
   layout?: string;
   generatorType?: string;
   message?: string;
+}
+
+export interface CriticalPathNode extends WorkflowNode {
+  earliestStart: number;
+  earliestFinish: number;
+  latestStart: number;
+  latestFinish: number;
+  slack: number;
+  isOnCriticalPath: boolean;
+}
+
+export interface CriticalPathResult {
+  nodes: CriticalPathNode[];
+  criticalPath: CriticalPathNode[];
+  orderedCriticalPath: CriticalPathNode[];
+  minimumProjectDuration: number;
+  criticalPathDuration: number;
+}
+
+export interface UseWorkflowSimulationProps {
+  initialNodes: WorkflowNode[];
+  eventHandlers?: EventHandlers;
+  workers?: Worker[];
+  onWorkersUpdate?: Dispatch<SetStateAction<Worker[]>>;
+}
+
+export interface ScheduledTask {
+  nodeId: string;
+  startTime: number;
+  endTime: number;
+  workerId: string;
 }

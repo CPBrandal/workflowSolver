@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { LocationState, Worker, WorkflowNode } from '../../types';
+import type { CriticalPathResult, LocationState, Worker, WorkflowNode } from '../../types';
 import {
-  CriticalPathAnalyzer,
+  analyzeCriticalPath,
   getCriticalPath,
   getProjectDuration,
 } from '../../utils/criticalPathAnalyzer';
@@ -23,40 +23,36 @@ function WorkflowScreen() {
   const [error, setError] = useState<string | null>(null);
   const [workflowInfo, setWorkflowInfo] = useState<string>('');
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [cpmAnalysis, setCpmAnalysis] = useState<CriticalPathResult | null>(null);
 
   useEffect(() => {
     if (nodes.length > 0) {
       console.log('=== Performing Critical Path Analysis ===');
 
-      // Simple utility functions
       const criticalPath = getCriticalPath(nodes);
       console.log(
         'Critical path:',
         criticalPath.map(n => n.name)
       );
 
-      // Get project duration
       const duration = getProjectDuration(nodes);
       console.log('The minimum time the project will take is: ', duration, ' seconds');
 
-      // Full analysis with detailed results
-      const analyzer = new CriticalPathAnalyzer(nodes);
-      const result = analyzer.analyze();
+      const cpResult = analyzeCriticalPath(nodes);
 
-      console.log('Critical path nodes:', result.criticalPath.length);
-      console.log('Total duration:', result.minimumProjectDuration);
       console.log(
         'Critical path sequence:',
-        result.orderedCriticalPath.map(n => n.name)
+        cpResult.orderedCriticalPath.map(n => n.name)
       );
 
-      const orderedCriticalPath = result.orderedCriticalPath;
+      const orderedCriticalPath = cpResult.orderedCriticalPath;
       for (const node of orderedCriticalPath) {
         const criticalNode = nodes.find(n => n.id === node.id);
         if (criticalNode) {
           criticalNode.criticalPath = true;
         }
       }
+      setCpmAnalysis(cpResult);
     }
   }, [nodes]);
 
@@ -71,6 +67,7 @@ function WorkflowScreen() {
           time: 0,
           isActive: false,
           currentTask: null,
+          criticalPathWorker: i === 0,
         });
       }
 
@@ -85,12 +82,10 @@ function WorkflowScreen() {
         setLoading(true);
         setError(null);
 
-        // Check if we have generated nodes from arbitrary workflow creation
         if (
           generatedNodes &&
           (workflowType === 'arbitrary' || ['workflow', 'preset'].includes(workflowType || ''))
         ) {
-          // Handle generated workflow
           setNodes(generatedNodes);
           const generatorName =
             workflowType === 'workflow'
@@ -187,7 +182,12 @@ function WorkflowScreen() {
           </div>
         </div>
       )}
-      <VisualWorkflow nodes={nodes} workers={workers} onWorkersUpdate={setWorkers} />
+      <VisualWorkflow
+        nodes={nodes}
+        workers={workers}
+        onWorkersUpdate={setWorkers}
+        cpmAnalysis={cpmAnalysis}
+      />
     </div>
   );
 }
