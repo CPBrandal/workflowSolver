@@ -1,4 +1,3 @@
-// utils/generateArbitraryWorkflow.ts
 import { randomGamma } from 'd3-random';
 import type { Edge, WorkflowNode } from '../types';
 
@@ -10,17 +9,14 @@ interface GammaParams {
 interface ArbitraryWorkflowConfig {
   nodeCount: number;
 
-  // Core DAG structure parameters
   maxWidth?: number;
   maxDepth?: number;
   edgeProbability?: number;
   maxEdgeSpan?: number;
 
-  // Workflow-specific parameters
   singleSink?: boolean;
   densityFactor?: number;
 
-  // Gamma distribution parameters for task duration
   gammaParams?: GammaParams;
 }
 
@@ -33,7 +29,7 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     maxEdgeSpan = 3,
     singleSink = true,
     densityFactor = 0.6,
-    gammaParams = { shape: 0.7, scale: 5 }, // Default gamma parameters
+    gammaParams = { shape: 0.7, scale: 5 },
   } = config;
 
   console.log('Generating arbitrary workflow:', {
@@ -53,7 +49,6 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     throw new Error('Node count cannot exceed 50');
   }
 
-  // Create gamma distribution sampler for task duration
   const getDuration = createGammaSampler(gammaParams);
 
   try {
@@ -92,7 +87,7 @@ export function createGammaSampler(params: GammaParams): () => number {
   return () => {
     let value = gammaRng();
 
-    return Math.round(value * 100) / 100; // Round to 2 decimal places
+    return Math.round(value * 100) / 100;
   };
 }
 
@@ -149,7 +144,6 @@ function generateDAGWorkflow({
               ? 'Complete workflow execution'
               : `Execute task ${nodeId}`,
         executionTime: getDuration(),
-        transferTime: getDuration(),
         criticalPath: false,
       };
 
@@ -186,7 +180,6 @@ function distributeNodesAcrossLevels(
   const levels: number[] = new Array(optimalDepth).fill(0);
   let remainingNodes = nodeCount;
 
-  // Always start with 1 node
   levels[0] = 1;
   remainingNodes--;
 

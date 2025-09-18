@@ -32,6 +32,7 @@ function VisualWorkflow({
     resetWorkflow,
     availableWorkers,
     activeWorkers,
+    simulationStartTime,
   } = useWorkflowSimulation({
     initialNodes,
     eventHandlers,
@@ -205,6 +206,8 @@ function VisualWorkflow({
             <WorkflowConnections
               nodes={nodes}
               criticalPathNodes={cpmAnalysis?.orderedCriticalPath || []}
+              isSimulationRunning={isRunning}
+              simulationStartTime={simulationStartTime || 0}
             />
           </svg>
 
