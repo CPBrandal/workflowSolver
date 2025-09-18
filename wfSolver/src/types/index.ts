@@ -14,7 +14,6 @@ export interface WorkflowNode {
   connections: Edge[];
   description?: string;
   executionTime?: number;
-  transferTime?: number;
   level?: number;
   assignedWorker?: string; // ID of the worker currently processing this task
   criticalPath: boolean;

@@ -331,5 +331,6 @@ export function useWorkflowSimulation({
     resetWorkflow,
     availableWorkers: workers.filter(w => !w.isActive).length,
     activeWorkers: workers.filter(w => w.isActive).length,
+    simulationStartTime: startTime,
   };
 }
