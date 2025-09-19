@@ -372,6 +372,7 @@ export function analyzeCriticalPath(nodes: WorkflowNode[]): CriticalPathResult {
  * Get just the critical path nodes in order
  */
 export function getCriticalPath(nodes: WorkflowNode[]): WorkflowNode[] {
+  if (!nodes || nodes.length === 0) return [];
   const result = analyzeCriticalPath(nodes);
   return result.orderedCriticalPath;
 }
@@ -382,4 +383,18 @@ export function getCriticalPath(nodes: WorkflowNode[]): WorkflowNode[] {
 export function getProjectDuration(nodes: WorkflowNode[]): number {
   const result = analyzeCriticalPath(nodes);
   return result.minimumProjectDuration;
+}
+
+export function setCriticalPathEdgesTransferTimes(nodes: WorkflowNode[]): Boolean {
+  if (!nodes || nodes.length === 0) return false;
+  const getCriticalPathNodes = getCriticalPath(nodes);
+  for (let i = 0; i < getCriticalPathNodes.length - 1; i++) {
+    for (const edge of getCriticalPathNodes[i].connections) {
+      if (edge.targetNodeId === getCriticalPathNodes[i + 1].id) {
+        edge.transferTime = 0;
+        break;
+      }
+    }
+  }
+  return true;
 }

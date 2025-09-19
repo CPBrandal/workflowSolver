@@ -5,6 +5,7 @@ import {
   analyzeCriticalPath,
   getCriticalPath,
   getProjectDuration,
+  setCriticalPathEdgesTransferTimes,
 } from '../../utils/criticalPathAnalyzer';
 import VisualWorkflow from './VisualWorkflow';
 import { InputFileHandler } from './utils/InputFileHandler';
@@ -53,6 +54,7 @@ function WorkflowScreen() {
         }
       }
       setCpmAnalysis(cpResult);
+      setCriticalPathEdgesTransferTimes(nodes);
     }
   }, [nodes]);
 
