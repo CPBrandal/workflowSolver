@@ -24,6 +24,8 @@ function WorkflowScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [numberOfSimulations, setNumberOfSimulations] = useState<number>(10);
+
   {
     /* Critical path */
   }
@@ -215,6 +217,38 @@ function WorkflowScreen() {
         onWorkersUpdate={setWorkers}
         cpmAnalysis={workflow.criticalPathResult || null}
       />
+      <div>
+        <label
+          htmlFor="numberOfSimulations"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          Number of Simulations
+        </label>
+        <input
+          id="numberOfSimulations"
+          type="number"
+          min="0.1"
+          max="100"
+          step="0.5"
+          value={numberOfSimulations}
+          onChange={e => {
+            const value = e.target.valueAsNumber;
+            // Only update if the value is a valid number
+            if (!isNaN(value)) {
+              setNumberOfSimulations(value);
+            }
+          }}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="10"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Set number of simulations to run, uses different values for execution and transfer time
+          for each simulation{' '}
+        </p>
+        <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+          Run {numberOfSimulations} Simulations
+        </button>
+      </div>
     </div>
   );
 }
