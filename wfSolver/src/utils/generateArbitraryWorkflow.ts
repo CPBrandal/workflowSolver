@@ -1,24 +1,11 @@
 import { randomGamma } from 'd3-random';
-import type { Edge, WorkflowNode } from '../types';
-
-interface GammaParams {
-  shape: number;
-  scale: number;
-}
-
-interface ArbitraryWorkflowConfig {
-  nodeCount: number;
-
-  maxWidth?: number;
-  maxDepth?: number;
-  edgeProbability?: number;
-  maxEdgeSpan?: number;
-
-  singleSink?: boolean;
-  densityFactor?: number;
-
-  gammaParams?: GammaParams;
-}
+import type {
+  ArbitraryWorkflowConfig,
+  DAGGenerationParams,
+  Edge,
+  GammaParams,
+  WorkflowNode,
+} from '../types';
 
 export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): WorkflowNode[] {
   const {
@@ -50,7 +37,10 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
   }
 
   const getDuration = createGammaSampler(gammaParams);
-
+  const getTransferTime = createGammaSampler({
+    shape: gammaParams.shape * 0.7,
+    scale: gammaParams.scale * 0.4,
+  });
   try {
     const nodes = generateDAGWorkflow({
       nodeCount,
@@ -61,6 +51,7 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
       singleSink,
       densityFactor,
       getDuration,
+      getTransferTime,
     });
 
     console.log(
@@ -91,17 +82,6 @@ export function createGammaSampler(params: GammaParams): () => number {
   };
 }
 
-interface DAGGenerationParams {
-  nodeCount: number;
-  maxWidth: number;
-  maxDepth: number;
-  edgeProbability: number;
-  maxEdgeSpan: number;
-  singleSink: boolean;
-  densityFactor: number;
-  getDuration: () => number;
-}
-
 function generateDAGWorkflow({
   nodeCount,
   maxWidth,
@@ -111,6 +91,7 @@ function generateDAGWorkflow({
   singleSink,
   densityFactor,
   getDuration,
+  getTransferTime,
 }: DAGGenerationParams): WorkflowNode[] {
   // Step 1: Distribute nodes across levels
   const levels = distributeNodesAcrossLevels(nodeCount, maxDepth, maxWidth, singleSink);
@@ -153,13 +134,13 @@ function generateDAGWorkflow({
   }
 
   // Step 3: Generate dependencies between levels
-  generateDependencies(nodes, levels, edgeProbability, maxEdgeSpan, densityFactor, getDuration);
+  generateDependencies(nodes, levels, edgeProbability, maxEdgeSpan, densityFactor, getTransferTime);
 
   // Step 4: Ensure workflow connectivity
-  ensureWorkflowConnectivity(nodes, levels, singleSink, getDuration);
+  ensureWorkflowConnectivity(nodes, levels, singleSink, getTransferTime);
 
   // Step 5: Ensure all non-terminal nodes have outgoing connections
-  ensureOutgoingConnections(nodes, levels, singleSink, getDuration);
+  ensureOutgoingConnections(nodes, levels, singleSink, getTransferTime);
 
   return nodes;
 }
@@ -241,9 +222,8 @@ function generateDependencies(
   edgeProbability: number,
   maxEdgeSpan: number,
   densityFactor: number,
-  getTransferTime?: () => number // New parameter for transfer time generation
+  getTransferTime?: () => number
 ): void {
-  // Group nodes by level (unchanged)
   const nodesByLevel: WorkflowNode[][] = [];
   let nodeIndex = 0;
 
@@ -252,7 +232,6 @@ function generateDependencies(
     nodeIndex += levels[level];
   }
 
-  // Generate dependencies between levels
   for (let sourceLevel = 0; sourceLevel < levels.length - 1; sourceLevel++) {
     const sourceNodes = nodesByLevel[sourceLevel];
     const maxTargetLevel = Math.min(levels.length - 1, sourceLevel + maxEdgeSpan);
@@ -271,11 +250,10 @@ function generateDependencies(
             );
 
             if (!edgeExists) {
-              // CREATE: New Edge object with transfer time
               const newEdge: Edge = {
                 sourceNodeId: sourceNode.id,
                 targetNodeId: targetNode.id,
-                transferTime: getTransferTime ? getTransferTime() : 1, // Default or generated
+                transferTime: getTransferTime ? getTransferTime() : 1,
                 label: `${sourceNode.name} → ${targetNode.name}`,
               };
 

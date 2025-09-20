@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { CriticalPathResult, LocationState, Worker, WorkflowNode } from '../../types';
+import type { LocationState, Worker, Workflow } from '../../types';
 import {
   analyzeCriticalPath,
   getCriticalPath,
-  getProjectDuration,
+  getMinimumProjectDuration,
   setCriticalPathEdgesTransferTimes,
 } from '../../utils/criticalPathAnalyzer';
 import VisualWorkflow from './VisualWorkflow';
@@ -19,48 +19,61 @@ function WorkflowScreen() {
   const generatedNodes = state?.generatedNodes;
   const workflowType = state?.workflowType;
 
-  const [nodes, setNodes] = useState<WorkflowNode[]>([]);
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [workflowInfo, setWorkflowInfo] = useState<string>('');
-  const [workers, setWorkers] = useState<Worker[]>([]);
-  const [cpmAnalysis, setCpmAnalysis] = useState<CriticalPathResult | null>(null);
 
+  {
+    /* Critical path */
+  }
   useEffect(() => {
-    if (nodes.length > 0) {
+    if (workflow?.tasks && workflow.tasks.length > 0) {
       console.log('=== Performing Critical Path Analysis ===');
 
-      const criticalPath = getCriticalPath(nodes);
+      const criticalPath = getCriticalPath(workflow.tasks);
       console.log(
         'Critical path:',
         criticalPath.map(n => n.name)
       );
 
-      const duration = getProjectDuration(nodes);
-      console.log('The minimum time the project will take is: ', duration, ' seconds');
+      const minimumDuration = getMinimumProjectDuration(workflow.tasks);
+      console.log('The minimum time the project will take is: ', minimumDuration, ' seconds');
 
-      const cpResult = analyzeCriticalPath(nodes);
+      const cpResult = analyzeCriticalPath(workflow.tasks);
 
       console.log(
         'Critical path sequence:',
         cpResult.orderedCriticalPath.map(n => n.name)
       );
 
-      const orderedCriticalPath = cpResult.orderedCriticalPath;
-      for (const node of orderedCriticalPath) {
-        const criticalNode = nodes.find(n => n.id === node.id);
-        if (criticalNode) {
-          criticalNode.criticalPath = true;
-        }
-      }
-      setCpmAnalysis(cpResult);
-      setCriticalPathEdgesTransferTimes(nodes);
-    }
-  }, [nodes]);
+      // Update nodes with critical path information
+      const updatedTasks = workflow.tasks.map(task => {
+        const isOnCriticalPath = cpResult.orderedCriticalPath.some(n => n.id === task.id);
+        return { ...task, criticalPath: isOnCriticalPath };
+      });
 
+      setCriticalPathEdgesTransferTimes(updatedTasks);
+
+      setWorkflow(prev =>
+        prev
+          ? {
+              ...prev,
+              tasks: updatedTasks,
+              criticalPath: cpResult.orderedCriticalPath,
+              criticalPathResult: cpResult,
+            }
+          : null
+      );
+    }
+  }, [workflow?.tasks]);
+
+  {
+    /* Worker Initialization */
+  }
   useEffect(() => {
-    if (nodes.length > 0) {
-      const workerCount = nodes.length + 1;
+    if (workflow?.tasks && workflow.tasks.length > 0) {
+      const workerCount = workflow.tasks.length + 1;
       const newWorkers: Worker[] = [];
 
       for (let i = 0; i < workerCount; i++) {
@@ -74,10 +87,11 @@ function WorkflowScreen() {
       }
 
       setWorkers(newWorkers);
-      console.log(`Created ${workerCount} workers for ${nodes.length} tasks`);
+      console.log(`Created ${workerCount} workers for ${workflow.tasks.length} tasks`);
     }
-  }, [nodes]);
+  }, [workflow?.tasks.length]);
 
+  // Initial Workflow Processing Effect
   useEffect(() => {
     const processWorkflow = async () => {
       try {
@@ -88,16 +102,19 @@ function WorkflowScreen() {
           generatedNodes &&
           (workflowType === 'arbitrary' || ['workflow', 'preset'].includes(workflowType || ''))
         ) {
-          setNodes(generatedNodes);
           const generatorName =
             workflowType === 'workflow'
               ? 'Workflow-Optimized'
               : workflowType === 'preset'
                 ? 'Preset Configuration'
                 : state?.layout || 'arbitrary';
-          setWorkflowInfo(
-            `Generated ${generatorName} workflow with ${state?.nodeCount || generatedNodes.length} nodes`
-          );
+
+          setWorkflow({
+            name: generatorName,
+            tasks: generatedNodes,
+            criticalPath: [],
+            info: `Generated ${generatorName} workflow with ${state?.nodeCount || generatedNodes.length} nodes`,
+          });
           setLoading(false);
           return;
         }
@@ -105,8 +122,12 @@ function WorkflowScreen() {
         if (file) {
           // Handle uploaded file
           const parsedNodes = await InputFileHandler(file);
-          setNodes(parsedNodes);
-          setWorkflowInfo(`Loaded workflow from: ${file.name}`);
+          setWorkflow({
+            name: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension
+            tasks: parsedNodes,
+            criticalPath: [],
+            info: `Loaded workflow from: ${file.name}`,
+          });
           setLoading(false);
           return;
         }
@@ -169,9 +190,13 @@ function WorkflowScreen() {
     );
   }
 
+  if (!workflow) {
+    return null;
+  }
+
   return (
     <div>
-      {workflowInfo && (
+      {workflow.info && (
         <div className="max-w mx-auto px-6 pt-6 flex flex-col md:flex-row md:justify-between items-start md:items-center">
           <button
             onClick={() => navigate('/')}
@@ -180,15 +205,15 @@ function WorkflowScreen() {
             Go Back Home
           </button>
           <div className="px-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-blue-800 text-sm font-medium">{workflowInfo}</p>
+            <p className="text-blue-800 text-sm font-medium">{workflow.info}</p>
           </div>
         </div>
       )}
       <VisualWorkflow
-        nodes={nodes}
+        nodes={workflow.tasks}
         workers={workers}
         onWorkersUpdate={setWorkers}
-        cpmAnalysis={cpmAnalysis}
+        cpmAnalysis={workflow.criticalPathResult || null}
       />
     </div>
   );
