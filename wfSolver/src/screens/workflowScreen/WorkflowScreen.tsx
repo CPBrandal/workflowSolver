@@ -66,7 +66,7 @@ function WorkflowScreen() {
           : null
       );
     }
-  }, [workflow?.tasks]);
+  }, [workflow?.tasks.length]);
 
   {
     /* Worker Initialization */
