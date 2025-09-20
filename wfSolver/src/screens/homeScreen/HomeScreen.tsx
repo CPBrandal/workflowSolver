@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { LocationState } from '../../types';
+import type { GammaParams, LocationState } from '../../types';
 import type { ArbitraryWorkflowConfig } from '../../utils/generateArbitraryWorkflow';
 import {
   createComplexArbitraryWorkflow,
@@ -15,7 +15,6 @@ function HomeScreen() {
 
   // Generator selection
   const [generatorType, setGeneratorType] = useState<'workflow' | 'preset'>('workflow');
-  const [presetType, setPresetType] = useState<'complex'>('complex');
 
   // Common parameters
   const [nodeCount, setNodeCount] = useState<number>(10);
@@ -24,10 +23,15 @@ function HomeScreen() {
   // Workflow generator parameters
   const [maxWidth, setMaxWidth] = useState<number>(4);
   const [edgeProbability, setEdgeProbability] = useState<number>(0.2);
-  const [maxEdgeSpan, setMaxEdgeSpan] = useState<number>(3);
+  const [maxEdgeSpan, setMaxEdgeSpan] = useState<number>(1);
   const [singleSink, setSingleSink] = useState<boolean>(true);
 
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+
+  const [gammaDistribution, setGammaDistribution] = useState<GammaParams>({
+    shape: 10,
+    scale: 0.5,
+  });
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -84,6 +88,7 @@ function HomeScreen() {
           maxEdgeSpan,
           singleSink,
           densityFactor: 0.6,
+          gammaParams: gammaDistribution,
         };
         nodes = generateArbitraryWorkflow(config);
       }
@@ -213,23 +218,6 @@ function HomeScreen() {
             </div>
           </div>
 
-          {/* Preset Selection */}
-          {generatorType === 'preset' && (
-            <div>
-              <label htmlFor="presetType" className="block text-sm font-medium text-gray-700 mb-1">
-                Preset Type
-              </label>
-              <select
-                id="presetType"
-                value={presetType}
-                onChange={e => setPresetType(e.target.value as 'complex')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="complex">Complex Workflow (Gamma/Beta distributions)</option>
-              </select>
-            </div>
-          )}
-
           {/* Basic Parameters */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-800 border-b pb-2">Basic Parameters</h3>
@@ -350,6 +338,73 @@ function HomeScreen() {
                       Create a single final task that all paths converge to
                     </p>
                   </div>
+                  {/* Gamma Distribution Parameters */}
+                  <div className="border-t pt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                      Task Execution Time Distribution
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Shape Parameter */}
+                      <div>
+                        <label
+                          htmlFor="gammaShape"
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Shape (k): {gammaDistribution.shape}
+                        </label>
+                        <input
+                          id="gammaShape"
+                          type="number"
+                          min="0.1"
+                          max="10"
+                          step="0.1"
+                          value={gammaDistribution.shape}
+                          onChange={e => {
+                            const value = Math.max(0.1, parseFloat(e.target.value) || 0.1);
+                            setGammaDistribution(prev => ({ ...prev, shape: value }));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.7"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Controls distribution shape (must be &gt; 0)
+                        </p>
+                      </div>
+
+                      {/* Scale Parameter */}
+                      <div>
+                        <label
+                          htmlFor="gammaScale"
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Scale (θ): {gammaDistribution.scale}
+                        </label>
+                        <input
+                          id="gammaScale"
+                          type="number"
+                          min="0.1"
+                          max="100"
+                          step="0.5"
+                          value={gammaDistribution.scale}
+                          onChange={e => {
+                            const value = Math.max(0.1, parseFloat(e.target.value) || 0.1);
+                            setGammaDistribution(prev => ({ ...prev, scale: value }));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="5"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Controls distribution spread (must be &gt; 0)
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-2">
+                      Gamma distribution generates realistic task execution times. Lower shape =
+                      more variable times, higher scale = longer average times.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -364,8 +419,9 @@ function HomeScreen() {
             </p>
             {generatorType === 'workflow' && (
               <p>
-                Creates workflow-friendly structures with predictable layouts, guaranteed single
-                endpoints, and visual optimization.
+                Creates a workflow structure with predictable layouts, guaranteed single endpoints,
+                and visual optimization. Used gamma distribution for task durations, and transfer
+                time between tasks.
               </p>
             )}
             {generatorType === 'preset' && (
@@ -394,11 +450,14 @@ function HomeScreen() {
       </div>
 
       {/* Footer */}
-      <p className="text-center text-gray-600">
-        Upload workflow files to get scheduling optimization suggestions or generate arbitrary
-        workflows for research and testing
-      </p>
-      <button onClick={() => setShowUploadOption(true)}>Show Upload Option</button>
+      <div className="text-center text-sm text-gray-500">
+        <button
+          className="bg-blue-400 hover:bg-blue-500 text-white px-4 py-2 rounded"
+          onClick={() => setShowUploadOption(!showUploadOption)}
+        >
+          Enable Upload Option
+        </button>
+      </div>
     </div>
   );
 }

@@ -398,3 +398,12 @@ export function setCriticalPathEdgesTransferTimes(nodes: WorkflowNode[]): Boolea
   }
   return true;
 }
+
+export function getMinimumProjectDuration(nodes: WorkflowNode[]): number {
+  const result = getCriticalPath(nodes);
+  let duration = 0;
+  for (let i = 0; i < result.length; i++) {
+    duration += result[i].executionTime || 0;
+  }
+  return duration;
+}

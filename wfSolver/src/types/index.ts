@@ -4,6 +4,8 @@ export interface Workflow {
   name: string;
   tasks: WorkflowNode[];
   criticalPath: WorkflowNode[];
+  criticalPathResult?: CriticalPathResult;
+  info: string;
 }
 
 export interface WorkflowNode {
@@ -15,7 +17,7 @@ export interface WorkflowNode {
   description?: string;
   executionTime?: number;
   level?: number;
-  assignedWorker?: string; // ID of the worker currently processing this task
+  assignedWorker?: string;
   criticalPath: boolean;
 }
 
@@ -26,6 +28,13 @@ export interface Worker {
   isActive: boolean;
   currentTask: string | null;
   criticalPathWorker: boolean;
+  executionHistory?: ExecutionRecord[];
+}
+
+export interface ExecutionRecord {
+  nodeId: string;
+  duration: number;
+  startTime: number;
 }
 
 export interface Edge {
@@ -134,4 +143,35 @@ export interface ScheduledTask {
   startTime: number;
   endTime: number;
   workerId: string;
+}
+
+export interface GammaParams {
+  shape: number;
+  scale: number;
+}
+
+export interface ArbitraryWorkflowConfig {
+  nodeCount: number;
+
+  maxWidth?: number;
+  maxDepth?: number;
+  edgeProbability?: number;
+  maxEdgeSpan?: number;
+
+  singleSink?: boolean;
+  densityFactor?: number;
+
+  gammaParams?: GammaParams;
+}
+
+export interface DAGGenerationParams {
+  nodeCount: number;
+  maxWidth: number;
+  maxDepth: number;
+  edgeProbability: number;
+  maxEdgeSpan: number;
+  singleSink: boolean;
+  densityFactor: number;
+  getDuration: () => number;
+  getTransferTime: () => number;
 }
