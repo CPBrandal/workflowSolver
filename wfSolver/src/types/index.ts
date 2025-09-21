@@ -112,6 +112,7 @@ export interface LocationState {
   layout?: string;
   generatorType?: string;
   message?: string;
+  gammaParams: GammaParams;
 }
 
 export interface CriticalPathNode extends WorkflowNode {

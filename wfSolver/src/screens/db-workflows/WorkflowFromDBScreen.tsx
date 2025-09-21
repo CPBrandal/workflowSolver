@@ -1,0 +1,252 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { WorkflowService } from '../../services/workflowService';
+import type { LocationState, Worker, Workflow } from '../../types';
+import type { WorkflowRecord } from '../../types/database';
+import VisualWorkflow from '../workflowScreen/VisualWorkflow';
+
+function WorkflowFromDBScreen() {
+  const navigate = useNavigate();
+
+  // Add these state variables with your other useState declarations:
+  const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
+  const [loadingWorkflow, setLoadingWorkflow] = useState(false);
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [workerCount, setWorkerCount] = useState<number>(2);
+
+  // Fetch saved workflows when component mounts
+  useEffect(() => {
+    const fetchWorkflows = async () => {
+      setLoadingWorkflows(true);
+      const workflows = await WorkflowService.getAllWorkflows();
+      setSavedWorkflows(workflows);
+      setLoadingWorkflows(false);
+    };
+
+    fetchWorkflows();
+  }, []);
+
+  useEffect(() => {
+    if (workflow?.tasks && workflow.tasks.length > 0) {
+      const newWorkers: Worker[] = [];
+
+      for (let i = 0; i < workerCount; i++) {
+        newWorkers.push({
+          id: `worker-${i + 1}`,
+          time: 0,
+          isActive: false,
+          currentTask: null,
+          criticalPathWorker: i === 0,
+        });
+      }
+
+      setWorkers(newWorkers);
+      console.log(`Created ${workerCount} workers for ${workflow.tasks.length} tasks`);
+    }
+  }, [workflow?.tasks.length, workerCount]);
+
+  // Add this useEffect after your existing useEffect for fetching workflows
+  useEffect(() => {
+    const loadSelectedWorkflow = async () => {
+      if (!selectedWorkflowId) {
+        setWorkflow(null);
+        return;
+      }
+
+      setLoadingWorkflow(true);
+      const workflowData = await WorkflowService.getWorkflow(selectedWorkflowId);
+
+      if (workflowData) {
+        setWorkflow(workflowData.topology);
+      } else {
+        alert('Failed to load workflow');
+      }
+
+      setLoadingWorkflow(false);
+    };
+
+    loadSelectedWorkflow();
+  }, [selectedWorkflowId]);
+
+  const handleLoadWorkflow = async () => {
+    if (!selectedWorkflowId) {
+      alert('Please select a workflow first');
+      return;
+    }
+
+    setLoadingWorkflow(true);
+
+    const workflow = await WorkflowService.getWorkflow(selectedWorkflowId);
+
+    if (!workflow) {
+      alert('Failed to load workflow');
+      setLoadingWorkflow(false);
+      return;
+    }
+
+    setWorkflow(workflow.topology);
+
+    // Navigate to workflow screen with the loaded topology
+    setTimeout(() => {
+      setLoadingWorkflow(false);
+      navigate('/workflow', {
+        state: {
+          generatedNodes: workflow.topology.tasks,
+          workflowType: 'database',
+          nodeCount: workflow.node_count,
+          gammaParams: workflow.gamma_params,
+          workflowName: workflow.topology.name,
+          workflowId: workflow.id,
+        } as LocationState,
+      });
+    }, 300);
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-8">
+      <h2 className="text-2xl font-semibold mb-4 text-center">Load Saved Workflow</h2>
+      <p className="text-gray-700 mb-6 text-center">
+        Select a previously saved workflow topology from the database.
+      </p>
+
+      <div className="space-y-4 max-w-lg mx-auto">
+        {loadingWorkflows ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Loading workflows...</p>
+          </div>
+        ) : savedWorkflows.length === 0 ? (
+          <div className="text-center py-4 text-gray-500">
+            <p>No saved workflows found.</p>
+            <p className="text-sm mt-1">Generate a workflow and save it to see it here.</p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <label
+                htmlFor="workflowSelect"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Select Workflow
+              </label>
+              <select
+                id="workflowSelect"
+                value={selectedWorkflowId}
+                onChange={e => setSelectedWorkflowId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">-- Choose a workflow --</option>
+                {savedWorkflows.map(workflow => (
+                  <option key={workflow.id} value={workflow.id}>
+                    {workflow.topology.name} ({workflow.node_count} nodes) -{' '}
+                    {new Date(workflow.created_at).toLocaleDateString()}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {savedWorkflows.length} workflow{savedWorkflows.length !== 1 ? 's' : ''} available
+              </p>
+            </div>
+
+            {selectedWorkflowId && (
+              <div className="bg-blue-50 p-3 rounded-md">
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">Workflow Details</h4>
+                {(() => {
+                  const selected = savedWorkflows.find(w => w.id === selectedWorkflowId);
+                  if (!selected) return null;
+
+                  return (
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <p>
+                        <strong>Name:</strong> {selected.topology.name}
+                      </p>
+                      <p>
+                        <strong>Nodes:</strong> {selected.node_count}
+                      </p>
+                      <p>
+                        <strong>Gamma:</strong> shape={selected.gamma_params.shape}, scale=
+                        {selected.gamma_params.scale}
+                      </p>
+                      <p>
+                        <strong>Created:</strong> {new Date(selected.created_at).toLocaleString()}
+                      </p>
+                      {selected.tags && selected.tags.length > 0 && (
+                        <p>
+                          <strong>Tags:</strong> {selected.tags.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            <button
+              onClick={handleLoadWorkflow}
+              disabled={!selectedWorkflowId || loadingWorkflow}
+              className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
+                selectedWorkflowId && !loadingWorkflow
+                  ? 'bg-blue-500 hover:bg-blue-600'
+                  : 'bg-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {loadingWorkflow ? 'Loading Workflow...' : 'Load Selected Workflow'}
+            </button>
+          </>
+        )}
+
+        <button
+          onClick={async () => {
+            setLoadingWorkflows(true);
+            const workflows = await WorkflowService.getAllWorkflows();
+            setSavedWorkflows(workflows);
+            setLoadingWorkflows(false);
+          }}
+          className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+        >
+          🔄 Refresh List
+        </button>
+      </div>
+
+      {workflow && (
+        <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
+          <h3 className="text-lg font-medium text-gray-700 mb-3">Worker Configuration</h3>
+          <div>
+            <label htmlFor="workerCount" className="block text-sm font-medium text-gray-700 mb-1">
+              Number of Workers
+            </label>
+            <input
+              id="workerCount"
+              type="number"
+              min="1"
+              max={workflow.tasks.length}
+              value={workerCount}
+              onChange={e => setWorkerCount(parseInt(e.target.value) || 1)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Number of parallel workers available for task execution (1-{workflow.tasks.length})
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Current: {workers.length} worker{workers.length !== 1 ? 's' : ''} configured
+            </p>
+          </div>
+        </div>
+      )}
+
+      {workflow && (
+        <VisualWorkflow
+          nodes={workflow.tasks}
+          workers={workers}
+          onWorkersUpdate={setWorkers}
+          cpmAnalysis={workflow.criticalPathResult || null}
+        />
+      )}
+    </div>
+  );
+}
+
+export default WorkflowFromDBScreen;

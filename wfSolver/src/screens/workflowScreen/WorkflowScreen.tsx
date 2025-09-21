@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { WorkflowService } from '../../services/workflowService';
 import type { LocationState, Worker, Workflow } from '../../types';
 import {
   analyzeCriticalPath,
@@ -152,6 +153,28 @@ function WorkflowScreen() {
     processWorkflow();
   }, [file, generatedNodes, workflowType, state, navigate]);
 
+  const testSaveWorkflow = async () => {
+    if (!workflow) {
+      console.error('No workflow to save');
+      return;
+    }
+
+    const workflowId = await WorkflowService.saveWorkflowTopology(
+      workflow,
+      state?.gammaParams || { shape: 10, scale: 0.5 }, // Your gamma params
+      undefined,
+      ['test-save'] // Tags
+    );
+
+    if (workflowId) {
+      console.log('Saved! Workflow ID:', workflowId);
+      alert(`Workflow saved! ID: ${workflowId}`);
+    } else {
+      console.error('Failed to save');
+      alert('Failed to save workflow');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -247,6 +270,12 @@ function WorkflowScreen() {
         </p>
         <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
           Run {numberOfSimulations} Simulations
+        </button>
+        <button
+          onClick={testSaveWorkflow}
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+        >
+          Test Save to Database
         </button>
       </div>
     </div>
