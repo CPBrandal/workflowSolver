@@ -40,7 +40,7 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
   const getTransferTime = gammaSampler({
     shape: gammaParams.shape * 0.7,
     scale: gammaParams.scale * 0.4,
-  });
+  }); // Questionable choice
   try {
     const nodes = generateDAGWorkflow({
       nodeCount,

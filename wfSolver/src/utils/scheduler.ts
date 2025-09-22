@@ -3,14 +3,14 @@ import { getNodeDependencies } from './getNodeDependencies';
 
 export function scheduleWithWorkerConstraints(
   nodes: WorkflowNode[],
-  workers: Worker[]
+  workers: Worker[],
+  includeTransferTimes: boolean = true
 ): ScheduledTask[] {
   const scheduledTasks: ScheduledTask[] = [];
   const completionTimes: { [nodeId: string]: number } = {};
   const processedNodes = new Set<string>();
   const nodesToProcess = [...nodes];
 
-  // Track when each worker becomes available
   const workerAvailability: { [workerId: string]: number } = {};
   workers.forEach(worker => {
     workerAvailability[worker.id] = 0;
@@ -27,6 +27,9 @@ export function scheduleWithWorkerConstraints(
   }
 
   function findTransferTime(sourceNodeId: string, targetNodeId: string): number {
+    // If transfer times are disabled, return 0
+    if (!includeTransferTimes) return 0;
+
     const sourceNode = nodes.find(n => n.id === sourceNodeId);
     if (!sourceNode) return 0;
     const connection = sourceNode.connections.find(conn => conn.targetNodeId === targetNodeId);
@@ -129,6 +132,7 @@ export function scheduleWithWorkerConstraints(
   }
 
   console.log('=== Final Schedule ===');
+  console.log(`Transfer times: ${includeTransferTimes ? 'ENABLED' : 'DISABLED'}`);
   scheduledTasks.forEach(task => {
     const node = nodes.find(n => n.id === task.nodeId);
     const criticalPathIndicator = node?.criticalPath ? ' (Critical Path)' : '';

@@ -19,9 +19,13 @@ import {
 
 interface Props {
   workflowId: string;
+  gammaParams: {
+    shape: number;
+    scale: number;
+  };
 }
 
-export function SimulationResultsVisualization({ workflowId }: Props) {
+export function SimulationResultsVisualization({ workflowId, gammaParams }: Props) {
   const [analysis, setAnalysis] = useState<SimulationAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'histogram' | 'ecdf' | 'scatter' | 'comparison'>(
@@ -31,7 +35,10 @@ export function SimulationResultsVisualization({ workflowId }: Props) {
   useEffect(() => {
     const loadAnalysis = async () => {
       setLoading(true);
-      const data = await SimulationAnalysisService.analyzeWorkflowSimulations(workflowId);
+      const data = await SimulationAnalysisService.analyzeWorkflowSimulations(
+        workflowId,
+        gammaParams
+      );
       setAnalysis(data);
       setLoading(false);
     };
@@ -320,6 +327,56 @@ export function SimulationResultsVisualization({ workflowId }: Props) {
           </p>
         </div>
       )}
+      {/* Theoretical Validation */}
+      <div className="bg-white p-6 rounded-lg border border-gray-200">
+        <h3 className="text-lg font-semibold mb-4">Theoretical Validation</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="text-gray-600">Expected Task Time E[t]:</p>
+            <p className="font-semibold">
+              {analysis.theoreticalValidation.expectedTaskTime.toFixed(3)}s
+            </p>
+            <p className="text-xs text-gray-500">
+              shape × scale = {gammaParams.shape} × {gammaParams.scale}
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-600">Avg Critical Path Length:</p>
+            <p className="font-semibold">
+              {analysis.theoreticalValidation.avgCriticalPathLength.toFixed(2)} tasks
+            </p>
+            <p className="text-xs text-gray-500">Average N(j) across runs</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Observed Mean T(-):</p>
+            <p className="font-semibold">
+              {analysis.theoreticalValidation.observedMeanT.toFixed(3)}s
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-600">Theoretical Mean T(-):</p>
+            <p className="font-semibold">
+              {analysis.theoreticalValidation.theoreticalMeanT.toFixed(3)}s
+            </p>
+            <p className="text-xs text-gray-500">E[t] × Avg N(j)</p>
+          </div>
+          <div className="col-span-2">
+            <p className="text-gray-600">Validation Error:</p>
+            <p
+              className={`font-bold text-lg ${
+                analysis.theoreticalValidation.percentError < 5 ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {analysis.theoreticalValidation.percentError.toFixed(2)}%
+            </p>
+            <p className="text-xs text-gray-500">
+              {analysis.theoreticalValidation.percentError < 5
+                ? '✓ Implementation validated'
+                : '⚠ Check implementation - error should be < 5%'}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

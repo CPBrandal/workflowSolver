@@ -1,3 +1,4 @@
+import type { GammaParams } from '../types';
 import type { SimulationRecord } from '../types/database';
 import { SimulationService } from './simulationService';
 
@@ -39,10 +40,20 @@ export interface SimulationAnalysis {
     ratio: number;
     probability: number;
   }>;
+  theoreticalValidation: {
+    observedMeanT: number;
+    theoreticalMeanT: number;
+    avgCriticalPathLength: number;
+    expectedTaskTime: number;
+    percentError: number;
+  };
 }
 
 export class SimulationAnalysisService {
-  static async analyzeWorkflowSimulations(workflowId: string): Promise<SimulationAnalysis | null> {
+  static async analyzeWorkflowSimulations(
+    workflowId: string,
+    gammaParams: GammaParams // Add this parameter
+  ): Promise<SimulationAnalysis | null> {
     const simulations = await SimulationService.getSimulationsByWorkflow(workflowId);
 
     if (!simulations || simulations.length === 0) {
@@ -100,6 +111,16 @@ export class SimulationAnalysisService {
       probability: (i + 1) / sortedRatios.length,
     }));
 
+    const expectedTaskTime = gammaParams.shape * gammaParams.scale;
+    const observedMeanT =
+      simulations.reduce((sum, sim) => sum + sim.theoretical_runtime, 0) / simulations.length;
+
+    const cpLengths = simulations.map(sim => sim.critical_path_node_ids?.length || 0);
+    const avgCriticalPathLength = cpLengths.reduce((sum, n) => sum + n, 0) / simulations.length;
+
+    const theoreticalMeanT = expectedTaskTime * avgCriticalPathLength;
+    const percentError = (Math.abs(observedMeanT - theoreticalMeanT) / theoreticalMeanT) * 100;
+
     return {
       simulations,
       totalSimulations,
@@ -113,6 +134,13 @@ export class SimulationAnalysisService {
       ratioStats,
       histogramData,
       ecdfData,
+      theoreticalValidation: {
+        observedMeanT,
+        theoreticalMeanT,
+        avgCriticalPathLength,
+        expectedTaskTime,
+        percentError,
+      },
     };
   }
 
@@ -144,5 +172,27 @@ export class SimulationAnalysisService {
     });
 
     return bins;
+  }
+
+  // Add to your analysis service
+  static validateTheoreticalRuntime(
+    simulations: SimulationRecord[],
+    expectedTaskTime: number // shape × scale from gamma params
+  ): {
+    observedMean: number;
+    theoreticalMean: number;
+    percentError: number;
+  } {
+    const observedMean =
+      simulations.reduce((sum, sim) => sum + sim.theoretical_runtime, 0) / simulations.length;
+
+    // Count critical path lengths from each simulation
+    const cpLengths = simulations.map(sim => sim.critical_path_node_ids?.length || 0);
+    const avgCpLength = cpLengths.reduce((sum, n) => sum + n, 0) / simulations.length;
+
+    const theoreticalMean = expectedTaskTime * avgCpLength;
+    const percentError = (Math.abs(observedMean - theoreticalMean) / theoreticalMean) * 100;
+
+    return { observedMean, theoreticalMean, percentError };
   }
 }

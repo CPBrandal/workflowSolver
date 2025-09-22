@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Layout } from '../../components/Layout';
 import { WorkflowService } from '../../services/workflowService';
 import type { Worker, Workflow } from '../../types';
 import type { WorkflowRecord } from '../../types/database';
@@ -129,203 +130,198 @@ function WorkflowFromDBScreen() {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
-      <h2 className="text-2xl font-semibold mb-4 text-center">Load Saved Workflow</h2>
-      <p className="text-gray-700 mb-6 text-center">
-        Select a previously saved workflow topology from the database.
-      </p>
-      <button
-        onClick={() => navigate('/')}
-        className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-      >
-        Go Back Home
-      </button>
-
-      <div className="space-y-4 max-w-lg mx-auto">
-        {loadingWorkflows ? (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="text-gray-600 mt-2">Loading workflows...</p>
-          </div>
-        ) : savedWorkflows.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">
-            <p>No saved workflows found.</p>
-            <p className="text-sm mt-1">Generate a workflow and save it to see it here.</p>
-          </div>
-        ) : (
-          <>
-            <div>
-              <label
-                htmlFor="workflowSelect"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Select Workflow
-              </label>
-              <select
-                id="workflowSelect"
-                value={selectedWorkflowId}
-                onChange={e => setSelectedWorkflowId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">-- Choose a workflow --</option>
-                {savedWorkflows.map(workflow => (
-                  <option key={workflow.id} value={workflow.id}>
-                    {workflow.topology.name} ({workflow.node_count} nodes) -{' '}
-                    {new Date(workflow.created_at).toLocaleDateString()}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {savedWorkflows.length} workflow{savedWorkflows.length !== 1 ? 's' : ''} available
-              </p>
+    <Layout>
+      <div className="bg-white rounded-lg shadow-lg p-8">
+        <h2 className="text-2xl font-semibold mb-4 text-center">Load Saved Workflow</h2>
+        <p className="text-gray-700 mb-6 text-center">
+          Select a previously saved workflow topology from the database.
+        </p>
+        <div className="space-y-4 max-w-lg mx-auto">
+          {loadingWorkflows ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="text-gray-600 mt-2">Loading workflows...</p>
             </div>
-
-            {selectedWorkflowId && (
-              <div className="bg-blue-50 p-3 rounded-md">
-                <h4 className="text-sm font-semibold text-gray-700 mb-1">Workflow Details</h4>
-                {(() => {
-                  const selected = savedWorkflows.find(w => w.id === selectedWorkflowId);
-                  if (!selected) return null;
-
-                  return (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      <p>
-                        <strong>Name:</strong> {selected.topology.name}
-                      </p>
-                      <p>
-                        <strong>Nodes:</strong> {selected.node_count}
-                      </p>
-                      <p>
-                        <strong>Gamma:</strong> shape={selected.gamma_params.shape}, scale=
-                        {selected.gamma_params.scale}
-                      </p>
-                      <p>
-                        <strong>Created:</strong> {new Date(selected.created_at).toLocaleString()}
-                      </p>
-                      {selected.tags && selected.tags.length > 0 && (
-                        <p>
-                          <strong>Tags:</strong> {selected.tags.join(', ')}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
+          ) : savedWorkflows.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">
+              <p>No saved workflows found.</p>
+              <p className="text-sm mt-1">Generate a workflow and save it to see it here.</p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label
+                  htmlFor="workflowSelect"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Select Workflow
+                </label>
+                <select
+                  id="workflowSelect"
+                  value={selectedWorkflowId}
+                  onChange={e => setSelectedWorkflowId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">-- Choose a workflow --</option>
+                  {savedWorkflows.map(workflow => (
+                    <option key={workflow.id} value={workflow.id}>
+                      {workflow.topology.name} ({workflow.node_count} nodes) -{' '}
+                      {new Date(workflow.created_at).toLocaleDateString()}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {savedWorkflows.length} workflow{savedWorkflows.length !== 1 ? 's' : ''} available
+                </p>
               </div>
-            )}
 
-            <button
-              onClick={handleShowWorkflow}
-              disabled={!selectedWorkflowId || loadingWorkflow}
-              className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
-                selectedWorkflowId && !loadingWorkflow
-                  ? 'bg-blue-500 hover:bg-blue-600'
-                  : 'bg-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {showWorkflow ? 'Hide Workflow' : 'Show Workflow'}
-            </button>
-          </>
-        )}
-      </div>
+              {selectedWorkflowId && (
+                <div className="bg-blue-50 p-3 rounded-md">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Workflow Details</h4>
+                  {(() => {
+                    const selected = savedWorkflows.find(w => w.id === selectedWorkflowId);
+                    if (!selected) return null;
 
-      {workflow && (
-        <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
-          <h3 className="text-lg font-medium text-gray-700 mb-3">Worker Configuration</h3>
-          <div>
-            <label htmlFor="workerCount" className="block text-sm font-medium text-gray-700 mb-1">
-              Number of Workers
-            </label>
-            <input
-              id="workerCount"
-              type="number"
-              min="1"
-              max={workflow.tasks.length}
-              value={workerCount}
-              onChange={e => setWorkerCount(parseInt(e.target.value) || 1)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Number of parallel workers available for task execution (1-{workflow.tasks.length})
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              Current: {workers.length} worker{workers.length !== 1 ? 's' : ''} configured
-            </p>
-          </div>
-        </div>
-      )}
+                    return (
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <p>
+                          <strong>Name:</strong> {selected.topology.name}
+                        </p>
+                        <p>
+                          <strong>Nodes:</strong> {selected.node_count}
+                        </p>
+                        <p>
+                          <strong>Gamma:</strong> shape={selected.gamma_params.shape}, scale=
+                          {selected.gamma_params.scale}
+                        </p>
+                        <p>
+                          <strong>Created:</strong> {new Date(selected.created_at).toLocaleString()}
+                        </p>
+                        {selected.tags && selected.tags.length > 0 && (
+                          <p>
+                            <strong>Tags:</strong> {selected.tags.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
-      {/* Simulation Configuration */}
-      {workflow && (
-        <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
-          <h3 className="text-lg font-medium text-gray-700 mb-3">Run Simulations</h3>
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="numberOfSimulations"
-                className="block text-sm font-medium text-gray-700 mb-1"
+              <button
+                onClick={handleShowWorkflow}
+                disabled={!selectedWorkflowId || loadingWorkflow}
+                className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
+                  selectedWorkflowId && !loadingWorkflow
+                    ? 'bg-blue-500 hover:bg-blue-600'
+                    : 'bg-gray-400 cursor-not-allowed'
+                }`}
               >
-                Number of Simulations
+                {showWorkflow ? 'Hide Workflow' : 'Show Workflow'}
+              </button>
+            </>
+          )}
+        </div>
+
+        {workflow && (
+          <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
+            <h3 className="text-lg font-medium text-gray-700 mb-3">Worker Configuration</h3>
+            <div>
+              <label htmlFor="workerCount" className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Workers
               </label>
               <input
-                id="numberOfSimulations"
+                id="workerCount"
                 type="number"
                 min="1"
-                max="10000"
-                value={numberOfSimulations}
-                onChange={e => setNumberOfSimulations(parseInt(e.target.value) || 1)}
-                disabled={isRunningSimulations}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                max={workflow.tasks.length}
+                value={workerCount}
+                onChange={e => setWorkerCount(parseInt(e.target.value) || 1)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Each simulation uses different sampled execution and transfer times
+                Number of parallel workers available for task execution (1-{workflow.tasks.length})
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Current: {workers.length} worker{workers.length !== 1 ? 's' : ''} configured
               </p>
             </div>
-
-            {isRunningSimulations && (
-              <div className="bg-blue-50 p-4 rounded-md">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Progress</span>
-                  <span className="text-sm text-gray-600">
-                    {simulationProgress.current} / {simulationProgress.total}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${(simulationProgress.current / simulationProgress.total) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={handleRunSimulations}
-              disabled={isRunningSimulations || !selectedWorkflowId || workers.length === 0}
-              className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
-                !isRunningSimulations && selectedWorkflowId && workers.length > 0
-                  ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {isRunningSimulations
-                ? `Running Simulations... (${simulationProgress.current}/${simulationProgress.total})`
-                : `Run ${numberOfSimulations} Simulation${numberOfSimulations !== 1 ? 's' : ''}`}
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {showWorkflow && workflow && (
-        <VisualWorkflow
-          nodes={workflow.tasks}
-          workers={workers}
-          onWorkersUpdate={setWorkers}
-          cpmAnalysis={workflow.criticalPathResult || null}
-        />
-      )}
-    </div>
+        {/* Simulation Configuration */}
+        {workflow && (
+          <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
+            <h3 className="text-lg font-medium text-gray-700 mb-3">Run Simulations</h3>
+            <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="numberOfSimulations"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Number of Simulations
+                </label>
+                <input
+                  id="numberOfSimulations"
+                  type="number"
+                  min="1"
+                  max="10000"
+                  value={numberOfSimulations}
+                  onChange={e => setNumberOfSimulations(parseInt(e.target.value) || 1)}
+                  disabled={isRunningSimulations}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Each simulation uses different sampled execution and transfer times
+                </p>
+              </div>
+
+              {isRunningSimulations && (
+                <div className="bg-blue-50 p-4 rounded-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Progress</span>
+                    <span className="text-sm text-gray-600">
+                      {simulationProgress.current} / {simulationProgress.total}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${(simulationProgress.current / simulationProgress.total) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleRunSimulations}
+                disabled={isRunningSimulations || !selectedWorkflowId || workers.length === 0}
+                className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
+                  !isRunningSimulations && selectedWorkflowId && workers.length > 0
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {isRunningSimulations
+                  ? `Running Simulations... (${simulationProgress.current}/${simulationProgress.total})`
+                  : `Run ${numberOfSimulations} Simulation${numberOfSimulations !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showWorkflow && workflow && (
+          <VisualWorkflow
+            nodes={workflow.tasks}
+            workers={workers}
+            onWorkersUpdate={setWorkers}
+            cpmAnalysis={workflow.criticalPathResult || null}
+          />
+        )}
+      </div>
+    </Layout>
   );
 }
 
