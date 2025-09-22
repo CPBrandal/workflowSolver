@@ -247,10 +247,6 @@ export class CriticalPathAnalyzer {
     const result = this.analyze();
     const sortedNodeIds = this.topologicalSort();
 
-    console.log('=== Critical Path Analysis Results (with Transfer Times) ===\n');
-
-    // Forward pass
-    console.log('Forward pass:');
     for (const nodeId of sortedNodeIds) {
       const node = result.nodes.find(n => n.id === nodeId);
       if (node) {
@@ -267,15 +263,10 @@ export class CriticalPathAnalyzer {
             .join(', ');
           transferDetails = ` [from: ${transfers}]`;
         }
-
-        console.log(
-          `${node.name} (${nodeId}): EST = ${node.earliestStart.toFixed(1)}, EFT = ${node.earliestFinish.toFixed(1)}${transferDetails}`
-        );
       }
     }
 
     // Backward pass
-    console.log('\nBackward pass:');
     for (let i = sortedNodeIds.length - 1; i >= 0; i--) {
       const nodeId = sortedNodeIds[i];
       const node = result.nodes.find(n => n.id === nodeId);
@@ -291,15 +282,10 @@ export class CriticalPathAnalyzer {
             .join(', ');
           transferDetails = ` [to: ${transfers}]`;
         }
-
-        console.log(
-          `${node.name} (${nodeId}): LFT = ${node.latestFinish.toFixed(1)}, LST = ${node.latestStart.toFixed(1)}${transferDetails}`
-        );
       }
     }
 
     // Slack calculations
-    console.log('\nSlack calculations:');
     for (const nodeId of sortedNodeIds) {
       const node = result.nodes.find(n => n.id === nodeId);
       if (node) {

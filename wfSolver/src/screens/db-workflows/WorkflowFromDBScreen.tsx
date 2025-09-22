@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { WorkflowService } from '../../services/workflowService';
 import type { Worker, Workflow } from '../../types';
@@ -8,7 +7,6 @@ import VisualWorkflow from '../workflowScreen/VisualWorkflow';
 import { InstantSimulationRunner } from './InstantSimulationsRunner';
 
 function WorkflowFromDBScreen() {
-  const navigate = useNavigate();
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
@@ -17,6 +15,7 @@ function WorkflowFromDBScreen() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [workerCount, setWorkerCount] = useState<number>(2);
   const [showWorkflow, setShowWorkflow] = useState(false);
+  const [useTransferTime, setUseTransferTime] = useState(true);
 
   // Simulation states
   const [numberOfSimulations, setNumberOfSimulations] = useState<number>(100);
@@ -115,11 +114,11 @@ function WorkflowFromDBScreen() {
         selectedWorkflow.gamma_params,
         (current, total) => {
           setSimulationProgress({ current, total });
-        }
+        },
+        useTransferTime
       );
 
       alert(`Successfully completed ${savedIds.length} simulations!`);
-      console.log('Saved simulation IDs:', savedIds);
     } catch (error) {
       console.error('Simulation error:', error);
       alert('Failed to run simulations. Check console for details.');
@@ -249,9 +248,38 @@ function WorkflowFromDBScreen() {
           </div>
         )}
 
+        {workflow && (
+          <div className="mt-6 pt-6 max-w-lg mx-auto flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex-1">
+              <label htmlFor="useTransferTime" className="text-sm font-medium text-gray-700">
+                Include Transfer Time
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                When enabled, transfer times between tasks are included in simulations
+              </p>
+            </div>
+            <button
+              id="useTransferTime"
+              type="button"
+              onClick={() => setUseTransferTime(!useTransferTime)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                useTransferTime ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+              role="switch"
+              aria-checked={useTransferTime}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  useTransferTime ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        )}
+
         {/* Simulation Configuration */}
         {workflow && (
-          <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
+          <div className="mt-6 pt-6 max-w-lg mx-auto">
             <h3 className="text-lg font-medium text-gray-700 mb-3">Run Simulations</h3>
             <div className="space-y-4">
               <div>

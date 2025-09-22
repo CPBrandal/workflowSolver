@@ -115,4 +115,21 @@ export class SimulationService {
 
     return data;
   }
+
+  static async getMaxSimulationNumber(workflowId: string): Promise<number> {
+    const { data, error } = await supabase
+      .from('simulations')
+      .select('simulation_number')
+      .eq('workflow_id', workflowId)
+      .order('simulation_number', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      // No simulations exist yet
+      return 0;
+    }
+
+    return data.simulation_number || 0;
+  }
 }

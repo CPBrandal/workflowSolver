@@ -68,7 +68,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
             }`}
           >
-            Saved Workflows
+            Run simulations
           </span>
         </button>
 

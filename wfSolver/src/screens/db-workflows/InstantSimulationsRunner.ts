@@ -2,7 +2,7 @@ import { SimulationService } from '../../services/simulationService';
 import type { GammaParams, ScheduledTask, Worker, Workflow } from '../../types';
 import {
   analyzeCriticalPath,
-  getMinimumProjectDuration,
+  getProjectDuration,
   setCriticalPathEdgesTransferTimes,
 } from '../../utils/criticalPathAnalyzer';
 import { gammaSampler } from '../../utils/gammaSampler';
@@ -18,17 +18,21 @@ export class InstantSimulationRunner {
     workers: Worker[],
     numberOfSimulations: number,
     gammaParams: GammaParams,
-    onProgress?: (current: number, total: number) => void
+    onProgress?: (current: number, total: number) => void,
+    useTransferTime: boolean = true
   ): Promise<string[]> {
+    const maxSimNumber = await SimulationService.getMaxSimulationNumber(workflowId);
     const savedSimulationIds: string[] = [];
 
     for (let i = 1; i <= numberOfSimulations; i++) {
-      // 1. Sample execution times for this simulation
-      const simulatedWorkflow = this.sampleExecutionTimes(workflow, gammaParams);
+      const simulationNumber = maxSimNumber + i;
 
-      // 2. Run critical path analysis to get theoretical runtime and mark critical path nodes
-      const cpmResult = analyzeCriticalPath(simulatedWorkflow.tasks);
-      const theoreticalRuntime = getMinimumProjectDuration(simulatedWorkflow.tasks);
+      // 1. Sample execution times (always) and transfer times (conditional)
+      const simulatedWorkflow = this.sampleExecutionTimes(workflow, gammaParams, useTransferTime);
+
+      // 2. Find critical path using EXECUTION TIMES ONLY
+      // (Critical path tasks run on same worker → no transfer delay)
+      const cpmResult = analyzeCriticalPath(simulatedWorkflow.tasks, false);
 
       // 3. Mark nodes that are on the critical path
       simulatedWorkflow.tasks = simulatedWorkflow.tasks.map(task => ({
@@ -40,23 +44,33 @@ export class InstantSimulationRunner {
       simulatedWorkflow.criticalPath = cpmResult.orderedCriticalPath;
       simulatedWorkflow.criticalPathResult = cpmResult;
 
-      // 5. Set transfer times to 0 on critical path edges (IMPORTANT!)
+      // 5. Set critical path edge transfer times to 0
+      // (Already 0 if useTransferTime=false, but this ensures it)
       setCriticalPathEdgesTransferTimes(simulatedWorkflow.tasks);
 
-      // 6. Calculate the schedule with worker constraints (respects critical path)
-      const schedule = scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
+      // 6. Calculate theoretical runtime using execution times only
+      // (No transfer times on critical path = theoretical minimum)
+      const theoreticalRuntime = getProjectDuration(simulatedWorkflow.tasks, false);
 
-      // 7. Calculate actual runtime (may be longer than theoretical due to worker constraints)
+      // 7. Schedule with worker constraints
+      // Non-critical edges may have transfer times if useTransferTime=true
+      const schedule = scheduleWithWorkerConstraints(
+        simulatedWorkflow.tasks,
+        workers,
+        false // Always false because we've already modified the workflow
+      );
+
+      // 8. Calculate actual runtime
       const actualRuntime =
         schedule.length > 0 ? Math.max(...schedule.map(task => task.endTime)) : 0;
 
-      // 8. Simulate final worker states
+      // 9. Simulate final worker states
       const finalWorkers = this.calculateFinalWorkerStates(workers, schedule);
 
-      // 9. Save to database
+      // 10. Save to database
       const simId = await SimulationService.saveSimulation(
         workflowId,
-        i,
+        simulationNumber,
         actualRuntime,
         theoreticalRuntime,
         simulatedWorkflow,
@@ -67,29 +81,28 @@ export class InstantSimulationRunner {
         savedSimulationIds.push(simId);
       }
 
-      // Update progress
       onProgress?.(i, numberOfSimulations);
     }
 
     return savedSimulationIds;
   }
 
-  /**
-   * Sample execution and transfer times from gamma distribution
-   */
-  private static sampleExecutionTimes(workflow: Workflow, gammaParams: GammaParams): Workflow {
+  // In sampleExecutionTimes (should already be correct):
+  private static sampleExecutionTimes(
+    workflow: Workflow,
+    gammaParams: GammaParams,
+    useTransferTime: boolean
+  ): Workflow {
     const sampledWorkflow = JSON.parse(JSON.stringify(workflow)) as Workflow;
-
-    // Create sampler once for efficiency
     const sampler = gammaSampler(gammaParams);
 
     sampledWorkflow.tasks.forEach(task => {
-      // Sample execution time using gamma distribution
+      // Always sample execution time
       task.executionTime = sampler();
 
-      // Sample transfer times for edges
+      // Sample transfer times only if enabled
       task.connections.forEach(edge => {
-        edge.transferTime = sampler();
+        edge.transferTime = useTransferTime ? sampler() : 0;
       });
     });
 
