@@ -150,6 +150,20 @@ export class SimulationAnalysisService {
   ): Array<{ binStart: number; binEnd: number; binMid: number; count: number; frequency: number }> {
     const min = Math.min(...ratios);
     const max = Math.max(...ratios);
+
+    // Handle case where all values are the same
+    if (min === max) {
+      return [
+        {
+          binStart: min,
+          binEnd: max,
+          binMid: min,
+          count: ratios.length,
+          frequency: 1.0,
+        },
+      ];
+    }
+
     const binWidth = (max - min) / binCount;
 
     const bins = Array(binCount)
@@ -163,7 +177,10 @@ export class SimulationAnalysisService {
       }));
 
     ratios.forEach(r => {
-      const binIndex = Math.min(Math.floor((r - min) / binWidth), binCount - 1);
+      // Calculate bin index and ensure it's within bounds
+      let binIndex = Math.floor((r - min) / binWidth);
+      // Handle edge case where r === max
+      binIndex = Math.min(binIndex, binCount - 1);
       bins[binIndex].count++;
     });
 
@@ -172,27 +189,5 @@ export class SimulationAnalysisService {
     });
 
     return bins;
-  }
-
-  // Add to your analysis service
-  static validateTheoreticalRuntime(
-    simulations: SimulationRecord[],
-    expectedTaskTime: number // shape × scale from gamma params
-  ): {
-    observedMean: number;
-    theoreticalMean: number;
-    percentError: number;
-  } {
-    const observedMean =
-      simulations.reduce((sum, sim) => sum + sim.theoretical_runtime, 0) / simulations.length;
-
-    // Count critical path lengths from each simulation
-    const cpLengths = simulations.map(sim => sim.critical_path_node_ids?.length || 0);
-    const avgCpLength = cpLengths.reduce((sum, n) => sum + n, 0) / simulations.length;
-
-    const theoreticalMean = expectedTaskTime * avgCpLength;
-    const percentError = (Math.abs(observedMean - theoreticalMean) / theoreticalMean) * 100;
-
-    return { observedMean, theoreticalMean, percentError };
   }
 }

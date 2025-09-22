@@ -13,7 +13,6 @@ function HomeScreen() {
   const [uploadStatus, setUploadStatus] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showUploadOption, setShowUploadOption] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Generator selection
   const [generatorType, setGeneratorType] = useState<'workflow' | 'preset'>('workflow');
@@ -129,7 +128,8 @@ function HomeScreen() {
     <Layout>
       <div className="flex min-h-screen">
         {/* Main Content */}
-        <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="flex-1">
+          {' '}
           <div className="max-w-4xl mx-auto p-6 space-y-8">
             <h1 className="text-4xl font-bold text-center mb-8">Workflow Solver</h1>
 
