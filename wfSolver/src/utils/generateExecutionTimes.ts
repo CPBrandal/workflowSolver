@@ -1,14 +1,13 @@
-import type { WorkflowNode } from '../types';
-import { createGammaSampler, type GammaParams } from './generateArbitraryWorkflow';
+import type { GammaParams, WorkflowNode } from '../types';
+import { gammaSampler } from './gammaSampler';
 
 export function generateExecutionTimes(
   nodes: WorkflowNode[],
   gammaParams: GammaParams
 ): WorkflowNode[] {
-  const gammaSampler = createGammaSampler(gammaParams);
-
+  const sampler = gammaSampler(gammaParams);
   return nodes.map(node => ({
     ...node,
-    duration: gammaSampler(),
+    duration: sampler(),
   }));
 }

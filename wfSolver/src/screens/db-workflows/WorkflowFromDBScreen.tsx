@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { WorkflowService } from '../../services/workflowService';
 import type { Worker, Workflow } from '../../types';
 import type { WorkflowRecord } from '../../types/database';
 import VisualWorkflow from '../workflowScreen/VisualWorkflow';
+import { InstantSimulationRunner } from './InstantSimulationsRunner';
 
 function WorkflowFromDBScreen() {
-  // Add these state variables with your other useState declarations:
+  const navigate = useNavigate();
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
@@ -14,6 +16,11 @@ function WorkflowFromDBScreen() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [workerCount, setWorkerCount] = useState<number>(2);
   const [showWorkflow, setShowWorkflow] = useState(false);
+
+  // Simulation states
+  const [numberOfSimulations, setNumberOfSimulations] = useState<number>(100);
+  const [isRunningSimulations, setIsRunningSimulations] = useState(false);
+  const [simulationProgress, setSimulationProgress] = useState({ current: 0, total: 0 });
 
   // Fetch saved workflows when component mounts
   useEffect(() => {
@@ -46,7 +53,6 @@ function WorkflowFromDBScreen() {
     }
   }, [workflow?.tasks.length, workerCount]);
 
-  // Add this useEffect after your existing useEffect for fetching workflows
   useEffect(() => {
     const loadSelectedWorkflow = async () => {
       if (!selectedWorkflowId) {
@@ -78,12 +84,62 @@ function WorkflowFromDBScreen() {
     setShowWorkflow(!showWorkflow);
   };
 
+  const handleRunSimulations = async () => {
+    if (!selectedWorkflowId || !workflow) {
+      alert('Please select a workflow first');
+      return;
+    }
+
+    if (workers.length === 0) {
+      alert('Please configure workers first');
+      return;
+    }
+
+    // Get the selected workflow record to access gamma params
+    const selectedWorkflow = savedWorkflows.find(w => w.id === selectedWorkflowId);
+    if (!selectedWorkflow) {
+      alert('Could not find workflow details');
+      return;
+    }
+
+    setIsRunningSimulations(true);
+    setSimulationProgress({ current: 0, total: numberOfSimulations });
+
+    try {
+      const savedIds = await InstantSimulationRunner.runBatchSimulations(
+        selectedWorkflowId,
+        workflow,
+        workers,
+        numberOfSimulations,
+        selectedWorkflow.gamma_params,
+        (current, total) => {
+          setSimulationProgress({ current, total });
+        }
+      );
+
+      alert(`Successfully completed ${savedIds.length} simulations!`);
+      console.log('Saved simulation IDs:', savedIds);
+    } catch (error) {
+      console.error('Simulation error:', error);
+      alert('Failed to run simulations. Check console for details.');
+    } finally {
+      setIsRunningSimulations(false);
+      setSimulationProgress({ current: 0, total: 0 });
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-8">
       <h2 className="text-2xl font-semibold mb-4 text-center">Load Saved Workflow</h2>
       <p className="text-gray-700 mb-6 text-center">
         Select a previously saved workflow topology from the database.
       </p>
+      <button
+        onClick={() => navigate('/')}
+        className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+      >
+        Go Back Home
+      </button>
 
       <div className="space-y-4 max-w-lg mx-auto">
         {loadingWorkflows ? (
@@ -172,7 +228,7 @@ function WorkflowFromDBScreen() {
         )}
       </div>
 
-      {showWorkflow && workflow && (
+      {workflow && (
         <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
           <h3 className="text-lg font-medium text-gray-700 mb-3">Worker Configuration</h3>
           <div>
@@ -194,6 +250,69 @@ function WorkflowFromDBScreen() {
             <p className="text-xs text-blue-600 mt-1">
               Current: {workers.length} worker{workers.length !== 1 ? 's' : ''} configured
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Simulation Configuration */}
+      {workflow && (
+        <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
+          <h3 className="text-lg font-medium text-gray-700 mb-3">Run Simulations</h3>
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="numberOfSimulations"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Number of Simulations
+              </label>
+              <input
+                id="numberOfSimulations"
+                type="number"
+                min="1"
+                max="10000"
+                value={numberOfSimulations}
+                onChange={e => setNumberOfSimulations(parseInt(e.target.value) || 1)}
+                disabled={isRunningSimulations}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Each simulation uses different sampled execution and transfer times
+              </p>
+            </div>
+
+            {isRunningSimulations && (
+              <div className="bg-blue-50 p-4 rounded-md">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Progress</span>
+                  <span className="text-sm text-gray-600">
+                    {simulationProgress.current} / {simulationProgress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${(simulationProgress.current / simulationProgress.total) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleRunSimulations}
+              disabled={isRunningSimulations || !selectedWorkflowId || workers.length === 0}
+              className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
+                !isRunningSimulations && selectedWorkflowId && workers.length > 0
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {isRunningSimulations
+                ? `Running Simulations... (${simulationProgress.current}/${simulationProgress.total})`
+                : `Run ${numberOfSimulations} Simulation${numberOfSimulations !== 1 ? 's' : ''}`}
+            </button>
           </div>
         </div>
       )}

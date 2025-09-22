@@ -2,14 +2,16 @@ import type { CriticalPathNode, CriticalPathResult, WorkflowNode } from '../type
 import { getNodeDependencies } from './getNodeDependencies';
 
 /**
- * Performs Critical Path Method (CPM) analysis on a workflow including transfer times
+ * Performs Critical Path Method (CPM) analysis on a workflow
  */
 export class CriticalPathAnalyzer {
   private nodes: CriticalPathNode[] = [];
   private workflowNodes: WorkflowNode[];
+  private includeTransferTimes: boolean;
 
-  constructor(workflowNodes: WorkflowNode[]) {
+  constructor(workflowNodes: WorkflowNode[], includeTransferTimes: boolean = false) {
     this.workflowNodes = workflowNodes;
+    this.includeTransferTimes = includeTransferTimes;
     this.initializeNodes();
   }
 
@@ -38,7 +40,6 @@ export class CriticalPathAnalyzer {
     const dfsVisit = (nodeId: string) => {
       visited.add(nodeId);
 
-      // Visit all successors (outgoing connections)
       const node = this.nodes.find(n => n.id === nodeId);
       if (node) {
         for (const edge of node.connections) {
@@ -52,14 +53,12 @@ export class CriticalPathAnalyzer {
       stack.push(nodeId);
     };
 
-    // Visit all nodes
     for (const node of this.nodes) {
       if (!visited.has(node.id)) {
         dfsVisit(node.id);
       }
     }
 
-    // Return in reverse order (topological order)
     return stack.reverse();
   }
 
@@ -75,14 +74,13 @@ export class CriticalPathAnalyzer {
   }
 
   /**
-   * Forward pass: Calculate earliest start and finish times including transfer times
+   * Forward pass: Calculate earliest start and finish times
    */
   private forwardPass(sortedNodeIds: string[]): void {
     for (const nodeId of sortedNodeIds) {
       const node = this.nodes.find(n => n.id === nodeId);
       if (!node) continue;
 
-      // Get all predecessors (dependencies)
       const predecessorIds = getNodeDependencies(nodeId, this.workflowNodes);
 
       let maxPredecessorFinishWithTransfer = 0;
@@ -90,11 +88,10 @@ export class CriticalPathAnalyzer {
       for (const predId of predecessorIds) {
         const predecessor = this.nodes.find(n => n.id === predId);
         if (predecessor) {
-          // Find the edge from predecessor to current node
           const edge = this.findEdge(predId, nodeId);
-          const transferTime = edge?.transferTime || 0;
+          // Use transfer time only if includeTransferTimes is true
+          const transferTime = this.includeTransferTimes ? edge?.transferTime || 0 : 0;
 
-          // Calculate when this predecessor would make the current node available
           const availableTime = predecessor.earliestFinish + transferTime;
           maxPredecessorFinishWithTransfer = Math.max(
             maxPredecessorFinishWithTransfer,
@@ -109,15 +106,12 @@ export class CriticalPathAnalyzer {
   }
 
   /**
-   * Backward pass: Calculate latest start and finish times including transfer times
+   * Backward pass: Calculate latest start and finish times
    */
   private backwardPass(sortedNodeIds: string[]): void {
-    // Find maximum earliest finish time
     const maxFinish = Math.max(...this.nodes.map(n => n.earliestFinish));
 
-    // Initialize all latest finish times
     for (const node of this.nodes) {
-      // For nodes with no successors, set latest finish to earliest finish
       if (node.connections.length === 0) {
         node.latestFinish = node.earliestFinish;
       } else {
@@ -125,7 +119,6 @@ export class CriticalPathAnalyzer {
       }
     }
 
-    // Process nodes in reverse topological order
     for (let i = sortedNodeIds.length - 1; i >= 0; i--) {
       const nodeId = sortedNodeIds[i];
       const node = this.nodes.find(n => n.id === nodeId);
@@ -133,12 +126,11 @@ export class CriticalPathAnalyzer {
 
       let minLatestFinish = node.latestFinish;
 
-      // Check all successors and their transfer times
       for (const edge of node.connections) {
         const successor = this.nodes.find(n => n.id === edge.targetNodeId);
         if (successor) {
-          const transferTime = edge.transferTime || 0;
-          // This node must finish early enough for the successor to start on time
+          // Use transfer time only if includeTransferTimes is true
+          const transferTime = this.includeTransferTimes ? edge.transferTime || 0 : 0;
           const requiredFinishTime = successor.latestStart - transferTime;
           minLatestFinish = Math.min(minLatestFinish, requiredFinishTime);
         }
@@ -155,8 +147,6 @@ export class CriticalPathAnalyzer {
   private calculateSlackAndCriticalPath(): void {
     for (const node of this.nodes) {
       node.slack = node.latestStart - node.earliestStart;
-
-      // Mark as critical if slack is near zero (accounting for floating point precision)
       node.isOnCriticalPath = Math.abs(node.slack) < 0.001;
     }
   }
@@ -177,14 +167,12 @@ export class CriticalPathAnalyzer {
 
     const visited = new Set<string>();
 
-    // Find the starting node (no critical predecessors)
     const startNode = criticalNodes.find(node => {
       const predecessors = getNodeDependencies(node.id, this.workflowNodes);
       return !predecessors.some(predId => criticalNodes.some(critNode => critNode.id === predId));
     });
 
     if (!startNode) {
-      // If no clear start, use the one with earliest start time
       const earliestNode = criticalNodes.reduce((earliest, current) =>
         current.earliestStart < earliest.earliestStart ? current : earliest
       );
@@ -209,12 +197,11 @@ export class CriticalPathAnalyzer {
     visited.add(current.id);
     path.push(current);
 
-    // Find next critical node in the sequence
     for (const edge of current.connections) {
       const successor = criticalNodes.find(node => node.id === edge.targetNodeId);
       if (successor && !visited.has(successor.id)) {
-        // Verify this is a critical connection (timing consistency including transfer time)
-        const transferTime = edge.transferTime || 0;
+        // Use transfer time only if includeTransferTimes is true
+        const transferTime = this.includeTransferTimes ? edge.transferTime || 0 : 0;
         const expectedStart = current.earliestFinish + transferTime;
 
         if (Math.abs(expectedStart - successor.earliestStart) < 0.001) {
@@ -230,24 +217,15 @@ export class CriticalPathAnalyzer {
    * Perform complete critical path analysis
    */
   public analyze(): CriticalPathResult {
-    // 1. Topological sort
     const sortedNodeIds = this.topologicalSort();
-
-    // 2. Forward pass (including transfer times)
     this.forwardPass(sortedNodeIds);
-
-    // 3. Backward pass (including transfer times)
     this.backwardPass(sortedNodeIds);
-
-    // 4. Calculate slack and identify critical path
     this.calculateSlackAndCriticalPath();
 
-    // 5. Get results
     const criticalPath = this.getCriticalPathNodes();
     const orderedCriticalPath = this.getOrderedCriticalPath();
     const minimumProjectDuration = Math.max(...this.nodes.map(n => n.earliestFinish));
 
-    // Calculate critical path duration
     const criticalPathDuration =
       orderedCriticalPath.length > 0
         ? orderedCriticalPath[orderedCriticalPath.length - 1].earliestFinish
@@ -363,31 +341,40 @@ export class CriticalPathAnalyzer {
 /**
  * Utility function to analyze critical path for workflow nodes
  */
-export function analyzeCriticalPath(nodes: WorkflowNode[]): CriticalPathResult {
-  const analyzer = new CriticalPathAnalyzer(nodes);
+export function analyzeCriticalPath(
+  nodes: WorkflowNode[],
+  includeTransferTimes: boolean = true
+): CriticalPathResult {
+  const analyzer = new CriticalPathAnalyzer(nodes, includeTransferTimes);
   return analyzer.analyze();
 }
 
 /**
  * Get just the critical path nodes in order
  */
-export function getCriticalPath(nodes: WorkflowNode[]): WorkflowNode[] {
+export function getCriticalPath(
+  nodes: WorkflowNode[],
+  includeTransferTimes: boolean = true
+): WorkflowNode[] {
   if (!nodes || nodes.length === 0) return [];
-  const result = analyzeCriticalPath(nodes);
+  const result = analyzeCriticalPath(nodes, includeTransferTimes);
   return result.orderedCriticalPath;
 }
 
 /**
  * Get the project completion time
  */
-export function getProjectDuration(nodes: WorkflowNode[]): number {
-  const result = analyzeCriticalPath(nodes);
+export function getProjectDuration(
+  nodes: WorkflowNode[],
+  includeTransferTimes: boolean = true
+): number {
+  const result = analyzeCriticalPath(nodes, includeTransferTimes);
   return result.minimumProjectDuration;
 }
 
 export function setCriticalPathEdgesTransferTimes(nodes: WorkflowNode[]): Boolean {
   if (!nodes || nodes.length === 0) return false;
-  const getCriticalPathNodes = getCriticalPath(nodes);
+  const getCriticalPathNodes = getCriticalPath(nodes, false); // Use execution times only
   for (let i = 0; i < getCriticalPathNodes.length - 1; i++) {
     for (const edge of getCriticalPathNodes[i].connections) {
       if (edge.targetNodeId === getCriticalPathNodes[i + 1].id) {
@@ -400,10 +387,7 @@ export function setCriticalPathEdgesTransferTimes(nodes: WorkflowNode[]): Boolea
 }
 
 export function getMinimumProjectDuration(nodes: WorkflowNode[]): number {
-  const result = getCriticalPath(nodes);
-  let duration = 0;
-  for (let i = 0; i < result.length; i++) {
-    duration += result[i].executionTime || 0;
-  }
-  return duration;
+  // Get theoretical minimum using execution times only
+  const result = analyzeCriticalPath(nodes, false);
+  return result.minimumProjectDuration;
 }

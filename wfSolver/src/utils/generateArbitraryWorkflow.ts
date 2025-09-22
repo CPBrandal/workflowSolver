@@ -1,4 +1,3 @@
-import { randomGamma } from 'd3-random';
 import type {
   ArbitraryWorkflowConfig,
   DAGGenerationParams,
@@ -6,6 +5,7 @@ import type {
   GammaParams,
   WorkflowNode,
 } from '../types';
+import { gammaSampler } from './gammaSampler';
 
 export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): WorkflowNode[] {
   const {
@@ -36,8 +36,8 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     throw new Error('Node count cannot exceed 50');
   }
 
-  const getDuration = createGammaSampler(gammaParams);
-  const getTransferTime = createGammaSampler({
+  const getDuration = gammaSampler(gammaParams);
+  const getTransferTime = gammaSampler({
     shape: gammaParams.shape * 0.7,
     scale: gammaParams.scale * 0.4,
   });
@@ -70,16 +70,6 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
       `Failed to generate arbitrary workflow: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
-}
-
-export function createGammaSampler(params: GammaParams): () => number {
-  const gammaRng = randomGamma(params.shape, params.scale);
-
-  return () => {
-    let value = gammaRng();
-
-    return Math.round(value * 100) / 100;
-  };
 }
 
 function generateDAGWorkflow({

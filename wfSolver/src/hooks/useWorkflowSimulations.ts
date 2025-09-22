@@ -159,7 +159,7 @@ export function useWorkflowSimulation({
           }
         }
         const actualStartTime = Math.max(earliestStart, workerAvailableTime);
-        const taskDuration = node.executionTime || 1;
+        const taskDuration = node.executionTime || 0;
         const completionTime = actualStartTime + taskDuration;
 
         // Schedule the task
