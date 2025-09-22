@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Layout } from '../../components/Layout';
 import { WorkflowService } from '../../services/workflowService';
 import type { WorkflowRecord } from '../../types/database';
-import { SimulationResultsVisualization } from '../SimulationResultsVisualization';
 
 function SimulationsFromDBScreen() {
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const SimulationResultsVisualization = lazy(() =>
+    import('../SimulationResultsVisualization').then(module => ({
+      default: module.SimulationResultsVisualization,
+    }))
+  );
 
   // Fetch saved workflows when component mounts
   useEffect(() => {
@@ -139,15 +143,17 @@ function SimulationsFromDBScreen() {
           {/* Results Visualization */}
           {showResults && selectedWorkflowId && (
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <SimulationResultsVisualization
-                workflowId={selectedWorkflowId}
-                gammaParams={
-                  savedWorkflows.find(w => w.id === selectedWorkflowId)?.gamma_params || {
-                    shape: 1,
-                    scale: 1,
-                  } // fallback
-                }
-              />
+              <Suspense fallback={<div>Loading charts...</div>}>
+                <SimulationResultsVisualization
+                  workflowId={selectedWorkflowId}
+                  gammaParams={
+                    savedWorkflows.find(w => w.id === selectedWorkflowId)?.gamma_params || {
+                      shape: 1,
+                      scale: 1,
+                    }
+                  }
+                />
+              </Suspense>
             </div>
           )}
         </div>

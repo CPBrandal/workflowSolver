@@ -9,9 +9,7 @@ function ViewWorkflow() {
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
-  const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [showWorkflow, setShowWorkflow] = useState(false);
 
   // Fetch saved workflows when component mounts
   useEffect(() => {
@@ -30,11 +28,9 @@ function ViewWorkflow() {
     const loadSelectedWorkflow = async () => {
       if (!selectedWorkflowId) {
         setWorkflow(null);
-        setShowWorkflow(false);
         return;
       }
 
-      setLoadingWorkflow(true);
       const workflowData = await WorkflowService.getWorkflow(selectedWorkflowId);
 
       if (workflowData) {
@@ -42,20 +38,10 @@ function ViewWorkflow() {
       } else {
         alert('Failed to load workflow');
       }
-
-      setLoadingWorkflow(false);
     };
 
     loadSelectedWorkflow();
   }, [selectedWorkflowId]);
-
-  const handleShowWorkflow = () => {
-    if (!selectedWorkflowId) {
-      alert('Please select a workflow first');
-      return;
-    }
-    setShowWorkflow(!showWorkflow);
-  };
 
   const getSelectedWorkflowDetails = () => {
     return savedWorkflows.find(w => w.id === selectedWorkflowId);
@@ -108,78 +94,12 @@ function ViewWorkflow() {
                   {savedWorkflows.length} workflow{savedWorkflows.length !== 1 ? 's' : ''} available
                 </p>
               </div>
-
-              {/* Workflow Details */}
-              {selectedWorkflowId && (
-                <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Workflow Details</h4>
-                  {(() => {
-                    const selected = getSelectedWorkflowDetails();
-                    if (!selected) return null;
-
-                    return (
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <p>
-                          <strong>Name:</strong> {selected.topology.name}
-                        </p>
-                        <p>
-                          <strong>Nodes:</strong> {selected.node_count}
-                        </p>
-                        <p>
-                          <strong>Gamma Parameters:</strong> shape={selected.gamma_params.shape},
-                          scale={selected.gamma_params.scale}
-                        </p>
-                        <p>
-                          <strong>Expected Task Time:</strong>{' '}
-                          {(selected.gamma_params.shape * selected.gamma_params.scale).toFixed(2)}s
-                        </p>
-                        <p>
-                          <strong>Created:</strong> {new Date(selected.created_at).toLocaleString()}
-                        </p>
-                        {selected.tags && selected.tags.length > 0 && (
-                          <p>
-                            <strong>Tags:</strong> {selected.tags.join(', ')}
-                          </p>
-                        )}
-                        {selected.generation_config && (
-                          <div className="mt-2 pt-2 border-t border-blue-300">
-                            <p className="text-xs font-semibold text-gray-700">
-                              Generation Config:
-                            </p>
-                            <p className="text-xs">
-                              Depth: {selected.generation_config.maxDepth}, Max Width:{' '}
-                              {selected.generation_config.maxWidth}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* Show/Hide Button */}
-              <button
-                onClick={handleShowWorkflow}
-                disabled={!selectedWorkflowId || loadingWorkflow}
-                className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
-                  selectedWorkflowId && !loadingWorkflow
-                    ? 'bg-blue-500 hover:bg-blue-600'
-                    : 'bg-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {loadingWorkflow
-                  ? 'Loading...'
-                  : showWorkflow
-                    ? 'Hide Workflow Visualization'
-                    : 'Show Workflow Visualization'}
-              </button>
             </>
           )}
         </div>
 
         {/* Workflow Visualization */}
-        {showWorkflow && workflow && (
+        {workflow && (
           <div className="mt-8 pt-6 border-t">
             <h3 className="text-lg font-medium text-gray-700 mb-4 text-center">
               Workflow Visualization
@@ -190,6 +110,53 @@ function ViewWorkflow() {
               onWorkersUpdate={() => {}} // No-op for viewing
               cpmAnalysis={workflow.criticalPathResult || null}
             />
+          </div>
+        )}
+
+        {/* Workflow Details */}
+        {selectedWorkflowId && (
+          <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Workflow Details</h4>
+            {(() => {
+              const selected = getSelectedWorkflowDetails();
+              if (!selected) return null;
+
+              return (
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>
+                    <strong>Name:</strong> {selected.topology.name}
+                  </p>
+                  <p>
+                    <strong>Nodes:</strong> {selected.node_count}
+                  </p>
+                  <p>
+                    <strong>Gamma Parameters:</strong> shape={selected.gamma_params.shape}, scale=
+                    {selected.gamma_params.scale}
+                  </p>
+                  <p>
+                    <strong>Expected Task Time:</strong>{' '}
+                    {(selected.gamma_params.shape * selected.gamma_params.scale).toFixed(2)}s
+                  </p>
+                  <p>
+                    <strong>Created:</strong> {new Date(selected.created_at).toLocaleString()}
+                  </p>
+                  {selected.tags && selected.tags.length > 0 && (
+                    <p>
+                      <strong>Tags:</strong> {selected.tags.join(', ')}
+                    </p>
+                  )}
+                  {selected.generation_config && (
+                    <div className="mt-2 pt-2 border-t border-blue-300">
+                      <p className="text-xs font-semibold text-gray-700">Generation Config:</p>
+                      <p className="text-xs">
+                        Depth: {selected.generation_config.maxDepth}, Max Width:{' '}
+                        {selected.generation_config.maxWidth}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

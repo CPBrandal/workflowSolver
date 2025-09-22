@@ -90,29 +90,31 @@ function VisualWorkflow({
   return (
     <div className="max-w mx-auto p-6 bg-white">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Visual Workflow</h2>
-        {enableSimulation && (
-          <div className="flex gap-2">
-            <button
-              onClick={simulateWorkflow}
-              disabled={isRunning}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Play className="w-4 h-4" />
-              {isRunning ? 'Running...' : 'Start Workflow'}
-            </button>
-            <button
-              onClick={resetWorkflow}
-              disabled={isRunning}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Reset
-            </button>
-          </div>
-        )}
-      </div>
+      {workers.length > 0 && (
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Visual Workflow</h2>
+          {enableSimulation && (
+            <div className="flex gap-2">
+              <button
+                onClick={simulateWorkflow}
+                disabled={isRunning}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                {isRunning ? 'Running...' : 'Start Workflow'}
+              </button>
+              <button
+                onClick={resetWorkflow}
+                disabled={isRunning}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Reset
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Default nodes notification */}
       {usingDefaultNodes && (
@@ -160,7 +162,7 @@ function VisualWorkflow({
       )}
 
       {/* Progress Bar */}
-      {enableSimulation && <WorkflowProgress nodes={nodes} />}
+      {enableSimulation && workers.length > 0 && <WorkflowProgress nodes={nodes} />}
 
       {/* Workflow Visualization */}
       <div
@@ -292,15 +294,17 @@ function VisualWorkflow({
       {selectedNode && <NodeDetails selectedNode={selectedNode} />}
 
       {/* Runtime Display */}
-      <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-        <div className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-gray-600" />
-          <span className="text-lg font-medium text-gray-800">
-            Total runtime: {formatTime(runtime)}
-          </span>
-          {isRunning && <span className="text-sm text-blue-600 animate-pulse">Running</span>}
+      {workers.length > 0 && (
+        <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-gray-600" />
+            <span className="text-lg font-medium text-gray-800">
+              Total runtime: {formatTime(runtime)}
+            </span>
+            {isRunning && <span className="text-sm text-blue-600 animate-pulse">Running</span>}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
