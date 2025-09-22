@@ -104,6 +104,7 @@ function HomeScreen() {
             workflowType: generatorType,
             nodeCount,
             generatorType,
+            gammaParams: gammaDistribution,
           } as LocationState,
         });
       }, 500);
@@ -456,6 +457,9 @@ function HomeScreen() {
           onClick={() => setShowUploadOption(!showUploadOption)}
         >
           Enable Upload Option
+        </button>
+        <button onClick={() => navigate('/db-workflows')} className="ml-4 underline">
+          Go to database workflows
         </button>
       </div>
     </div>
