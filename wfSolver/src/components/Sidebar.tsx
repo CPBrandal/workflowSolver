@@ -97,6 +97,35 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             Simulation Results
           </span>
         </button>
+
+        <button
+          onClick={() => navigate('/db-view-workflow')}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
+        >
+          <svg
+            className="w-6 h-6 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="6" cy="6" r="2" strokeWidth={2} />
+            <circle cx="18" cy="6" r="2" strokeWidth={2} />
+            <circle cx="12" cy="18" r="2" strokeWidth={2} />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7.5 7.5L10.5 16.5M16.5 7.5L13.5 16.5"
+            />
+          </svg>
+          <span
+            className={`whitespace-nowrap transition-opacity duration-300 ${
+              isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+            }`}
+          >
+            View Workflows
+          </span>
+        </button>
       </div>
     </div>
   );
