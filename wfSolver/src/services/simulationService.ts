@@ -45,6 +45,7 @@ export class SimulationService {
         workflow_snapshot: workflow,
         workers_final_state: workers,
         critical_path_node_ids: criticalPathNodeIds,
+        worker_count: workers.length, // ADD THIS LINE
       };
 
       const { data, error } = await supabase

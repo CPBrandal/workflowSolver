@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { WorkflowService } from '../../services/workflowService';
-import type { LocationState, Worker, Workflow } from '../../types';
+import type { Worker, Workflow } from '../../types';
 import type { WorkflowRecord } from '../../types/database';
 import VisualWorkflow from '../workflowScreen/VisualWorkflow';
 
 function WorkflowFromDBScreen() {
-  const navigate = useNavigate();
-
   // Add these state variables with your other useState declarations:
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
@@ -16,6 +13,7 @@ function WorkflowFromDBScreen() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [workerCount, setWorkerCount] = useState<number>(2);
+  const [showWorkflow, setShowWorkflow] = useState(false);
 
   // Fetch saved workflows when component mounts
   useEffect(() => {
@@ -71,38 +69,13 @@ function WorkflowFromDBScreen() {
     loadSelectedWorkflow();
   }, [selectedWorkflowId]);
 
-  const handleLoadWorkflow = async () => {
+  const handleShowWorkflow = async () => {
     if (!selectedWorkflowId) {
       alert('Please select a workflow first');
       return;
     }
 
-    setLoadingWorkflow(true);
-
-    const workflow = await WorkflowService.getWorkflow(selectedWorkflowId);
-
-    if (!workflow) {
-      alert('Failed to load workflow');
-      setLoadingWorkflow(false);
-      return;
-    }
-
-    setWorkflow(workflow.topology);
-
-    // Navigate to workflow screen with the loaded topology
-    setTimeout(() => {
-      setLoadingWorkflow(false);
-      navigate('/workflow', {
-        state: {
-          generatedNodes: workflow.topology.tasks,
-          workflowType: 'database',
-          nodeCount: workflow.node_count,
-          gammaParams: workflow.gamma_params,
-          workflowName: workflow.topology.name,
-          workflowId: workflow.id,
-        } as LocationState,
-      });
-    }, 300);
+    setShowWorkflow(!showWorkflow);
   };
 
   return (
@@ -185,7 +158,7 @@ function WorkflowFromDBScreen() {
             )}
 
             <button
-              onClick={handleLoadWorkflow}
+              onClick={handleShowWorkflow}
               disabled={!selectedWorkflowId || loadingWorkflow}
               className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
                 selectedWorkflowId && !loadingWorkflow
@@ -193,25 +166,13 @@ function WorkflowFromDBScreen() {
                   : 'bg-gray-400 cursor-not-allowed'
               }`}
             >
-              {loadingWorkflow ? 'Loading Workflow...' : 'Load Selected Workflow'}
+              {showWorkflow ? 'Hide Workflow' : 'Show Workflow'}
             </button>
           </>
         )}
-
-        <button
-          onClick={async () => {
-            setLoadingWorkflows(true);
-            const workflows = await WorkflowService.getAllWorkflows();
-            setSavedWorkflows(workflows);
-            setLoadingWorkflows(false);
-          }}
-          className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
-        >
-          🔄 Refresh List
-        </button>
       </div>
 
-      {workflow && (
+      {showWorkflow && workflow && (
         <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
           <h3 className="text-lg font-medium text-gray-700 mb-3">Worker Configuration</h3>
           <div>
@@ -237,7 +198,7 @@ function WorkflowFromDBScreen() {
         </div>
       )}
 
-      {workflow && (
+      {showWorkflow && workflow && (
         <VisualWorkflow
           nodes={workflow.tasks}
           workers={workers}

@@ -17,12 +17,13 @@ export interface SimulationRecord {
   simulation_number?: number;
   actual_runtime: number;
   theoretical_runtime: number;
-  node_execution_times: Record<string, number>; // { nodeId: executionTime }
-  edge_transfer_times: Record<string, number>; // { "sourceId->targetId": transferTime }
-  workflow_snapshot?: Workflow; // Complete Workflow with this run's data
+  node_execution_times: Record<string, number>;
+  edge_transfer_times: Record<string, number>;
+  workflow_snapshot?: Workflow;
   workers_final_state?: Worker[];
   efficiency_ratio?: number;
   critical_path_node_ids?: string[];
+  worker_count: number;
 }
 
 export interface WorkflowStatistics {
