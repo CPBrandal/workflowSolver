@@ -9,6 +9,7 @@ export const defaultNodes: WorkflowNode[] = [
     connections: [
       { sourceNodeId: '1', targetNodeId: '2', transferTime: 0.5, label: 'Start → Data Validation' },
     ],
+    level: 0,
     description: 'Initialize the workflow process',
     executionTime: 1,
     criticalPath: false,
@@ -32,6 +33,7 @@ export const defaultNodes: WorkflowNode[] = [
         label: 'Data Validation → Process B',
       },
     ],
+    level: 1,
     description: 'Validate incoming data format and integrity',
     executionTime: 3,
     criticalPath: false,
@@ -44,6 +46,7 @@ export const defaultNodes: WorkflowNode[] = [
     connections: [
       { sourceNodeId: '3', targetNodeId: '5', transferTime: 2, label: 'Process A → Merge Results' },
     ],
+    level: 2,
     description: 'Execute primary processing logic',
     executionTime: 10,
     criticalPath: false,
@@ -56,6 +59,7 @@ export const defaultNodes: WorkflowNode[] = [
     connections: [
       { sourceNodeId: '4', targetNodeId: '5', transferTime: 2, label: 'Process B → Merge Results' },
     ],
+    level: 2,
     description: 'Execute secondary processing logic',
     executionTime: 8,
     criticalPath: false,
@@ -68,6 +72,7 @@ export const defaultNodes: WorkflowNode[] = [
     connections: [
       { sourceNodeId: '5', targetNodeId: '6', transferTime: 1, label: 'Merge Results → Complete' },
     ],
+    level: 3,
     description: 'Combine results from parallel processes',
     executionTime: 3,
     criticalPath: false,
@@ -78,6 +83,7 @@ export const defaultNodes: WorkflowNode[] = [
     status: 'pending',
     position: { x: 2, y: 4 },
     connections: [],
+    level: 4,
     description: 'Finalize and complete the workflow',
     executionTime: 1,
     criticalPath: false,

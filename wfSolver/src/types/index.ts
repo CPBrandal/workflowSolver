@@ -16,7 +16,7 @@ export interface WorkflowNode {
   connections: Edge[];
   description?: string;
   executionTime?: number;
-  level?: number;
+  level: number;
   assignedWorker?: string;
   criticalPath: boolean;
 }

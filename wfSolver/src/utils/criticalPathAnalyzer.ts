@@ -141,24 +141,68 @@ export class CriticalPathAnalyzer {
     }
   }
 
-  /**
-   * Calculate slack and identify critical path nodes
-   */
   private calculateSlackAndCriticalPath(): void {
-    // TODO fix this logic
+    // Set all nodes with slack 0 to CP=True
     for (const node of this.nodes) {
       node.slack = node.latestStart - node.earliestStart;
+      node.isOnCriticalPath = Math.abs(node.slack) < 0.001;
+    }
 
-      const isSlackZero = Math.abs(node.slack) < 0.001;
+    // Create list to track the single critical path
+    const criticalPath: CriticalPathNode[] = [];
 
-      if (!isSlackZero) {
-        node.isOnCriticalPath = false;
-        continue;
+    // Find start node (earliest start == 0 and is on critical path)
+    const startNode = this.nodes.find(n => n.earliestStart === 0 && n.isOnCriticalPath);
+    if (!startNode) return;
+
+    // Add start node to critical path
+    criticalPath.push(startNode);
+
+    // Traverse through connections to build the critical path
+    let currentNode = startNode;
+
+    while (currentNode.connections.length > 0) {
+      let nextNode: CriticalPathNode | undefined = undefined;
+
+      // First try to find a node at the next level (no level skipping)
+      for (const connection of currentNode.connections) {
+        const node = this.nodes.find(
+          n =>
+            n.id === connection.targetNodeId &&
+            n.isOnCriticalPath &&
+            n.level === currentNode.level + 1 // Ensure we go level by level
+        );
+        if (node) {
+          nextNode = node;
+          break;
+        }
       }
-      const nodesOnSameLevel = this.findNodesOnSameLevel(node);
-      const alreadyMarked = nodesOnSameLevel.some(n => n.isOnCriticalPath);
 
-      node.isOnCriticalPath = !alreadyMarked;
+      // If no node found at next level, look for any connected critical node (for end nodes)
+      if (!nextNode) {
+        for (const connection of currentNode.connections) {
+          const node = this.nodes.find(n => n.id === connection.targetNodeId && n.isOnCriticalPath);
+          if (node) {
+            nextNode = node;
+            break;
+          }
+        }
+      }
+
+      if (!nextNode) break;
+
+      criticalPath.push(nextNode);
+      currentNode = nextNode;
+    }
+
+    // Get IDs of nodes in the critical path
+    const criticalPathIds = new Set(criticalPath.map(n => n.id));
+
+    // Set all nodes not in criticalPath to criticalPath = false
+    for (const node of this.nodes) {
+      if (!criticalPathIds.has(node.id)) {
+        node.isOnCriticalPath = false;
+      }
     }
   }
 
@@ -249,10 +293,6 @@ export class CriticalPathAnalyzer {
       minimumProjectDuration,
       criticalPathDuration,
     };
-  }
-
-  private findNodesOnSameLevel(node: CriticalPathNode): CriticalPathNode[] {
-    return this.nodes.filter(n => n.level === node.level);
   }
 }
 
