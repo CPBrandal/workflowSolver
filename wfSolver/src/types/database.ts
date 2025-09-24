@@ -19,6 +19,7 @@ export interface SimulationRecord {
   theoretical_runtime: number;
   node_execution_times: Record<string, number>;
   edge_transfer_times: Record<string, number>;
+  original_edge_transfer_times: Record<string, number>;
   workflow_snapshot?: Workflow;
   workers_final_state?: Worker[];
   efficiency_ratio?: number;

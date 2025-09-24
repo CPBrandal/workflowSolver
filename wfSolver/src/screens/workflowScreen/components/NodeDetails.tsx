@@ -49,6 +49,10 @@ export function NodeDetails({ selectedNode }: NodeDetailsProps) {
         <p>
           <span className="font-medium">Node level:</span> {selectedNode.level}
         </p>
+        <p>
+          <span className="font-medium">Critical path:</span>{' '}
+          {selectedNode.criticalPath ? 'Critical' : 'Non-critical'}
+        </p>
       </div>
     </div>
   );

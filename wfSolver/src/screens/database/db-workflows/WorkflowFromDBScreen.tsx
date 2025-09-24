@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Layout } from '../../components/Layout';
-import { WorkflowService } from '../../services/workflowService';
-import type { Worker, Workflow } from '../../types';
-import type { WorkflowRecord } from '../../types/database';
-import VisualWorkflow from '../workflowScreen/VisualWorkflow';
+import { Layout } from '../../../components/Layout';
+import type { Worker, Workflow } from '../../../types';
+import type { WorkflowRecord } from '../../../types/database';
+import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
+import { WorkflowService } from '../services/workflowService';
 import { InstantSimulationRunner } from './InstantSimulationsRunner';
 
 function WorkflowFromDBScreen() {

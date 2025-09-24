@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Layout } from '../../components/Layout';
-import { WorkflowService } from '../../services/workflowService';
-import type { WorkflowRecord } from '../../types/database';
+import { Layout } from '../../../components/Layout';
+import type { WorkflowRecord } from '../../../types/database';
+import { WorkflowService } from '../services/workflowService';
 
 function SimulationsFromDBScreen() {
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
@@ -9,7 +9,7 @@ function SimulationsFromDBScreen() {
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const SimulationResultsVisualization = lazy(() =>
-    import('../SimulationResultsVisualization').then(module => ({
+    import('../components/SimulationResultsVisualization').then(module => ({
       default: module.SimulationResultsVisualization,
     }))
   );

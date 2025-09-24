@@ -1,5 +1,5 @@
-import type { GammaParams } from '../types';
-import type { SimulationRecord } from '../types/database';
+import type { GammaParams } from '../../../types';
+import type { SimulationRecord } from '../../../types/database';
 import { SimulationService } from './simulationService';
 
 export interface SimulationAnalysis {

@@ -1,6 +1,6 @@
-import { supabase } from '../lib/supabase';
-import type { ArbitraryWorkflowConfig, GammaParams, Workflow } from '../types';
-import type { WorkflowRecord } from '../types/database';
+import { supabase } from '../../../lib/supabase';
+import type { ArbitraryWorkflowConfig, GammaParams, Workflow } from '../../../types';
+import type { WorkflowRecord } from '../../../types/database';
 
 export class WorkflowService {
   /**

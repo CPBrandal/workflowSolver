@@ -1,12 +1,12 @@
-import { SimulationService } from '../../services/simulationService';
-import type { GammaParams, ScheduledTask, Worker, Workflow } from '../../types';
+import type { GammaParams, ScheduledTask, Worker, Workflow } from '../../../types';
 import {
   analyzeCriticalPath,
   getProjectDuration,
   setCriticalPathEdgesTransferTimes,
-} from '../../utils/criticalPathAnalyzer';
-import { gammaSampler } from '../../utils/gammaSampler';
-import { scheduleWithWorkerConstraints } from '../../utils/scheduler';
+} from '../../../utils/criticalPathAnalyzer';
+import { gammaSampler } from '../../../utils/gammaSampler';
+import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
+import { SimulationService } from '../services/simulationService';
 
 export class InstantSimulationRunner {
   /**
@@ -29,6 +29,14 @@ export class InstantSimulationRunner {
 
       // 1. Sample execution times (always) and transfer times (conditional)
       const simulatedWorkflow = this.sampleExecutionTimes(workflow, gammaParams, useTransferTime);
+
+      const originalEdgeTransferTimes: Record<string, number> = {};
+      simulatedWorkflow.tasks.forEach(node => {
+        node.connections.forEach(edge => {
+          const key = `${edge.sourceNodeId}->${edge.targetNodeId}`;
+          originalEdgeTransferTimes[key] = edge.transferTime;
+        });
+      });
 
       // 2. Find critical path using EXECUTION TIMES ONLY
       // (Critical path tasks run on same worker → no transfer delay)
@@ -74,7 +82,8 @@ export class InstantSimulationRunner {
         actualRuntime,
         theoreticalRuntime,
         simulatedWorkflow,
-        finalWorkers
+        finalWorkers,
+        originalEdgeTransferTimes
       );
 
       if (simId) {

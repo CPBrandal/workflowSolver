@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { WorkflowService } from '../../services/workflowService';
+import { WorkflowService } from '../../screens/database/services/workflowService';
 import type { LocationState, Worker, Workflow } from '../../types';
 import {
   analyzeCriticalPath,

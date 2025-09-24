@@ -145,9 +145,20 @@ export class CriticalPathAnalyzer {
    * Calculate slack and identify critical path nodes
    */
   private calculateSlackAndCriticalPath(): void {
+    // TODO fix this logic
     for (const node of this.nodes) {
       node.slack = node.latestStart - node.earliestStart;
-      node.isOnCriticalPath = Math.abs(node.slack) < 0.001;
+
+      const isSlackZero = Math.abs(node.slack) < 0.001;
+
+      if (!isSlackZero) {
+        node.isOnCriticalPath = false;
+        continue;
+      }
+      const nodesOnSameLevel = this.findNodesOnSameLevel(node);
+      const alreadyMarked = nodesOnSameLevel.some(n => n.isOnCriticalPath);
+
+      node.isOnCriticalPath = !alreadyMarked;
     }
   }
 
@@ -238,6 +249,10 @@ export class CriticalPathAnalyzer {
       minimumProjectDuration,
       criticalPathDuration,
     };
+  }
+
+  private findNodesOnSameLevel(node: CriticalPathNode): CriticalPathNode[] {
+    return this.nodes.filter(n => n.level === node.level);
   }
 }
 

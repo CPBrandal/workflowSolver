@@ -1,6 +1,6 @@
-import { supabase } from '../lib/supabase';
-import type { Worker, Workflow } from '../types';
-import type { SimulationRecord, WorkflowStatistics } from '../types/database';
+import { supabase } from '../../../lib/supabase';
+import type { Worker, Workflow } from '../../../types';
+import type { SimulationRecord, WorkflowStatistics } from '../../../types/database';
 
 export class SimulationService {
   /**
@@ -12,7 +12,8 @@ export class SimulationService {
     actualRuntime: number,
     theoreticalRuntime: number,
     workflow: Workflow,
-    workers: Worker[]
+    workers: Worker[],
+    originalEdgeTransferTimes: Record<string, number>
   ): Promise<string | null> {
     try {
       // Extract execution times
@@ -42,10 +43,11 @@ export class SimulationService {
         theoretical_runtime: theoreticalRuntime,
         node_execution_times: nodeExecutionTimes,
         edge_transfer_times: edgeTransferTimes,
+        original_edge_transfer_times: originalEdgeTransferTimes,
         workflow_snapshot: workflow,
         workers_final_state: workers,
         critical_path_node_ids: criticalPathNodeIds,
-        worker_count: workers.length, // ADD THIS LINE
+        worker_count: workers.length,
       };
 
       const { data, error } = await supabase
@@ -131,5 +133,44 @@ export class SimulationService {
     }
 
     return data.simulation_number || 0;
+  }
+
+  static async deleteSimulationsByWorkflow(workflowId: string): Promise<{
+    success: boolean;
+    deletedCount: number;
+    error?: string;
+  }> {
+    try {
+      // First, get the count of simulations to be deleted
+      const { count: simulationCount, error: countError } = await supabase
+        .from('simulations')
+        .select('*', { count: 'exact', head: true })
+        .eq('workflow_id', workflowId);
+
+      if (countError) {
+        console.error('Error counting simulations:', countError);
+        return { success: false, deletedCount: 0, error: countError.message };
+      }
+
+      // Delete all simulations for the workflow
+      const { error: deleteError } = await supabase
+        .from('simulations')
+        .delete()
+        .eq('workflow_id', workflowId);
+
+      if (deleteError) {
+        console.error('Error deleting simulations:', deleteError);
+        return { success: false, deletedCount: 0, error: deleteError.message };
+      }
+
+      console.log(
+        `Successfully deleted ${simulationCount || 0} simulations for workflow ${workflowId}`
+      );
+      return { success: true, deletedCount: simulationCount || 0 };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Exception deleting simulations:', err);
+      return { success: false, deletedCount: 0, error: errorMessage };
+    }
   }
 }
