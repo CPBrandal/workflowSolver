@@ -44,7 +44,6 @@ export class SimulationService {
         node_execution_times: nodeExecutionTimes,
         edge_transfer_times: edgeTransferTimes,
         original_edge_transfer_times: originalEdgeTransferTimes,
-        workflow_snapshot: workflow,
         workers_final_state: workers,
         critical_path_node_ids: criticalPathNodeIds,
         worker_count: workers.length,
