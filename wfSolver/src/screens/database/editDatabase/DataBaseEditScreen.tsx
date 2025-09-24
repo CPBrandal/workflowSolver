@@ -4,7 +4,7 @@ import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
 import { SimulationService } from '../services/simulationService';
 import { WorkflowService } from '../services/workflowService';
 
-function EditDatabaseScreen() {
+function DataBaseEditScreen() {
   const [workflows, setWorkflows] = useState<WorkflowRecord[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
   const [simulations, setSimulations] = useState<SimulationRecord[]>([]);
@@ -326,4 +326,4 @@ function EditDatabaseScreen() {
   );
 }
 
-export default EditDatabaseScreen;
+export default DataBaseEditScreen;
