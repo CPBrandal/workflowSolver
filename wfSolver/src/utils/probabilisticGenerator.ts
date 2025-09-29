@@ -90,7 +90,7 @@ export function generateProbabilisticWorkflow(config: ProbabilisticWorkflowConfi
     connectivityDecay = 0.7,
     hubProbability = 0.1,
     minLevels = 3,
-    maxLevels = Math.max(6, Math.ceil(Math.sqrt(nodeCount))),
+    maxLevels = nodeCount - 2,
     clusteringCoefficient = 0.3,
     preferentialAttachment = false,
     gammaParams = { shape: 1.5, scale: 3 },
