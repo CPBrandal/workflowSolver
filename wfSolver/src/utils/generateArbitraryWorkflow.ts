@@ -32,15 +32,12 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     throw new Error('Node count must be at least 1');
   }
 
-  if (nodeCount > 50) {
+  if (nodeCount > 200) {
     throw new Error('Node count cannot exceed 50');
   }
 
   const getDuration = gammaSampler(gammaParams);
-  const getTransferTime = gammaSampler({
-    shape: gammaParams.shape * 0.7,
-    scale: gammaParams.scale * 0.4,
-  }); // Questionable choice
+  const getTransferTime = gammaSampler(gammaParams); // Questionable choice
   try {
     const nodes = generateDAGWorkflow({
       nodeCount,

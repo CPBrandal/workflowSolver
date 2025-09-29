@@ -1,4 +1,10 @@
 import type { Dispatch, SetStateAction } from 'react';
+export type WorkflowType =
+  | 'scientific'
+  | 'dataPipeline'
+  | 'machineLearning'
+  | 'complex'
+  | 'balanced';
 
 export interface Workflow {
   name: string;
@@ -107,12 +113,12 @@ export interface VisualWorkflowProps {
 export interface LocationState {
   file?: File;
   generatedNodes?: WorkflowNode[];
-  workflowType?: string;
+  workflowType?: WorkflowType | 'legacy' | string; // Keeps backward compatibility
   nodeCount?: number;
-  layout?: string;
-  generatorType?: string;
-  message?: string;
-  gammaParams: GammaParams;
+  layout?: string; // Keep this if you use it somewhere
+  generatorType?: 'probabilistic' | 'legacy' | string; // Keeps backward compatibility
+  message?: string; // Keep this if you use it somewhere
+  gammaParams?: GammaParams; // Made optional to match new usage
 }
 
 export interface CriticalPathNode extends WorkflowNode {
@@ -175,4 +181,28 @@ export interface DAGGenerationParams {
   densityFactor: number;
   getDuration: () => number;
   getTransferTime: () => number;
+}
+
+// Workflow metadata for display purposes
+export interface WorkflowTypeMetadata {
+  name: string;
+  description: string;
+  icon: string;
+  characteristics: string[];
+  bestFor: string;
+}
+
+// If you don't already have these, you might need them:
+export interface ProbabilisticWorkflowConfig extends ArbitraryWorkflowConfig {
+  topologyType?: 'diamond' | 'pipeline' | 'fan' | 'balanced' | 'custom';
+  levelDistribution?: 'poisson' | 'geometric' | 'uniform';
+  levelParams?: { lambda?: number; p?: number; min?: number; max?: number };
+  widthDistribution?: 'poisson' | 'power_law' | 'exponential' | 'uniform';
+  widthParams?: { lambda?: number; alpha?: number; scale?: number };
+  connectivityDecay?: number;
+  hubProbability?: number;
+  minLevels?: number;
+  maxLevels?: number;
+  clusteringCoefficient?: number;
+  preferentialAttachment?: boolean;
 }
