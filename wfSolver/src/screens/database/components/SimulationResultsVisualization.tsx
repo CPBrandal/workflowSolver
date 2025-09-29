@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+
 import {
   Bar,
   BarChart,
@@ -23,9 +24,14 @@ interface Props {
     shape: number;
     scale: number;
   };
+  numberOfWorkers: number;
 }
 
-export function SimulationResultsVisualization({ workflowId, gammaParams }: Props) {
+export function SimulationResultsVisualization({
+  workflowId,
+  gammaParams,
+  numberOfWorkers,
+}: Props) {
   const [analysis, setAnalysis] = useState<SimulationAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'histogram' | 'ecdf' | 'scatter' | 'comparison'>(
@@ -37,16 +43,17 @@ export function SimulationResultsVisualization({ workflowId, gammaParams }: Prop
       setLoading(true);
       const data = await SimulationAnalysisService.analyzeWorkflowSimulations(
         workflowId,
-        gammaParams
+        gammaParams,
+        numberOfWorkers
       );
       setAnalysis(data);
       setLoading(false);
     };
 
-    if (workflowId) {
+    if (workflowId && numberOfWorkers > 0) {
       loadAnalysis();
     }
-  }, [workflowId]);
+  }, [workflowId, gammaParams, numberOfWorkers]);
 
   if (loading) {
     return (
@@ -182,26 +189,37 @@ export function SimulationResultsVisualization({ workflowId, gammaParams }: Prop
         </button>
       </div>
 
-      {/* Charts */}
       {viewMode === 'histogram' && (
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <h3 className="text-lg font-semibold mb-4">
             Distribution of Efficiency Ratio r = T / T-
           </h3>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={analysis.histogramData}>
+          <ResponsiveContainer width="100%" height={450}>
+            <BarChart
+              data={analysis.histogramData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              barCategoryGap={1} // Minimal gap between bars
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="binMid"
-                label={{ value: 'Efficiency Ratio (r)', position: 'insideBottom', offset: -5 }}
+                label={{ value: 'Efficiency Ratio (r)', position: 'insideBottom', offset: -50 }}
                 tickFormatter={(value: number) => value.toFixed(2)}
+                interval={Math.floor(analysis.histogramData.length / 20)}
+                angle={-45}
+                textAnchor="end"
+                tick={{ fontSize: 12 }}
               />
-              <YAxis label={{ value: 'Frequency', angle: -90, position: 'insideLeft' }} />
+              <YAxis
+                label={{ value: 'Frequency', angle: -90, position: 'insideLeft' }}
+                tick={{ fontSize: 12 }}
+              />
               <Tooltip
-                formatter={(value: number) => value.toFixed(4)}
+                formatter={(value: number) => [`Frequency: ${value.toFixed(4)}`, '']}
                 labelFormatter={value => `r = ${Number(value).toFixed(3)}`}
+                contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc' }}
               />
-              <Bar dataKey="frequency" fill="#3b82f6" name="Frequency" />
+              <Bar dataKey="frequency" fill="#3b82f6" name="Frequency" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           <p className="text-sm text-gray-600 mt-4 text-center">
@@ -252,41 +270,39 @@ export function SimulationResultsVisualization({ workflowId, gammaParams }: Prop
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <h3 className="text-lg font-semibold mb-4">Efficiency Ratio Over Simulations</h3>
           <ResponsiveContainer width="100%" height={400}>
-            <ScatterChart>
+            <ScatterChart
+              margin={{
+                top: 20,
+                right: 20,
+                bottom: 20,
+                left: 20,
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
-                dataKey="simulationNumber"
-                label={{ value: 'Simulation Number', position: 'insideBottom', offset: -5 }}
                 type="number"
-                domain={[0, 'dataMax']}
+                dataKey="simulationNumber"
+                name="Simulation Number"
+                label={{ value: 'Simulation Number', position: 'insideBottom', offset: -5 }}
+                domain={['dataMin - 1', 'dataMax']}
               />
               <YAxis
+                type="number"
                 dataKey="ratio"
+                name="Efficiency Ratio"
                 label={{ value: 'r = T / T-', angle: -90, position: 'insideLeft' }}
-                domain={['dataMin - 0.05', 'dataMax + 0.05']}
+                domain={['auto', 'auto']}
               />
               <Tooltip
-                formatter={(value: number) => value.toFixed(4)}
                 cursor={{ strokeDasharray: '3 3' }}
+                formatter={(value: number) => value.toFixed(4)}
               />
-              <Scatter data={analysis.efficiencyData} fill="#3b82f6" name="r values" />
-              <Line
-                data={[
-                  { simulationNumber: 0, ratio: 1 },
-                  { simulationNumber: analysis.totalSimulations, ratio: 1 },
-                ]}
-                dataKey="ratio"
-                stroke="#ef4444"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={false}
-                name="Perfect efficiency (r=1)"
-              />
+              <Scatter name="r values" data={analysis.efficiencyData} fill="#3b82f6" />
             </ScatterChart>
           </ResponsiveContainer>
           <p className="text-sm text-gray-600 mt-4 text-center">
-            Red dashed line shows perfect efficiency (r=1). Points above show inefficiency from
-            worker constraints.
+            Points show efficiency ratio (r = T / T-) for each simulation. Values above 1 show
+            inefficiency from worker constraints.
           </p>
         </div>
       )}

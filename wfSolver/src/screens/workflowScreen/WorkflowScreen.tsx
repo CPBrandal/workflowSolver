@@ -219,7 +219,7 @@ function WorkflowScreen() {
         workflow,
         state?.gammaParams || { shape: 10, scale: 0.5 }, // Your gamma params
         undefined,
-        ['test-save', workflowType || 'unknown'] // Include workflow type as tag
+        [workflowType || 'unknown'] // Include workflow type as tag
       );
 
       if (workflowId) {
