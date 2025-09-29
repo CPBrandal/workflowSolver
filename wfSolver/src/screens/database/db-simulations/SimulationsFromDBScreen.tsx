@@ -1,7 +1,13 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Layout } from '../../../components/Layout';
 import type { WorkflowRecord } from '../../../types/database';
 import { WorkflowService } from '../services/workflowService';
+
+const SimulationResultsVisualization = lazy(() =>
+  import('../components/SimulationResultsVisualization').then(module => ({
+    default: module.SimulationResultsVisualization,
+  }))
+);
 
 function SimulationsFromDBScreen() {
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
@@ -16,12 +22,6 @@ function SimulationsFromDBScreen() {
   const [comparisonWorkers, setComparisonWorkers] = useState(3);
   const [tempComparisonWorkers, setTempComparisonWorkers] = useState('');
 
-  const SimulationResultsVisualization = lazy(() =>
-    import('../components/SimulationResultsVisualization').then(module => ({
-      default: module.SimulationResultsVisualization,
-    }))
-  );
-
   // Fetch saved workflows when component mounts
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -34,6 +34,14 @@ function SimulationsFromDBScreen() {
     fetchWorkflows();
   }, []);
 
+  const selectedGammaParams = useMemo(() => {
+    return (
+      savedWorkflows.find(w => w.id === selectedWorkflowId)?.gamma_params || {
+        shape: 1,
+        scale: 1,
+      }
+    );
+  }, [savedWorkflows, selectedWorkflowId]);
   // Auto-show results when workflow is selected
   useEffect(() => {
     if (selectedWorkflowId && numberOfWorkers > 0) {
@@ -323,12 +331,7 @@ function SimulationsFromDBScreen() {
                 <Suspense fallback={<div>Loading charts...</div>}>
                   <SimulationResultsVisualization
                     workflowId={selectedWorkflowId}
-                    gammaParams={
-                      savedWorkflows.find(w => w.id === selectedWorkflowId)?.gamma_params || {
-                        shape: 1,
-                        scale: 1,
-                      }
-                    }
+                    gammaParams={selectedGammaParams}
                     numberOfWorkers={numberOfWorkers}
                   />
                 </Suspense>
@@ -345,12 +348,7 @@ function SimulationsFromDBScreen() {
                   <Suspense fallback={<div>Loading charts...</div>}>
                     <SimulationResultsVisualization
                       workflowId={selectedWorkflowId}
-                      gammaParams={
-                        savedWorkflows.find(w => w.id === selectedWorkflowId)?.gamma_params || {
-                          shape: 1,
-                          scale: 1,
-                        }
-                      }
+                      gammaParams={selectedGammaParams}
                       numberOfWorkers={comparisonWorkers}
                     />
                   </Suspense>
