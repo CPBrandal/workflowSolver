@@ -125,7 +125,7 @@ function ViewWorkflow() {
         }
 
         // Schedule the workflow with the specific execution times
-        const schedule = scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, false);
+        const schedule = scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
 
         // Calculate final worker states
         const finalWorkers = workers.map(w => ({ ...w }));

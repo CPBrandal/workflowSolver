@@ -65,7 +65,7 @@ export class InstantSimulationRunner {
       const schedule = scheduleWithWorkerConstraints(
         simulatedWorkflow.tasks,
         workers,
-        false // Always false because we've already modified the workflow
+        useTransferTime
       );
 
       // 8. Calculate actual runtime
