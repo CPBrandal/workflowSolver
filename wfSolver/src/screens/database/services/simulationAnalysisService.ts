@@ -52,9 +52,13 @@ export interface SimulationAnalysis {
 export class SimulationAnalysisService {
   static async analyzeWorkflowSimulations(
     workflowId: string,
-    gammaParams: GammaParams // Add this parameter
+    gammaParams: GammaParams,
+    numberOfWorkers: number
   ): Promise<SimulationAnalysis | null> {
-    const simulations = await SimulationService.getSimulationsByWorkflow(workflowId);
+    const simulations = await SimulationService.getSimulationsByWorkflowAndWorkerCount(
+      workflowId,
+      numberOfWorkers
+    );
 
     if (!simulations || simulations.length === 0) {
       return null;

@@ -21,7 +21,7 @@ function HomeScreen() {
   const [workflowType, setWorkflowType] = useState<WorkflowType>('balanced');
 
   // Common parameters
-  const [nodeCount, setNodeCount] = useState<number>(10);
+  const [nodeCount, setNodeCount] = useState<number>(20);
   const [generatingWorkflow, setGeneratingWorkflow] = useState(false);
 
   // Legacy workflow generator parameters (only shown for legacy mode)
