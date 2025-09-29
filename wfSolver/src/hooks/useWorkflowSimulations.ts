@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ScheduledTask, UseWorkflowSimulationProps, Worker, WorkflowNode } from '../types';
-import { getNodeDependencies } from '../utils/getNodeDependencies';
+import type { ScheduledTask, UseWorkflowSimulationProps, WorkflowNode } from '../types';
+import { scheduleWithWorkerConstraints } from '../utils/scheduler';
 
 export function useWorkflowSimulation({
   initialNodes,
@@ -63,152 +63,6 @@ export function useWorkflowSimulation({
     eventHandlers?.onWorkflowReset?.();
   }, [eventHandlers, workers, onWorkersUpdate]);
 
-  // Resource-constrained scheduling algorithm
-  const scheduleWithWorkerConstraints = useCallback((nodes: WorkflowNode[], workers: Worker[]) => {
-    const scheduledTasks: ScheduledTask[] = [];
-    const completionTimes: { [nodeId: string]: number } = {};
-    const processedNodes = new Set<string>();
-    const nodesToProcess = [...nodes];
-
-    // Track when each worker becomes available
-    const workerAvailability: { [workerId: string]: number } = {};
-    workers.forEach(worker => {
-      workerAvailability[worker.id] = 0; // All workers available at time 0
-    });
-
-    // Find the dedicated critical path worker
-    const criticalPathWorker = workers.find(worker => worker.criticalPathWorker);
-    const criticalPathWorkerId = criticalPathWorker?.id;
-
-    if (!criticalPathWorker) {
-      console.warn('No critical path worker found! Falling back to regular scheduling.');
-    } else {
-      console.log(`Using ${criticalPathWorkerId} as dedicated critical path worker`);
-    }
-
-    while (nodesToProcess.length > 0) {
-      // Find nodes that have all dependencies completed
-      const readyNodes = nodesToProcess.filter(node => {
-        const dependencies = getNodeDependencies(node.id, nodes);
-        return dependencies.every(depId => processedNodes.has(depId));
-      });
-
-      if (readyNodes.length === 0) {
-        console.warn(
-          'No ready nodes found, but nodes remain unprocessed. Possible circular dependency.'
-        );
-        break;
-      }
-
-      readyNodes.sort((a, b) => {
-        // Critical path tasks get highest priority
-        if (a.criticalPath && !b.criticalPath) return -1;
-        if (!a.criticalPath && b.criticalPath) return 1;
-
-        return (a.executionTime || 1) - (b.executionTime || 1);
-      });
-
-      for (const node of readyNodes) {
-        const dependencies = getNodeDependencies(node.id, nodes);
-
-        let earliestStart = 0;
-        if (dependencies.length > 0) {
-          earliestStart = Math.max(
-            ...dependencies.map(depId => {
-              const depCompletionTime = completionTimes[depId] || 0;
-              const transferTime = findTransferTime(depId, node.id);
-              return depCompletionTime + transferTime;
-            })
-          );
-        }
-
-        let workerId: string;
-        let workerAvailableTime: number;
-
-        if (node.criticalPath && criticalPathWorker) {
-          workerId = criticalPathWorkerId!;
-          workerAvailableTime = workerAvailability[criticalPathWorkerId!] || 0;
-          console.log(`Critical path task ${node.name} assigned to ${criticalPathWorkerId}`);
-        } else {
-          const availableWorkers = Object.entries(workerAvailability).sort(
-            ([, timeA], [, timeB]) => timeA - timeB
-          );
-
-          if (availableWorkers.length === 0) {
-            console.error('No workers available!');
-            continue;
-          }
-
-          // Try to use workers other than the critical path worker first
-          const nonCriticalWorkers = availableWorkers.filter(([id]) =>
-            criticalPathWorker ? id !== criticalPathWorkerId : true
-          );
-
-          if (nonCriticalWorkers.length > 0) {
-            [workerId, workerAvailableTime] = nonCriticalWorkers[0];
-          } else {
-            // If only critical path worker is available, use it
-            [workerId, workerAvailableTime] = availableWorkers[0];
-          }
-
-          // Log if we're using the critical path worker for a non-critical task
-          if (criticalPathWorker && workerId === criticalPathWorkerId) {
-            console.log(
-              `Non-critical task ${node.name} using critical path worker (no other workers available)`
-            );
-          }
-        }
-        const actualStartTime = Math.max(earliestStart, workerAvailableTime);
-        const taskDuration = node.executionTime || 0;
-        const completionTime = actualStartTime + taskDuration;
-
-        // Schedule the task
-        const scheduledTask: ScheduledTask = {
-          nodeId: node.id,
-          startTime: actualStartTime,
-          endTime: completionTime,
-          workerId: workerId,
-        };
-
-        scheduledTasks.push(scheduledTask);
-        completionTimes[node.id] = completionTime;
-        processedNodes.add(node.id);
-
-        // Update worker availability
-        workerAvailability[workerId] = completionTime;
-
-        // Remove from processing queue
-        const index = nodesToProcess.findIndex(n => n.id === node.id);
-        if (index > -1) {
-          nodesToProcess.splice(index, 1);
-        }
-
-        const criticalPathIndicator = node.criticalPath ? ' (Critical Path)' : '';
-        console.log(
-          `Scheduled task ${node.name} (${node.id}) on worker ${workerId}: ${actualStartTime}s - ${completionTime}s${criticalPathIndicator}`
-        );
-      }
-    }
-
-    console.log('=== Final Schedule ===');
-    scheduledTasks.forEach(task => {
-      const node = nodes.find(n => n.id === task.nodeId);
-      const criticalPathIndicator = node?.criticalPath ? ' (Critical Path)' : '';
-      console.log(
-        `${node?.name}: ${task.startTime}s - ${task.endTime}s (Worker: ${task.workerId})${criticalPathIndicator}`
-      );
-    });
-
-    return scheduledTasks;
-  }, []);
-
-  function findTransferTime(sourceNodeId: string, targetNodeId: string): number {
-    const sourceNode = nodes.find(n => n.id === sourceNodeId);
-    if (!sourceNode) return 0;
-    const connection = sourceNode.connections.find(conn => conn.targetNodeId === targetNodeId);
-    return connection ? connection.transferTime : 0;
-  }
-
   const simulateWorkflow = useCallback(() => {
     resetWorkflow();
     setIsRunning(true);
@@ -219,8 +73,8 @@ export function useWorkflowSimulation({
 
     const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
 
-    // Generate the schedule using resource-constrained scheduling
-    const schedule = scheduleWithWorkerConstraints(nodes, workers);
+    // Generate the schedule using the CORRECT scheduler from utils/scheduler.ts
+    const schedule = scheduleWithWorkerConstraints(nodes, workers, true); // ← includeTransferTimes = true
 
     const workflowCompletionTime =
       schedule.length > 0 ? Math.max(...schedule.map(task => task.endTime)) : 0;
@@ -321,7 +175,7 @@ export function useWorkflowSimulation({
     return () => {
       activeTimeouts.forEach(timeout => clearTimeout(timeout));
     };
-  }, [nodes, resetWorkflow, eventHandlers, scheduleWithWorkerConstraints, onWorkersUpdate]);
+  }, [nodes, resetWorkflow, eventHandlers, onWorkersUpdate, workers]);
 
   return {
     nodes,
