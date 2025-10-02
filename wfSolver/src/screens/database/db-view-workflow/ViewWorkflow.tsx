@@ -4,6 +4,7 @@ import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
 import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
 import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
+import TaskTimelineChart from '../components/TaskTimelineChart';
 import { SimulationService } from '../services/simulationService';
 import { WorkflowService } from '../services/workflowService';
 
@@ -12,6 +13,7 @@ function ViewWorkflow() {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [selectedNumberOfWorkers, setSelectedNumberOfWorkers] = useState<number>(0);
 
   // Simulation states
   const [simulations, setSimulations] = useState<SimulationRecord[]>([]);
@@ -61,13 +63,16 @@ function ViewWorkflow() {
 
       // Load simulations for this workflow
       setLoadingSimulations(true);
-      const sims = await SimulationService.getSimulationsByWorkflow(selectedWorkflowId);
+      const sims = await SimulationService.getSimulationsByWorkflowAndWorkerCount(
+        selectedWorkflowId,
+        selectedNumberOfWorkers
+      );
       setSimulations(sims);
       setLoadingSimulations(false);
     };
 
     loadSelectedWorkflow();
-  }, [selectedWorkflowId]);
+  }, [selectedWorkflowId, selectedNumberOfWorkers]);
 
   // Load selected simulation details and automatically run it
   useEffect(() => {
@@ -203,9 +208,36 @@ function ViewWorkflow() {
               </>
             )}
           </div>
+          <div className="space-y-6 max-w-2xl mx-auto">
+            <label
+              htmlFor="numberOfWorkers"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Number of Workers
+            </label>
+            <select
+              id="numberOfWorkers"
+              value={selectedNumberOfWorkers}
+              onChange={e => setSelectedNumberOfWorkers(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={0}>-- Select workers --</option>
+              {selectedWorkflowId &&
+                Array.from(
+                  {
+                    length: savedWorkflows.find(w => w.id === selectedWorkflowId)?.node_count || 1,
+                  },
+                  (_, i) => i + 1
+                ).map(num => (
+                  <option key={num} value={num}>
+                    {num} worker{num !== 1 ? 's' : ''}
+                  </option>
+                ))}
+            </select>
+          </div>
 
           {/* Simulation Selector */}
-          {selectedWorkflowId && (
+          {selectedWorkflowId && selectedNumberOfWorkers > 0 && (
             <div>
               <label
                 htmlFor="simulationSelect"
@@ -366,6 +398,16 @@ function ViewWorkflow() {
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {simulationResult && (
+              <div className="mb-6">
+                <TaskTimelineChart
+                  schedule={simulationResult.schedule}
+                  workflow={simulationResult.workflow}
+                  workers={simulationResult.workers}
+                />
               </div>
             )}
 
