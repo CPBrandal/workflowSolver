@@ -27,7 +27,6 @@ export function scheduleWithWorkerConstraints(
   }
 
   function findTransferTime(sourceNodeId: string, targetNodeId: string): number {
-    // If transfer times are disabled, return 0
     if (!includeTransferTimes) return 0;
 
     const sourceNode = nodes.find(n => n.id === sourceNodeId);
@@ -49,6 +48,7 @@ export function scheduleWithWorkerConstraints(
       break;
     }
 
+    // Sort: Critical path tasks first, then by execution time
     readyNodes.sort((a, b) => {
       if (a.criticalPath && !b.criticalPath) return -1;
       if (!a.criticalPath && b.criticalPath) return 1;
@@ -58,6 +58,7 @@ export function scheduleWithWorkerConstraints(
     for (const node of readyNodes) {
       const dependencies = getNodeDependencies(node.id, nodes);
 
+      // Calculate earliest possible start time based on dependencies
       let earliestStart = 0;
       if (dependencies.length > 0) {
         earliestStart = Math.max(
@@ -73,10 +74,48 @@ export function scheduleWithWorkerConstraints(
       let workerAvailableTime: number;
 
       if (node.criticalPath && criticalPathWorker) {
+        // Critical path task: always use critical path worker
         workerId = criticalPathWorkerId!;
         workerAvailableTime = workerAvailability[criticalPathWorkerId!] || 0;
         console.log(`Critical path task ${node.name} assigned to ${criticalPathWorkerId}`);
       } else {
+        // Non-critical path task: check if we can use critical path worker without delaying ANY critical path tasks
+
+        // Find all unprocessed critical path tasks
+        const unprocessedCriticalTasks = nodesToProcess.filter(
+          n => n.criticalPath && n.id !== node.id
+        );
+
+        // Calculate when the next critical path task could be ready
+        let nextCriticalTaskEarliestStart = Infinity;
+        for (const criticalTask of unprocessedCriticalTasks) {
+          const criticalDeps = getNodeDependencies(criticalTask.id, nodes);
+          const allDepsProcessed = criticalDeps.every(depId => processedNodes.has(depId));
+
+          if (allDepsProcessed) {
+            // This critical task is ready now or soon
+            let criticalEarliestStart = 0;
+            if (criticalDeps.length > 0) {
+              criticalEarliestStart = Math.max(
+                ...criticalDeps.map(depId => {
+                  const depCompletionTime = completionTimes[depId] || 0;
+                  const transferTime = findTransferTime(depId, criticalTask.id);
+                  return depCompletionTime + transferTime;
+                })
+              );
+            }
+            nextCriticalTaskEarliestStart = Math.min(
+              nextCriticalTaskEarliestStart,
+              criticalEarliestStart
+            );
+          }
+        }
+
+        const criticalPathWorkerTime = criticalPathWorker
+          ? workerAvailability[criticalPathWorkerId!] || 0
+          : Infinity;
+
+        // Find the earliest available non-critical worker
         const availableWorkers = Object.entries(workerAvailability).sort(
           ([, timeA], [, timeB]) => timeA - timeB
         );
@@ -90,16 +129,70 @@ export function scheduleWithWorkerConstraints(
           criticalPathWorker ? id !== criticalPathWorkerId : true
         );
 
+        let bestNonCriticalWorkerTime = Infinity;
+        let bestNonCriticalWorkerId: string | null = null;
+
         if (nonCriticalWorkers.length > 0) {
-          [workerId, workerAvailableTime] = nonCriticalWorkers[0];
-        } else {
-          [workerId, workerAvailableTime] = availableWorkers[0];
+          [bestNonCriticalWorkerId, bestNonCriticalWorkerTime] = nonCriticalWorkers[0];
         }
 
-        if (criticalPathWorker && workerId === criticalPathWorkerId) {
-          console.log(
-            `Non-critical task ${node.name} using critical path worker (no other workers available)`
-          );
+        // Calculate actual start times for both options
+        const startTimeWithCriticalWorker = Math.max(earliestStart, criticalPathWorkerTime);
+        const taskDuration = node.executionTime || 0;
+        const completionTimeWithCriticalWorker = startTimeWithCriticalWorker + taskDuration;
+
+        const startTimeWithNonCriticalWorker = bestNonCriticalWorkerId
+          ? Math.max(earliestStart, bestNonCriticalWorkerTime)
+          : Infinity;
+
+        // Check if using critical path worker would delay any critical path tasks
+        const wouldDelayCriticalPath =
+          criticalPathWorker &&
+          nextCriticalTaskEarliestStart !== Infinity &&
+          completionTimeWithCriticalWorker > nextCriticalTaskEarliestStart;
+
+        // Use critical path worker ONLY if:
+        // 1. It exists
+        // 2. It doesn't delay this task compared to other workers
+        // 3. It won't delay any future critical path tasks
+        // 4. Either it's faster OR there are no other workers AND it won't block critical tasks
+        if (
+          criticalPathWorker &&
+          !wouldDelayCriticalPath &&
+          startTimeWithCriticalWorker <= startTimeWithNonCriticalWorker
+        ) {
+          workerId = criticalPathWorkerId!;
+          workerAvailableTime = criticalPathWorkerTime;
+
+          if (startTimeWithCriticalWorker < startTimeWithNonCriticalWorker) {
+            console.log(
+              `Non-critical task ${node.name} using critical path worker (faster: ${startTimeWithCriticalWorker}s vs ${startTimeWithNonCriticalWorker}s, safe from critical tasks)`
+            );
+          } else {
+            console.log(
+              `Non-critical task ${node.name} using critical path worker (same start time: ${startTimeWithCriticalWorker}s, safe from critical tasks)`
+            );
+          }
+        } else {
+          // Use the best non-critical worker, or fail if none available
+          if (bestNonCriticalWorkerId) {
+            workerId = bestNonCriticalWorkerId;
+            workerAvailableTime = bestNonCriticalWorkerTime;
+            if (wouldDelayCriticalPath) {
+              console.log(
+                `Non-critical task ${node.name} using worker ${workerId} (would delay critical task at ${nextCriticalTaskEarliestStart}s if using critical worker)`
+              );
+            } else {
+              console.log(
+                `Non-critical task ${node.name} using worker ${workerId} (avoids using critical worker: ${startTimeWithNonCriticalWorker}s vs ${startTimeWithCriticalWorker}s)`
+              );
+            }
+          } else {
+            console.error(
+              `Cannot schedule non-critical task ${node.name}: no non-critical workers available and using critical worker would delay critical tasks`
+            );
+            continue;
+          }
         }
       }
 

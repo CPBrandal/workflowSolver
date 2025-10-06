@@ -73,7 +73,6 @@ export function useWorkflowSimulation({
 
     const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
 
-    // Generate the schedule using the CORRECT scheduler from utils/scheduler.ts
     const schedule = scheduleWithWorkerConstraints(nodes, workers, true); // ← includeTransferTimes = true
 
     const workflowCompletionTime =
