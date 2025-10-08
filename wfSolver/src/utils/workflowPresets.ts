@@ -202,24 +202,6 @@ export const createWorkflowByType = (nodeCount: number, type: WorkflowType): Wor
 };
 
 /**
- * GET WORKFLOW METADATA FOR DISPLAY
- */
-export const getWorkflowMetadata = (nodes: WorkflowNode[]) => {
-  return {
-    generationMethod: 'probabilistic',
-    levelCount: Math.max(...nodes.map(n => n.level || 0)) + 1,
-    totalNodes: nodes.length,
-    averageConnectivity: nodes.reduce((sum, n) => sum + n.connections.length, 0) / nodes.length,
-    totalEdges: nodes.reduce((sum, n) => sum + n.connections.length, 0),
-    maxWidth: Math.max(
-      ...Array.from(new Set(nodes.map(n => n.level))).map(
-        level => nodes.filter(n => n.level === level).length
-      )
-    ),
-  };
-};
-
-/**
  * LEGACY COMPATIBILITY - Direct replacement for createComplexArbitraryWorkflow
  */
 export const createComplexArbitraryWorkflow = (nodeCount: number): WorkflowNode[] => {
