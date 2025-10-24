@@ -14,7 +14,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         isOpen ? 'w-96' : 'w-20'
       }`}
       onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseLeave={() => setIsOpen(false)} // 220.5
     >
       {/* Menu Items */}
       <div className="pt-16 px-2 space-y-3">

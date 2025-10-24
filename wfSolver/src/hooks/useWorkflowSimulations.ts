@@ -73,7 +73,7 @@ export function useWorkflowSimulation({
 
     const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
 
-    const schedule = scheduleWithWorkerConstraints(nodes, workers, true); // ← includeTransferTimes = true
+    const schedule = scheduleWithWorkerConstraints(nodes, workers, true);
 
     const workflowCompletionTime =
       schedule.length > 0 ? Math.max(...schedule.map(task => task.endTime)) : 0;
