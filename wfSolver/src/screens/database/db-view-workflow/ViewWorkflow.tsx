@@ -348,14 +348,6 @@ function ViewWorkflow() {
                       <strong>Nodes:</strong> {selected.node_count}
                     </p>
                     <p>
-                      <strong>Gamma Parameters:</strong> shape={selected.gamma_params.shape}, scale=
-                      {selected.gamma_params.scale}
-                    </p>
-                    <p>
-                      <strong>Expected Task Time:</strong>{' '}
-                      {(selected.gamma_params.shape * selected.gamma_params.scale).toFixed(2)}s
-                    </p>
-                    <p>
                       <strong>Created:</strong> {new Date(selected.created_at).toLocaleString()}
                     </p>
                     {selected.tags && selected.tags.length > 0 && (
