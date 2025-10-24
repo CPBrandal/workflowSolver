@@ -1,5 +1,5 @@
 import { supabase } from '../../../lib/supabase';
-import type { ArbitraryWorkflowConfig, GammaParams, Workflow } from '../../../types';
+import type { ArbitraryWorkflowConfig, Workflow } from '../../../types';
 import type { WorkflowRecord } from '../../../types/database';
 
 export class WorkflowService {
@@ -8,12 +8,10 @@ export class WorkflowService {
    */
   static async saveWorkflowTopology(
     workflow: Workflow,
-    gammaParams: GammaParams,
     generationConfig?: ArbitraryWorkflowConfig,
     tags?: string[]
   ): Promise<string | null> {
     try {
-      // Create template workflow (reset execution-specific data)
       const template: Workflow = {
         name: workflow.name,
         tasks: workflow.tasks.map(node => ({
@@ -22,9 +20,10 @@ export class WorkflowService {
           executionTime: undefined,
           assignedWorker: undefined,
           criticalPath: false,
+          gammaDistribution: node.gammaDistribution,
           connections: node.connections.map(edge => ({
             ...edge,
-            transferTime: 0, // Will be sampled per simulation
+            transferTime: 0,
           })),
         })),
         criticalPath: [],
@@ -34,7 +33,6 @@ export class WorkflowService {
 
       const record = {
         topology: template,
-        gamma_params: gammaParams,
         generation_config: generationConfig,
         node_count: workflow.tasks.length,
         tags: tags || [],

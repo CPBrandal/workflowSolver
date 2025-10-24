@@ -215,12 +215,9 @@ function WorkflowScreen() {
     }
 
     try {
-      const workflowId = await WorkflowService.saveWorkflowTopology(
-        workflow,
-        state?.gammaParams || { shape: 10, scale: 0.5 }, // Your gamma params
-        undefined,
-        [workflowType || 'unknown'] // Include workflow type as tag
-      );
+      const workflowId = await WorkflowService.saveWorkflowTopology(workflow, undefined, [
+        workflowType || 'unknown',
+      ]);
 
       if (workflowId) {
         console.log('Saved! Workflow ID:', workflowId);

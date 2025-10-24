@@ -1,4 +1,9 @@
+import {
+  EXECUTION_PARAM_DISTRIBUTIONS,
+  TRANSFER_PARAM_DISTRIBUTIONS,
+} from '../constants/constants';
 import type { ArbitraryWorkflowConfig, Edge, WorkflowNode } from '../types';
+import { createGammaParam } from './createGammaParam';
 import { gammaSampler } from './gammaSampler';
 
 // Enhanced configuration with probabilistic parameters
@@ -93,7 +98,6 @@ export function generateProbabilisticWorkflow(config: ProbabilisticWorkflowConfi
     maxLevels = nodeCount - 2,
     clusteringCoefficient = 0.3,
     preferentialAttachment = false,
-    gammaParams = { shape: 1.5, scale: 3 },
     maxWidth = Math.floor((nodeCount - 2) * 0.6), // Conservative max width
     edgeProbability = 0.4,
     maxEdgeSpan = 3,
@@ -104,8 +108,6 @@ export function generateProbabilisticWorkflow(config: ProbabilisticWorkflowConfi
   }
 
   const effectiveMaxWidth = Math.min(maxWidth, nodeCount - 2);
-  const getDuration = gammaSampler(gammaParams);
-  const getTransferTime = gammaSampler(gammaParams);
 
   // Phase 1: Generate level structure using probabilistic methods
   const levelStructure = generateLevelStructure(
@@ -127,7 +129,7 @@ export function generateProbabilisticWorkflow(config: ProbabilisticWorkflowConfi
   );
 
   // Phase 3: Create nodes with distributed properties
-  const nodes = createNodesWithDistribution(levelWidths, getDuration);
+  const nodes = createNodesWithDistribution(levelWidths);
 
   // Phase 4: Generate edges using advanced probabilistic connectivity
   generateProbabilisticConnectivity(
@@ -138,12 +140,11 @@ export function generateProbabilisticWorkflow(config: ProbabilisticWorkflowConfi
     clusteringCoefficient,
     preferentialAttachment,
     edgeProbability,
-    maxEdgeSpan,
-    getTransferTime
+    maxEdgeSpan
   );
 
   // Phase 5: Ensure workflow validity
-  ensureWorkflowValidity(nodes, levelWidths, getTransferTime);
+  ensureWorkflowValidity(nodes, levelWidths);
 
   console.log('Generated probabilistic workflow:', {
     levels: levelWidths.length,
@@ -298,10 +299,7 @@ function distributeLevelWidths(
 /**
  * Phase 3: Create nodes with distributed properties
  */
-function createNodesWithDistribution(
-  levelWidths: number[],
-  getDuration: () => number
-): WorkflowNode[] {
+function createNodesWithDistribution(levelWidths: number[]): WorkflowNode[] {
   const nodes: WorkflowNode[] = [];
   let nodeId = 1;
 
@@ -311,6 +309,9 @@ function createNodesWithDistribution(
     for (let i = 0; i < nodesInLevel; i++) {
       const isStart = level === 0;
       const isEnd = level === levelWidths.length - 1;
+
+      const shape = createGammaParam(EXECUTION_PARAM_DISTRIBUTIONS.SHAPE);
+      const scale = createGammaParam(EXECUTION_PARAM_DISTRIBUTIONS.SCALE);
 
       const node: WorkflowNode = {
         id: nodeId.toString(),
@@ -327,8 +328,12 @@ function createNodesWithDistribution(
           : isEnd
             ? 'Complete workflow execution'
             : `Execute task ${nodeId}`,
-        executionTime: getDuration(),
+        executionTime: gammaSampler({ shape, scale })(),
         criticalPath: false,
+        gammaDistribution: {
+          shape,
+          scale,
+        },
       };
 
       nodes.push(node);
@@ -350,8 +355,7 @@ function generateProbabilisticConnectivity(
   clusteringCoefficient: number,
   preferentialAttachment: boolean,
   baseEdgeProbability: number,
-  maxEdgeSpan: number,
-  getTransferTime: () => number
+  maxEdgeSpan: number
 ): void {
   const nodesByLevel = groupNodesByLevel(nodes, levelWidths);
 
@@ -406,11 +410,18 @@ function generateProbabilisticConnectivity(
             );
 
             if (!edgeExists) {
+              const shape = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SHAPE);
+              const scale = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SCALE);
+
               const newEdge: Edge = {
                 sourceNodeId: sourceNode.id,
                 targetNodeId: targetNode.id,
-                transferTime: getTransferTime(),
+                transferTime: gammaSampler({ shape, scale })(),
                 label: `${sourceNode.name} → ${targetNode.name}`,
+                gammaDistribution: {
+                  shape,
+                  scale,
+                },
               };
               sourceNode.connections.push(newEdge);
             }
@@ -424,13 +435,12 @@ function generateProbabilisticConnectivity(
 /**
  * Phase 5: Ensure workflow validity and connectivity
  */
-function ensureWorkflowValidity(
-  nodes: WorkflowNode[],
-  levelWidths: number[],
-  getTransferTime: () => number
-): void {
+function ensureWorkflowValidity(nodes: WorkflowNode[], levelWidths: number[]): void {
   const nodesByLevel = groupNodesByLevel(nodes, levelWidths);
 
+  const shape = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SHAPE);
+  const scale = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SCALE);
+  const getTransferTime = () => gammaSampler({ shape, scale })();
   // Ensure basic connectivity between adjacent levels
   for (let level = 0; level < levelWidths.length - 1; level++) {
     const sourceNodes = nodesByLevel[level];
@@ -458,6 +468,10 @@ function ensureWorkflowValidity(
         targetNodeId: randomTarget.id,
         transferTime: getTransferTime(),
         label: `${randomSource.name} → ${randomTarget.name}`,
+        gammaDistribution: {
+          shape,
+          scale,
+        },
       };
       randomSource.connections.push(newEdge);
     }
@@ -480,6 +494,10 @@ function ensureWorkflowValidity(
           targetNodeId: node.id,
           transferTime: getTransferTime(),
           label: `${randomSource.name} → ${node.name}`,
+          gammaDistribution: {
+            shape,
+            scale,
+          },
         };
         randomSource.connections.push(newEdge);
       }
@@ -494,6 +512,10 @@ function ensureWorkflowValidity(
           targetNodeId: randomTarget.id,
           transferTime: getTransferTime(),
           label: `${node.name} → ${randomTarget.name}`,
+          gammaDistribution: {
+            shape,
+            scale,
+          },
         };
         node.connections.push(newEdge);
       }

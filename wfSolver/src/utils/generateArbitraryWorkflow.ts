@@ -1,3 +1,7 @@
+import {
+  EXECUTION_PARAM_DISTRIBUTIONS,
+  TRANSFER_PARAM_DISTRIBUTIONS,
+} from '../constants/constants';
 import type {
   ArbitraryWorkflowConfig,
   DAGGenerationParams,
@@ -5,6 +9,7 @@ import type {
   GammaParams,
   WorkflowNode,
 } from '../types';
+import { createGammaParam } from './createGammaParam';
 import { gammaSampler } from './gammaSampler';
 
 export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): WorkflowNode[] {
@@ -16,7 +21,6 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     maxEdgeSpan = 3,
     singleSink = true,
     densityFactor = 0.6,
-    gammaParams = { shape: 0.7, scale: 5 },
   } = config;
 
   console.log('Generating arbitrary workflow:', {
@@ -25,7 +29,6 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     maxDepth,
     edgeProbability,
     maxEdgeSpan,
-    gammaParams,
   });
 
   if (nodeCount < 1) {
@@ -36,8 +39,6 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
     throw new Error('Node count cannot exceed 50');
   }
 
-  const getDuration = gammaSampler(gammaParams);
-  const getTransferTime = gammaSampler(gammaParams); // Questionable choice
   try {
     const nodes = generateDAGWorkflow({
       nodeCount,
@@ -47,8 +48,6 @@ export function generateArbitraryWorkflow(config: ArbitraryWorkflowConfig): Work
       maxEdgeSpan,
       singleSink,
       densityFactor,
-      getDuration,
-      getTransferTime,
     });
 
     console.log(
@@ -77,8 +76,6 @@ function generateDAGWorkflow({
   maxEdgeSpan,
   singleSink,
   densityFactor,
-  getDuration,
-  getTransferTime,
 }: DAGGenerationParams): WorkflowNode[] {
   // Step 1: Distribute nodes across levels
   const levels = distributeNodesAcrossLevels(nodeCount, maxDepth, maxWidth, singleSink);
@@ -94,6 +91,9 @@ function generateDAGWorkflow({
     for (let i = 0; i < nodesInLevel; i++) {
       const isLastLevel = level === levels.length - 1;
       const isSinkNode = singleSink && isLastLevel && i === 0;
+
+      const shape = createGammaParam(EXECUTION_PARAM_DISTRIBUTIONS.SHAPE);
+      const scale = createGammaParam(EXECUTION_PARAM_DISTRIBUTIONS.SCALE);
 
       const node: WorkflowNode = {
         id: nodeId.toString(),
@@ -111,8 +111,12 @@ function generateDAGWorkflow({
             : isSinkNode
               ? 'Complete workflow execution'
               : `Execute task ${nodeId}`,
-        executionTime: getDuration(),
+        executionTime: gammaSampler({ shape, scale })(),
         criticalPath: false,
+        gammaDistribution: {
+          shape,
+          scale,
+        },
       };
 
       nodes.push(node);
@@ -121,13 +125,13 @@ function generateDAGWorkflow({
   }
 
   // Step 3: Generate dependencies between levels
-  generateDependencies(nodes, levels, edgeProbability, maxEdgeSpan, densityFactor, getTransferTime);
+  generateDependencies(nodes, levels, edgeProbability, maxEdgeSpan, densityFactor);
 
   // Step 4: Ensure workflow connectivity
-  ensureWorkflowConnectivity(nodes, levels, singleSink, getTransferTime);
+  ensureWorkflowConnectivity(nodes, levels, singleSink);
 
   // Step 5: Ensure all non-terminal nodes have outgoing connections
-  ensureOutgoingConnections(nodes, levels, singleSink, getTransferTime);
+  ensureOutgoingConnections(nodes, levels, singleSink);
 
   return nodes;
 }
@@ -208,8 +212,7 @@ function generateDependencies(
   levels: number[],
   edgeProbability: number,
   maxEdgeSpan: number,
-  densityFactor: number,
-  getTransferTime?: () => number
+  densityFactor: number
 ): void {
   const nodesByLevel: WorkflowNode[][] = [];
   let nodeIndex = 0;
@@ -237,11 +240,17 @@ function generateDependencies(
             );
 
             if (!edgeExists) {
+              const shape = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SHAPE);
+              const scale = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SCALE);
               const newEdge: Edge = {
                 sourceNodeId: sourceNode.id,
                 targetNodeId: targetNode.id,
-                transferTime: getTransferTime ? getTransferTime() : 1,
+                transferTime: gammaSampler({ shape, scale })(),
                 label: `${sourceNode.name} → ${targetNode.name}`,
+                gammaDistribution: {
+                  shape,
+                  scale,
+                },
               };
 
               sourceNode.connections.push(newEdge);
@@ -256,8 +265,7 @@ function generateDependencies(
 function ensureWorkflowConnectivity(
   nodes: WorkflowNode[],
   levels: number[],
-  singleSink: boolean,
-  getTransferTime: () => number
+  singleSink: boolean
 ): void {
   const nodesByLevel: WorkflowNode[][] = [];
   let nodeIndex = 0;
@@ -291,13 +299,20 @@ function ensureWorkflowConnectivity(
       const randomSource = sourceNodes[Math.floor(Math.random() * sourceNodes.length)];
       const randomTarget = targetNodes[Math.floor(Math.random() * targetNodes.length)];
 
-      // Fix: Create Edge object
+      const shape = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SHAPE);
+      const scale = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SCALE);
+
       const newEdge: Edge = {
         sourceNodeId: randomSource.id,
         targetNodeId: randomTarget.id,
-        transferTime: getTransferTime(),
+        transferTime: gammaSampler({ shape, scale })(),
         label: `${randomSource.name} → ${randomTarget.name}`,
+        gammaDistribution: {
+          shape,
+          scale,
+        },
       };
+
       randomSource.connections.push(newEdge);
     }
   }
@@ -321,11 +336,18 @@ function ensureWorkflowConnectivity(
       for (const node of secondToLastLevel) {
         // Fix: Check if edge to sink exists
         if (!node.connections.some(edge => edge.targetNodeId === sinkNode.id)) {
+          const shape = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SHAPE);
+          const scale = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SCALE);
+
           const sinkEdge: Edge = {
             sourceNodeId: node.id,
             targetNodeId: sinkNode.id,
-            transferTime: getTransferTime(),
+            transferTime: gammaSampler({ shape, scale })(),
             label: `${node.name} → ${sinkNode.name}`,
+            gammaDistribution: {
+              shape,
+              scale,
+            },
           };
           node.connections.push(sinkEdge);
         }
@@ -349,12 +371,18 @@ function ensureWorkflowConnectivity(
         const previousLevel = nodesByLevel[level - 1];
         const randomSource = previousLevel[Math.floor(Math.random() * previousLevel.length)];
 
-        // Fix: Create Edge object
+        const shape = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SHAPE);
+        const scale = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SCALE);
+
         const newEdge: Edge = {
           sourceNodeId: randomSource.id,
           targetNodeId: node.id,
-          transferTime: getTransferTime(),
+          transferTime: gammaSampler({ shape, scale })(),
           label: `${randomSource.name} → ${node.name}`,
+          gammaDistribution: {
+            shape,
+            scale,
+          },
         };
         randomSource.connections.push(newEdge);
       }
@@ -365,8 +393,7 @@ function ensureWorkflowConnectivity(
 function ensureOutgoingConnections(
   nodes: WorkflowNode[],
   levels: number[],
-  singleSink: boolean,
-  getTransferTime: () => number
+  singleSink: boolean
 ): void {
   const nodesByLevel: WorkflowNode[][] = [];
   let nodeIndex = 0;
@@ -412,12 +439,14 @@ function ensureOutgoingConnections(
 
       if (availableTargets.length > 0) {
         const randomTarget = availableTargets[Math.floor(Math.random() * availableTargets.length)];
-
-        const newEdge = {
+        const shape = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SHAPE);
+        const scale = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SCALE);
+        const newEdge: Edge = {
           sourceNodeId: node.id,
           targetNodeId: randomTarget.id,
-          transferTime: getTransferTime(),
+          transferTime: gammaSampler({ shape, scale })(),
           label: `${node.name} → ${randomTarget.name}`,
+          gammaDistribution: { shape, scale },
         };
 
         node.connections.push(newEdge);
@@ -436,11 +465,14 @@ function ensureOutgoingConnections(
       if (node !== sinkNode && node.connections.length === 0) {
         // These nodes shouldn't exist in a proper single-sink workflow, but if they do,
         // connect them to the sink
-        const sinkEdge = {
+        const shape = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SHAPE);
+        const scale = createGammaParam(TRANSFER_PARAM_DISTRIBUTIONS.SCALE);
+        const sinkEdge: Edge = {
           sourceNodeId: node.id,
           targetNodeId: sinkNode.id,
-          transferTime: getTransferTime(),
+          transferTime: gammaSampler({ shape, scale })(),
           label: `${node.name} → ${sinkNode.name}`,
+          gammaDistribution: { shape, scale },
         };
         node.connections.push(sinkEdge);
         console.log(
@@ -464,9 +496,5 @@ export const createComplexArbitraryWorkflow = (nodeCount: number) => {
     maxEdgeSpan: 2,
     singleSink: true,
     densityFactor: 0.7,
-    gammaParams: {
-      shape: 1.5, // Shape parameter for gamma distribution
-      scale: 3, // Scale parameter for gamma distribution
-    },
   });
 };

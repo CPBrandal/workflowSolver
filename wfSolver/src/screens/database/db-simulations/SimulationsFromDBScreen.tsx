@@ -34,15 +34,6 @@ function SimulationsFromDBScreen() {
     fetchWorkflows();
   }, []);
 
-  const selectedGammaParams = useMemo(() => {
-    return (
-      savedWorkflows.find(w => w.id === selectedWorkflowId)?.gamma_params || {
-        shape: 1,
-        scale: 1,
-      }
-    );
-  }, [savedWorkflows, selectedWorkflowId]);
-  // Auto-show results when workflow is selected
   useEffect(() => {
     if (selectedWorkflowId && numberOfWorkers > 0) {
       setShowResults(true);
@@ -246,13 +237,6 @@ function SimulationsFromDBScreen() {
                                 <p>{selected.node_count}</p>
                               </div>
                               <div>
-                                <p className="font-medium text-gray-700">Gamma Params:</p>
-                                <p>
-                                  shape={selected.gamma_params.shape}, scale=
-                                  {selected.gamma_params.scale}
-                                </p>
-                              </div>
-                              <div>
                                 <p className="font-medium text-gray-700">Created:</p>
                                 <p>{new Date(selected.created_at).toLocaleString()}</p>
                               </div>
@@ -331,7 +315,6 @@ function SimulationsFromDBScreen() {
                 <Suspense fallback={<div>Loading charts...</div>}>
                   <SimulationResultsVisualization
                     workflowId={selectedWorkflowId}
-                    gammaParams={selectedGammaParams}
                     numberOfWorkers={numberOfWorkers}
                   />
                 </Suspense>
@@ -348,7 +331,6 @@ function SimulationsFromDBScreen() {
                   <Suspense fallback={<div>Loading charts...</div>}>
                     <SimulationResultsVisualization
                       workflowId={selectedWorkflowId}
-                      gammaParams={selectedGammaParams}
                       numberOfWorkers={comparisonWorkers}
                     />
                   </Suspense>

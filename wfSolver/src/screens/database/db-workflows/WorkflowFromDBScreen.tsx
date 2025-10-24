@@ -111,7 +111,6 @@ function WorkflowFromDBScreen() {
         workflow,
         workers,
         numberOfSimulations,
-        selectedWorkflow.gamma_params,
         (current, total) => {
           setSimulationProgress({ current, total });
         },
@@ -188,10 +187,6 @@ function WorkflowFromDBScreen() {
                         </p>
                         <p>
                           <strong>Nodes:</strong> {selected.node_count}
-                        </p>
-                        <p>
-                          <strong>Gamma:</strong> shape={selected.gamma_params.shape}, scale=
-                          {selected.gamma_params.scale}
                         </p>
                         <p>
                           <strong>Created:</strong> {new Date(selected.created_at).toLocaleString()}

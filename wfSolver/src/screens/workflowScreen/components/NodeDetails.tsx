@@ -53,6 +53,12 @@ export function NodeDetails({ selectedNode }: NodeDetailsProps) {
           <span className="font-medium">Critical path:</span>{' '}
           {selectedNode.criticalPath ? 'Critical' : 'Non-critical'}
         </p>
+        <p>
+          <span className="font-medium">Gamma parameters:</span>{' '}
+          {selectedNode.gammaDistribution.scale && selectedNode.gammaDistribution.shape
+            ? `Shape: ${selectedNode.gammaDistribution.shape}, Scale: ${selectedNode.gammaDistribution.scale}`
+            : 'N/A'}
+        </p>
       </div>
     </div>
   );

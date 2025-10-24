@@ -1,4 +1,3 @@
-import type { GammaParams } from '../../../types';
 import type { SimulationRecord } from '../../../types/database';
 import { SimulationService } from './simulationService';
 
@@ -42,17 +41,16 @@ export interface SimulationAnalysis {
   }>;
   theoreticalValidation: {
     observedMeanT: number;
-    theoreticalMeanT: number;
+    // theoreticalMeanT: number;
     avgCriticalPathLength: number;
-    expectedTaskTime: number;
-    percentError: number;
+    // expectedTaskTime: number;
+    // percentError: number;
   };
 }
 
 export class SimulationAnalysisService {
   static async analyzeWorkflowSimulations(
     workflowId: string,
-    gammaParams: GammaParams,
     numberOfWorkers: number
   ): Promise<SimulationAnalysis | null> {
     const simulations = await SimulationService.getSimulationsByWorkflowAndWorkerCount(
@@ -115,15 +113,15 @@ export class SimulationAnalysisService {
       probability: (i + 1) / sortedRatios.length,
     }));
 
-    const expectedTaskTime = gammaParams.shape * gammaParams.scale;
+    // const expectedTaskTime = gammaParams.shape * gammaParams.scale;
     const observedMeanT =
       simulations.reduce((sum, sim) => sum + sim.theoretical_runtime, 0) / simulations.length;
 
     const cpLengths = simulations.map(sim => sim.critical_path_node_ids?.length || 0);
     const avgCriticalPathLength = cpLengths.reduce((sum, n) => sum + n, 0) / simulations.length;
 
-    const theoreticalMeanT = expectedTaskTime * avgCriticalPathLength;
-    const percentError = (Math.abs(observedMeanT - theoreticalMeanT) / theoreticalMeanT) * 100;
+    // const theoreticalMeanT = expectedTaskTime * avgCriticalPathLength;
+    // const percentError = (Math.abs(observedMeanT - theoreticalMeanT) / theoreticalMeanT) * 100;
 
     return {
       simulations,
@@ -140,10 +138,10 @@ export class SimulationAnalysisService {
       ecdfData,
       theoreticalValidation: {
         observedMeanT,
-        theoreticalMeanT,
+        // theoreticalMeanT,
         avgCriticalPathLength,
-        expectedTaskTime,
-        percentError,
+        // expectedTaskTime,
+        // percentError,
       },
     };
   }

@@ -20,18 +20,10 @@ import {
 
 interface Props {
   workflowId: string;
-  gammaParams: {
-    shape: number;
-    scale: number;
-  };
   numberOfWorkers: number;
 }
 
-export function SimulationResultsVisualization({
-  workflowId,
-  gammaParams,
-  numberOfWorkers,
-}: Props) {
+export function SimulationResultsVisualization({ workflowId, numberOfWorkers }: Props) {
   const [analysis, setAnalysis] = useState<SimulationAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'histogram' | 'ecdf' | 'scatter' | 'comparison'>(
@@ -43,7 +35,6 @@ export function SimulationResultsVisualization({
       setLoading(true);
       const data = await SimulationAnalysisService.analyzeWorkflowSimulations(
         workflowId,
-        gammaParams,
         numberOfWorkers
       );
       setAnalysis(data);
@@ -53,7 +44,7 @@ export function SimulationResultsVisualization({
     if (workflowId && numberOfWorkers > 0) {
       loadAnalysis();
     }
-  }, [workflowId, gammaParams, numberOfWorkers]);
+  }, [workflowId, numberOfWorkers]);
 
   if (loading) {
     return (
@@ -349,12 +340,13 @@ export function SimulationResultsVisualization({
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-gray-600">Expected Task Time E[t]:</p>
-            <p className="font-semibold">
+            {/* <p className="font-semibold">
               {analysis.theoreticalValidation.expectedTaskTime.toFixed(3)}s
-            </p>
-            <p className="text-xs text-gray-500">
+            </p> */}
+            {/* <p className="text-xs text-gray-500">
               shape × scale = {gammaParams.shape} × {gammaParams.scale}
-            </p>
+            </p> */}{' '}
+            // TODO remove gammaParams reference
           </div>
           <div>
             <p className="text-gray-600">Avg Critical Path Length:</p>
@@ -369,14 +361,14 @@ export function SimulationResultsVisualization({
               {analysis.theoreticalValidation.observedMeanT.toFixed(3)}s
             </p>
           </div>
-          <div>
+          {/* <div>
             <p className="text-gray-600">Theoretical Mean T(-):</p>
             <p className="font-semibold">
               {analysis.theoreticalValidation.theoreticalMeanT.toFixed(3)}s
             </p>
             <p className="text-xs text-gray-500">E[t] × Avg N(j)</p>
-          </div>
-          <div className="col-span-2">
+          </div> */}
+          {/* <div className="col-span-2">
             <p className="text-gray-600">Validation Error:</p>
             <p
               className={`font-bold text-lg ${
@@ -390,7 +382,7 @@ export function SimulationResultsVisualization({
                 ? '✓ Implementation validated'
                 : '⚠ Check implementation - error should be < 5%'}
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

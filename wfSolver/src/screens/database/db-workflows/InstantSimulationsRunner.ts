@@ -1,4 +1,4 @@
-import type { GammaParams, ScheduledTask, Worker, Workflow } from '../../../types';
+import type { ScheduledTask, Worker, Workflow } from '../../../types';
 import {
   analyzeCriticalPath,
   getProjectDuration,
@@ -17,7 +17,6 @@ export class InstantSimulationRunner {
     workflow: Workflow,
     workers: Worker[],
     numberOfSimulations: number,
-    gammaParams: GammaParams,
     onProgress?: (current: number, total: number) => void,
     useTransferTime: boolean = true
   ): Promise<string[]> {
@@ -28,7 +27,7 @@ export class InstantSimulationRunner {
       const simulationNumber = maxSimNumber + i;
 
       // 1. Sample execution times (always) and transfer times (conditional)
-      const simulatedWorkflow = this.sampleExecutionTimes(workflow, gammaParams, useTransferTime);
+      const simulatedWorkflow = this.sampleExecutionTimes(workflow, useTransferTime);
 
       const originalEdgeTransferTimes: Record<string, number> = {};
       simulatedWorkflow.tasks.forEach(node => {
@@ -97,21 +96,18 @@ export class InstantSimulationRunner {
   }
 
   // In sampleExecutionTimes (should already be correct):
-  private static sampleExecutionTimes(
-    workflow: Workflow,
-    gammaParams: GammaParams,
-    useTransferTime: boolean
-  ): Workflow {
+  private static sampleExecutionTimes(workflow: Workflow, useTransferTime: boolean): Workflow {
     const sampledWorkflow = JSON.parse(JSON.stringify(workflow)) as Workflow;
-    const sampler = gammaSampler(gammaParams);
 
     sampledWorkflow.tasks.forEach(task => {
+      const executionTimeSampler = gammaSampler(task.gammaDistribution);
       // Always sample execution time
-      task.executionTime = sampler();
+      task.executionTime = executionTimeSampler();
 
       // Sample transfer times only if enabled
       task.connections.forEach(edge => {
-        edge.transferTime = useTransferTime ? sampler() : 0;
+        const transferTimeSampler = gammaSampler(edge.gammaDistribution);
+        edge.transferTime = useTransferTime ? transferTimeSampler() : 0;
       });
     });
 
