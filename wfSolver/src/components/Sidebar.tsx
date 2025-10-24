@@ -17,7 +17,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       onMouseLeave={() => setIsOpen(false)}
     >
       {/* Menu Items */}
-      <div className="pt-16 px-4 space-y-3">
+      <div className="pt-16 px-2 space-y-3">
         <button
           onClick={() => navigate('/')}
           className="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-gray-700 transition-colors text-left text-base"
