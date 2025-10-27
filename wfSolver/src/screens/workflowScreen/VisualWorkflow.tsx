@@ -172,6 +172,13 @@ function VisualWorkflow({
           padding: '80px',
         }}
       >
+        {/* Node Details - Top Right Corner */}
+        {selectedNode && (
+          <div className="absolute top-4 right-4 z-10 max-w-sm">
+            <NodeDetails selectedNode={selectedNode} />
+          </div>
+        )}
+
         {/* Centered container for the graph */}
         <div
           className="relative mx-auto"
@@ -289,9 +296,6 @@ function VisualWorkflow({
           </div>
         </div>
       )}
-
-      {/* Node Details */}
-      {selectedNode && <NodeDetails selectedNode={selectedNode} />}
 
       {/* Runtime Display */}
       {workers.length > 0 && (
