@@ -1,1 +1,3 @@
-// TODO MAKE THIS FILE
+export function efficiencyGraph() {
+  // Implementation of efficiency graph
+}
