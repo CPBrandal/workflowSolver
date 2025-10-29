@@ -1,4 +1,4 @@
-import type { GammaParams, ScheduledTask, Worker, Workflow } from '../../../types';
+import type { ScheduledTask, Worker, Workflow } from '../../../types';
 import {
   analyzeCriticalPath,
   getProjectDuration,
@@ -9,15 +9,11 @@ import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
 import { SimulationService } from '../services/simulationService';
 
 export class InstantSimulationRunner {
-  /**
-   * Run multiple simulations instantly and save results
-   */
   static async runBatchSimulations(
     workflowId: string,
     workflow: Workflow,
     workers: Worker[],
     numberOfSimulations: number,
-    gammaParams: GammaParams,
     onProgress?: (current: number, total: number) => void,
     useTransferTime: boolean = true
   ): Promise<string[]> {
@@ -27,8 +23,7 @@ export class InstantSimulationRunner {
     for (let i = 1; i <= numberOfSimulations; i++) {
       const simulationNumber = maxSimNumber + i;
 
-      // 1. Sample execution times (always) and transfer times (conditional)
-      const simulatedWorkflow = this.sampleExecutionTimes(workflow, gammaParams, useTransferTime);
+      const simulatedWorkflow = this.sampleExecutionTimes(workflow, useTransferTime);
 
       const originalEdgeTransferTimes: Record<string, number> = {};
       simulatedWorkflow.tasks.forEach(node => {
@@ -39,7 +34,6 @@ export class InstantSimulationRunner {
       });
 
       // 2. Find critical path using EXECUTION TIMES ONLY
-      // (Critical path tasks run on same worker → no transfer delay)
       const cpmResult = analyzeCriticalPath(simulatedWorkflow.tasks, false);
 
       // 3. Mark nodes that are on the critical path
@@ -53,15 +47,12 @@ export class InstantSimulationRunner {
       simulatedWorkflow.criticalPathResult = cpmResult;
 
       // 5. Set critical path edge transfer times to 0
-      // (Already 0 if useTransferTime=false, but this ensures it)
       setCriticalPathEdgesTransferTimes(simulatedWorkflow.tasks);
 
       // 6. Calculate theoretical runtime using execution times only
-      // (No transfer times on critical path = theoretical minimum)
       const theoreticalRuntime = getProjectDuration(simulatedWorkflow.tasks, false);
 
       // 7. Schedule with worker constraints
-      // Non-critical edges may have transfer times if useTransferTime=true
       const schedule = scheduleWithWorkerConstraints(
         simulatedWorkflow.tasks,
         workers,
@@ -97,21 +88,18 @@ export class InstantSimulationRunner {
   }
 
   // In sampleExecutionTimes (should already be correct):
-  private static sampleExecutionTimes(
-    workflow: Workflow,
-    gammaParams: GammaParams,
-    useTransferTime: boolean
-  ): Workflow {
+  private static sampleExecutionTimes(workflow: Workflow, useTransferTime: boolean): Workflow {
     const sampledWorkflow = JSON.parse(JSON.stringify(workflow)) as Workflow;
-    const sampler = gammaSampler(gammaParams);
 
     sampledWorkflow.tasks.forEach(task => {
+      const executionTimeSampler = gammaSampler(task.gammaDistribution);
       // Always sample execution time
-      task.executionTime = sampler();
+      task.executionTime = executionTimeSampler();
 
       // Sample transfer times only if enabled
       task.connections.forEach(edge => {
-        edge.transferTime = useTransferTime ? sampler() : 0;
+        const transferTimeSampler = gammaSampler(edge.gammaDistribution);
+        edge.transferTime = useTransferTime ? transferTimeSampler() : 0;
       });
     });
 

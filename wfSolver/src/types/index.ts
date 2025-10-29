@@ -25,6 +25,7 @@ export interface WorkflowNode {
   level: number;
   assignedWorker?: string;
   criticalPath: boolean;
+  gammaDistribution: GammaParams;
 }
 
 export interface Worker {
@@ -48,6 +49,7 @@ export interface Edge {
   targetNodeId: string;
   transferTime: number;
   label?: string;
+  gammaDistribution: GammaParams;
 }
 
 export interface Position {
@@ -118,7 +120,6 @@ export interface LocationState {
   layout?: string; // Keep this if you use it somewhere
   generatorType?: 'probabilistic' | 'legacy' | string; // Keeps backward compatibility
   message?: string; // Keep this if you use it somewhere
-  gammaParams?: GammaParams; // Made optional to match new usage
 }
 
 export interface CriticalPathNode extends WorkflowNode {
@@ -167,8 +168,6 @@ export interface ArbitraryWorkflowConfig {
 
   singleSink?: boolean;
   densityFactor?: number;
-
-  gammaParams?: GammaParams;
 }
 
 export interface DAGGenerationParams {
@@ -179,8 +178,6 @@ export interface DAGGenerationParams {
   maxEdgeSpan: number;
   singleSink: boolean;
   densityFactor: number;
-  getDuration: () => number;
-  getTransferTime: () => number;
 }
 
 // Workflow metadata for display purposes

@@ -1,10 +1,9 @@
-import type { ArbitraryWorkflowConfig, GammaParams, Worker, Workflow } from './index';
+import type { ArbitraryWorkflowConfig, Worker, Workflow } from './index';
 
 export interface WorkflowRecord {
   id: string;
   created_at: string;
   topology: Workflow; // Complete Workflow interface (template)
-  gamma_params: GammaParams;
   generation_config?: ArbitraryWorkflowConfig;
   node_count: number;
   tags?: string[];

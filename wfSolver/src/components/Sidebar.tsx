@@ -11,21 +11,19 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   return (
     <div
       className={`fixed left-0 top-0 h-full bg-gray-800 text-white transition-all duration-300 z-50 ${
-        isOpen ? 'w-64' : 'w-16'
+        isOpen ? 'w-96' : 'w-20'
       }`}
       onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseLeave={() => setIsOpen(false)} // 220.5
     >
-      {/* Rest of sidebar code, using isOpen instead of sidebarOpen */}
-
       {/* Menu Items */}
-      <div className="pt-16 px-3 space-y-2">
+      <div className="pt-16 px-2 space-y-3">
         <button
           onClick={() => navigate('/')}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
+          className="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-gray-700 transition-colors text-left text-base"
         >
           <svg
-            className="w-6 h-6 flex-shrink-0"
+            className="w-7 h-7 flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -48,10 +46,10 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
         <button
           onClick={() => navigate('/db-workflows')}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
+          className="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-gray-700 transition-colors text-left text-base"
         >
           <svg
-            className="w-6 h-6 flex-shrink-0"
+            className="w-7 h-7 flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -74,10 +72,10 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
         <button
           onClick={() => navigate('/db-simulations')}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
+          className="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-gray-700 transition-colors text-left text-base"
         >
           <svg
-            className="w-6 h-6 flex-shrink-0"
+            className="w-7 h-7 flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -100,10 +98,10 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
         <button
           onClick={() => navigate('/db-view-workflow')}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
+          className="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-gray-700 transition-colors text-left text-base"
         >
           <svg
-            className="w-6 h-6 flex-shrink-0"
+            className="w-7 h-7 flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -128,10 +126,10 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         </button>
         <button
           onClick={() => navigate('/edit-database')}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
+          className="w-full flex items-center gap-4 px-4 py-4 rounded-lg hover:bg-gray-700 transition-colors text-left text-base"
         >
           <svg
-            className="w-6 h-6 flex-shrink-0"
+            className="w-7 h-7 flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

@@ -31,8 +31,6 @@ export const createScientificWorkflow = (nodeCount: number): WorkflowNode[] => {
     maxEdgeSpan: 2, // REDUCED from 3 to 2
     clusteringCoefficient: 0.2, // REDUCED from 0.3 to 0.2
     preferentialAttachment: false, // DISABLED to prevent rich-get-richer
-
-    gammaParams: { shape: 2.0, scale: 4 },
   });
 };
 
@@ -57,8 +55,6 @@ export const createDataPipeline = (nodeCount: number): WorkflowNode[] => {
     maxEdgeSpan: 1, // ONLY adjacent level connections
     clusteringCoefficient: 0.1, // MINIMAL clustering
     preferentialAttachment: false, // NO preferential attachment
-
-    gammaParams: { shape: 1.2, scale: 2 },
   });
 };
 
@@ -81,8 +77,6 @@ export const createMLWorkflow = (nodeCount: number): WorkflowNode[] => {
     maxEdgeSpan: 2, // REDUCED from longer spans
     clusteringCoefficient: 0.15, // REDUCED clustering
     preferentialAttachment: false, // DISABLED to control connection growth
-
-    gammaParams: { shape: 1.8, scale: 6 },
   });
 };
 
@@ -108,8 +102,6 @@ export const createComplexWorkflow = (nodeCount: number): WorkflowNode[] => {
     maxEdgeSpan: 3, // REDUCED from 4 to 3
     clusteringCoefficient: 0.25, // REDUCED from 0.4 to 0.25
     preferentialAttachment: false, // DISABLED even for complex
-
-    gammaParams: { shape: 1.5, scale: 3 },
   });
 };
 
@@ -135,7 +127,6 @@ export const createBalancedWorkflow = (nodeCount: number): WorkflowNode[] => {
 
     maxWidth: Math.ceil(nodeCount / 3),
     singleSink: true,
-    gammaParams: { shape: 1.5, scale: 3 },
   });
 };
 
