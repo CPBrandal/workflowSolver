@@ -72,8 +72,9 @@ function ViewWorkflow() {
       } catch (error) {
         console.error('Error loading simulations:', error);
         setSimulations([]);
+      } finally {
+        setLoadingSimulations(false);
       }
-      setLoadingSimulations(false);
     };
 
     loadSelectedWorkflow();
