@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ScheduledTask, UseWorkflowSimulationProps, WorkflowNode } from '../types';
 import { scheduleWithWorkerConstraints } from '../utils/scheduler';
+import { scheduleWorkflow } from '../utils/scpcp';
 
 export function useWorkflowSimulation({
   initialNodes,
@@ -74,9 +75,10 @@ export function useWorkflowSimulation({
     const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
 
     const schedule = scheduleWithWorkerConstraints(nodes, workers, true);
+    const scpcp = scheduleWorkflow(nodes, workers, Infinity);
 
     const workflowCompletionTime =
-      schedule.length > 0 ? Math.max(...schedule.map(task => task.endTime)) : 0;
+      scpcp.schedule.length > 0 ? Math.max(...scpcp.schedule.map(task => task.endTime)) : 0;
     console.log(`Total workflow duration (including transfer times): ${workflowCompletionTime}s`);
 
     const startNode = (scheduledTask: ScheduledTask) => {

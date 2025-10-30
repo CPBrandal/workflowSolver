@@ -6,7 +6,7 @@ import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
 import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
 import TaskTimelineChart from '../components/TaskTimelineChart';
 import { WorkflowService } from '../services/workflowService';
-import { ViewWorkflowController } from './viewWorkflow.controller';
+import { ViewWorkflowController } from './ViewWorkflow.controller';
 
 function ViewWorkflow() {
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);

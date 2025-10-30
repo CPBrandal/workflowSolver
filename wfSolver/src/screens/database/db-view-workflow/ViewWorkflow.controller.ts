@@ -1,5 +1,5 @@
 import type { SimulationRecord } from '../../../types/database';
-import { ViewWorkflowService } from './viewWorkflow.service';
+import { ViewWorkflowService } from './ViewWorkflow.service';
 
 export class ViewWorkflowController {
   static async getSimulationsByWorkflowAndWorkerCount({

@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { EfficiencyGraph } from './screens/algorithmComparison/efficiencyGraph';
+import { EfficiencyGraph } from './screens/algorithmComparison/EfficiencyGraph';
 import SimulationsFromDBScreen from './screens/database/db-simulations/SimulationsFromDBScreen';
 import ViewWorkflow from './screens/database/db-view-workflow/ViewWorkflow';
 import WorkflowFromDBScreen from './screens/database/db-workflows/WorkflowFromDBScreen';
