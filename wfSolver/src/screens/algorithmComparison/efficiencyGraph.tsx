@@ -14,7 +14,6 @@ import {
   type RDistributionPoint,
 } from './AlgorithComparison.controller';
 
-// Define custom tooltip props
 interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{
@@ -40,16 +39,16 @@ export function EfficiencyGraph() {
       setError(null);
 
       try {
-        const data = await AlgorithComparisonController.getRDistributionForWorkers({
-          workflowId,
-          workerCounts: validWorkers,
-        });
-        setDistributionData(data);
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Failed to load distribution data';
-        setError(errorMessage);
-        console.error('Error loading R distribution:', err);
+        const greedyData = await AlgorithComparisonController.getRDistributionForWorkersByAlgorithm(
+          {
+            workflowId,
+            workerCounts: validWorkers,
+            algorithm: 'greedy',
+          }
+        );
+        setDistributionData(greedyData);
+      } catch (error) {
+        setError((error as Error).message);
       } finally {
         setLoading(false);
       }
@@ -58,7 +57,6 @@ export function EfficiencyGraph() {
     fetchData();
   }, [workflowId]);
 
-  // Transform data for line chart (each worker count is a point with p10, p50, p90)
   const lineChartData = distributionData.map(row => ({
     workers: row.workerCount,
     p10: row.p10,
@@ -66,17 +64,19 @@ export function EfficiencyGraph() {
     p90: row.p90,
   }));
 
-  // Custom Tooltip Component
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length > 0) {
       return (
         <div className="bg-white p-2.5 border border-gray-300 rounded shadow-md">
           <p className="my-1 font-bold">Workers: {label}</p>
-          {payload.map((entry, index) => (
-            <p key={index} className="my-1" style={{ color: entry.color }}>
-              <strong>{entry.name}:</strong> {entry.value.toFixed(3)}
-            </p>
-          ))}
+          {payload
+            .slice()
+            .reverse()
+            .map((entry, index) => (
+              <p key={index} className="my-1" style={{ color: entry.color }}>
+                <strong>{entry.name}:</strong> {entry.value.toFixed(3)}
+              </p>
+            ))}
         </div>
       );
     }
@@ -98,10 +98,8 @@ export function EfficiencyGraph() {
   return (
     <Layout>
       <div className="p-5 w-full flex flex-col items-center">
-        <div className="w-4/5 max-w-7xl">
+        <div className="w-4/5 max-w-7xl text-center">
           <h2 className="text-2xl font-bold mb-2">R Distribution by Worker Count</h2>
-          <p className="text-gray-600 mb-5">80% of simulations fall between P10 and P90</p>
-
           <div className="w-full h-[50vh]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={lineChartData} margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>

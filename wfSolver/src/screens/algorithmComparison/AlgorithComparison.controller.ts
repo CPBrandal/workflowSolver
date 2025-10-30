@@ -11,12 +11,14 @@ export interface RDistributionPoint {
 }
 
 export class AlgorithComparisonController {
-  static async getRDistributionForWorkers({
+  static async getRDistributionForWorkersByAlgorithm({
     workflowId,
     workerCounts,
+    algorithm,
   }: {
     workflowId: string;
     workerCounts: number[];
+    algorithm: string;
   }): Promise<RDistributionPoint[]> {
     if (!workflowId?.trim()) {
       throw new Error('Workflow ID is required');
@@ -26,19 +28,19 @@ export class AlgorithComparisonController {
       throw new Error('At least one worker count is required');
     }
 
-    const result = await AlgorithComparisonService.getRDistributionByWorkflow(
+    const { data, error } = await AlgorithComparisonService.getRDistributionByWorkflow(
       workflowId,
-      workerCounts
+      workerCounts,
+      algorithm
     );
 
-    if (result.error) {
-      throw new Error(`Failed to fetch R distribution: ${result.error.message}`);
+    if (error) {
+      throw new Error(`Failed to fetch R distribution: ${error.message}`);
     }
 
-    const data = result.data ?? [];
+    const result = data ?? [];
 
-    // Transform to chart-friendly format
-    return data.map(row => ({
+    return result.map(row => ({
       workerCount: row.worker_count,
       p10: row.p10_r,
       p50: row.p50_r,
