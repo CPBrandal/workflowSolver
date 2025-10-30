@@ -5,8 +5,8 @@ import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
 import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
 import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
 import TaskTimelineChart from '../components/TaskTimelineChart';
-import { SimulationService } from '../services/simulationService';
 import { WorkflowService } from '../services/workflowService';
+import { ViewWorkflowController } from './ViewWorkflow.controller';
 
 function ViewWorkflow() {
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
@@ -63,12 +63,18 @@ function ViewWorkflow() {
 
       // Load simulations for this workflow
       setLoadingSimulations(true);
-      const sims = await SimulationService.getSimulationsByWorkflowAndWorkerCount(
-        selectedWorkflowId,
-        selectedNumberOfWorkers
-      );
-      setSimulations(sims);
-      setLoadingSimulations(false);
+      try {
+        const sims = await ViewWorkflowController.getSimulationsByWorkflowAndWorkerCount({
+          workflowId: selectedWorkflowId,
+          numberOfWorkers: selectedNumberOfWorkers,
+        });
+        setSimulations(sims);
+      } catch (error) {
+        console.error('Error loading simulations:', error);
+        setSimulations([]);
+      } finally {
+        setLoadingSimulations(false);
+      }
     };
 
     loadSelectedWorkflow();

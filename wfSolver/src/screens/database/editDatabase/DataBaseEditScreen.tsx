@@ -170,11 +170,9 @@ function DataBaseEditScreen() {
                         <div className="text-sm text-gray-600 space-y-1">
                           <p>
                             <span className="font-medium">Nodes:</span> {workflow.node_count} |
-                            <span className="font-medium"> Gamma:</span> shape=
-                            {workflow.gamma_params.shape}, scale={workflow.gamma_params.scale}
                           </p>
                           <p>
-                            <span className="font-medium">Created:</span>{' '}
+                            <span className="font-medium">Created:</span>
                             {new Date(workflow.created_at).toLocaleString()}
                           </p>
                           {workflow.tags && workflow.tags.length > 0 && (

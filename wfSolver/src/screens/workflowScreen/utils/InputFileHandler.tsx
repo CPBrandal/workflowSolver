@@ -1,8 +1,7 @@
 import * as yaml from 'js-yaml';
-import type { WorkflowNode } from '../../../types';
-import generateDescription from '../../../utils/generateDescription';
+import type { ArgoTask, ArgoWorkflow, WorkflowNode } from '../../../types';
 import { capitalizeTaskName } from '../../../utils/capitalizeTaskName';
-import type { ArgoTask, ArgoWorkflow } from '../../../types';
+import generateDescription from '../../../utils/generateDescription';
 
 /**
  * This is a test
@@ -100,6 +99,7 @@ export async function InputFileHandler(file: File): Promise<WorkflowNode[]> {
         executionTime: templateDurations.get(task.template) || 1,
         level: level,
         criticalPath: false,
+        gammaDistribution: { shape: 2.0, scale: 2.0 },
       };
 
       workflowNodes.push(node);
@@ -196,6 +196,7 @@ function validateAndFixOutgoingConnections(nodes: WorkflowNode[]): void {
           targetNodeId: randomTarget.id,
           transferTime: 1,
           label: 'Merge Results → Complete',
+          gammaDistribution: { shape: 2.0, scale: 2.0 },
         }); // TODO fix transfer time and label
         console.log(
           `Fixed uploaded workflow: Added required outgoing connection: ${node.name} -> ${randomTarget.name}`

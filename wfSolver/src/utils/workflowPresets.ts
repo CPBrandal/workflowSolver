@@ -25,7 +25,7 @@ export const createScientificWorkflow = (nodeCount: number): WorkflowNode[] => {
     widthParams: { alpha: 2.5 }, // Moderate power-law exponent
 
     // REDUCED CONNECTIVITY PARAMETERS
-    edgeProbability: 0.25, // REDUCED from 0.4 to 0.25
+    edgeProbability: 0.1, // REDUCED from 0.4 to 0.25
     connectivityDecay: 0.9, // INCREASED from 0.8 to 0.9 (faster decay = fewer long connections)
     hubProbability: 0.08, // REDUCED from 0.15 to 0.08
     maxEdgeSpan: 2, // REDUCED from 3 to 2
@@ -71,7 +71,7 @@ export const createMLWorkflow = (nodeCount: number): WorkflowNode[] => {
     widthParams: { lambda: 5 }, // Average 5 nodes per level
 
     // CONTROLLED CONNECTIVITY PARAMETERS
-    edgeProbability: 0.2, // REDUCED from higher values
+    edgeProbability: 0.1, // REDUCED from higher values
     connectivityDecay: 0.8, // MODERATE decay for some long connections
     hubProbability: 0.1, // REDUCED from 0.2 to 0.1
     maxEdgeSpan: 2, // REDUCED from longer spans
@@ -96,7 +96,7 @@ export const createComplexWorkflow = (nodeCount: number): WorkflowNode[] => {
     maxWidth: Math.min(Math.floor(nodeCount * 0.4), nodeCount - 2),
 
     // REDUCED EVEN FOR "COMPLEX" WORKFLOWS
-    edgeProbability: 0.2, // REDUCED from 0.6 to 0.4
+    edgeProbability: 0.1, // REDUCED from 0.6 to 0.4
     connectivityDecay: 0.7, // INCREASED from 0.5 to 0.7
     hubProbability: 0.15, // REDUCED from 0.25 to 0.15
     maxEdgeSpan: 3, // REDUCED from 4 to 3

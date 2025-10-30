@@ -40,7 +40,9 @@ export function NodeDetails({ selectedNode }: NodeDetailsProps) {
         <p className="font-medium">Connections:</p>
         <ul>
           {connections.map(connection => (
-            <li key={connection.label}>{connection.label}</li>
+            <li key={connection.label}>
+              {connection.label} : {connection.transferTime}
+            </li>
           ))}
         </ul>
         <p>

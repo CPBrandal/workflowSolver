@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { EfficiencyGraph } from './screens/algorithmComparison/EfficiencyGraph';
 import SimulationsFromDBScreen from './screens/database/db-simulations/SimulationsFromDBScreen';
 import ViewWorkflow from './screens/database/db-view-workflow/ViewWorkflow';
 import WorkflowFromDBScreen from './screens/database/db-workflows/WorkflowFromDBScreen';
@@ -15,6 +16,7 @@ function App() {
         <Route path="/db-simulations" element={<SimulationsFromDBScreen />} />
         <Route path="/db-view-workflow" element={<ViewWorkflow />} />
         <Route path="/edit-database" element={<DataBaseEditScreen />} />
+        <Route path="/comparison" element={<EfficiencyGraph />} />
       </Routes>
     </BrowserRouter>
   );
