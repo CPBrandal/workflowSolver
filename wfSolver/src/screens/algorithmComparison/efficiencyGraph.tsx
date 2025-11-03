@@ -84,15 +84,15 @@ export function EfficiencyGraph() {
   };
 
   if (loading) {
-    return <div className="p-5">Loading distribution data...</div>;
+    return <div className="p-5 text-center">Loading distribution data...</div>;
   }
 
   if (error) {
-    return <div className="p-5 text-red-600">Error: {error}</div>;
+    return <div className="p-5 text-red-600 text-center">Error: {error}</div>;
   }
 
   if (distributionData.length === 0) {
-    return <div className="p-5">No distribution data available</div>;
+    return <div className="p-5 text-center">No distribution data available</div>;
   }
 
   return (
@@ -122,7 +122,7 @@ export function EfficiencyGraph() {
                     angle: -90,
                     position: 'insideLeft',
                   }}
-                  domain={['dataMin - 0.1', 'dataMax + 0.1']}
+                  domain={['1', 'dataMax + 0.5']}
                 />
 
                 <Tooltip content={CustomTooltip} />
