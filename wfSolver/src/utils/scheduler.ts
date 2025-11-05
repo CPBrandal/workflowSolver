@@ -140,5 +140,34 @@ export function scheduleWithWorkerConstraints(
     );
   });
 
+  const maxConcurrentWorkers = calculateMaxConcurrentWorkers(scheduledTasks);
+  console.log(`=============== Max concurrent workers: ${maxConcurrentWorkers} ==============`);
+
   return scheduledTasks;
+}
+
+export function calculateMaxConcurrentWorkers(scheduledTasks: ScheduledTask[]): number {
+  if (scheduledTasks.length === 0) return 0;
+
+  const events: Array<{ time: number; type: 'start' | 'end' }> = [];
+
+  scheduledTasks.forEach(task => {
+    events.push({ time: task.startTime, type: 'start' });
+    events.push({ time: task.endTime, type: 'end' });
+  });
+
+  events.sort((a, b) => {
+    if (a.time !== b.time) return a.time - b.time;
+    return a.type === 'end' ? -1 : 1;
+  });
+
+  let currentActive = 0;
+  let maxConcurrent = 0;
+
+  events.forEach(event => {
+    currentActive += event.type === 'start' ? 1 : -1;
+    maxConcurrent = Math.max(maxConcurrent, currentActive);
+  });
+
+  return maxConcurrent;
 }

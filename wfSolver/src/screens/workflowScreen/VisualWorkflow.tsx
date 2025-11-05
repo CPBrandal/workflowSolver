@@ -305,12 +305,23 @@ function VisualWorkflow({
             <span className="text-lg font-medium text-gray-800">
               Total runtime: {formatTime(runtime)}
             </span>
+            <span className="text-lg font-medium text-gray-800">
+              R(T / T-):
+              {getR({ T: runtime, Tminus: cpmAnalysis?.minimumProjectDuration }).toFixed(2)}
+            </span>
             {isRunning && <span className="text-sm text-blue-600 animate-pulse">Running</span>}
           </div>
         </div>
       )}
     </div>
   );
+
+  function getR({ T, Tminus }: { T: number | null; Tminus: number | undefined }): number {
+    if (!Tminus || !T) return 0;
+    const tInSeconds = T / 1000;
+    const ratio = tInSeconds / Tminus;
+    return ratio;
+  }
 }
 
 export default VisualWorkflow;

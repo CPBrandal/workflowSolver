@@ -1,3 +1,4 @@
+import type { SchedulingAlgorithm } from '../../../constants/constants';
 import type { ScheduledTask, Worker, Workflow } from '../../../types';
 import {
   analyzeCriticalPath,
@@ -5,6 +6,7 @@ import {
   setCriticalPathEdgesTransferTimes,
 } from '../../../utils/criticalPathAnalyzer';
 import { gammaSampler } from '../../../utils/gammaSampler';
+import { heftScheduleWithWorkerConstraints } from '../../../utils/heft';
 import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
 import { SimulationService } from '../services/simulationService';
 
@@ -15,7 +17,8 @@ export class InstantSimulationRunner {
     workers: Worker[],
     numberOfSimulations: number,
     onProgress?: (current: number, total: number) => void,
-    useTransferTime: boolean = true
+    useTransferTime: boolean = true,
+    algorithm: SchedulingAlgorithm = 'Greedy'
   ): Promise<string[]> {
     const maxSimNumber = await SimulationService.getMaxSimulationNumber(workflowId);
     const savedSimulationIds: string[] = [];
@@ -53,11 +56,10 @@ export class InstantSimulationRunner {
       const theoreticalRuntime = getProjectDuration(simulatedWorkflow.tasks, false);
 
       // 7. Schedule with worker constraints
-      const schedule = scheduleWithWorkerConstraints(
-        simulatedWorkflow.tasks,
-        workers,
-        useTransferTime
-      );
+      const schedule =
+        algorithm === 'Greedy'
+          ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime)
+          : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime);
 
       // 8. Calculate actual runtime
       const actualRuntime =
@@ -74,7 +76,8 @@ export class InstantSimulationRunner {
         theoreticalRuntime,
         simulatedWorkflow,
         finalWorkers,
-        originalEdgeTransferTimes
+        originalEdgeTransferTimes,
+        algorithm
       );
 
       if (simId) {
