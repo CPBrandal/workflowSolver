@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Layout } from '../../components/Layout';
 import { WorkflowService } from '../../screens/database/services/workflowService';
 import type { LocationState, Worker, Workflow } from '../../types';
 import {
@@ -279,60 +280,49 @@ function WorkflowScreen() {
   }
 
   return (
-    <div>
-      {workflow.info && (
-        <div className="max-w mx-auto px-6 pt-6 flex flex-col md:flex-row md:justify-between items-start md:items-center">
-          <button
-            onClick={() => navigate('/')}
-            className="px-4 bg-gray-600 py-2 text-white rounded hover:bg-gray-700 transition-colors"
-          >
-            Go Back Home
-          </button>
-          <div className="px-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-blue-800 text-sm font-medium">{workflow.info}</p>
+    <Layout>
+      <div>
+        <VisualWorkflow
+          nodes={workflow.tasks}
+          workers={workers}
+          onWorkersUpdate={setWorkers}
+          cpmAnalysis={workflow.criticalPathResult || null}
+        />
+        <div className="max-w-4xl mx-auto p-6 space-y-4">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <button
+              onClick={testSaveWorkflow}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+            >
+              Save to Database
+            </button>{' '}
           </div>
-        </div>
-      )}
-      <VisualWorkflow
-        nodes={workflow.tasks}
-        workers={workers}
-        onWorkersUpdate={setWorkers}
-        cpmAnalysis={workflow.criticalPathResult || null}
-      />
-      <div className="max-w-4xl mx-auto p-6 space-y-4">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <button
-            onClick={testSaveWorkflow}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-          >
-            Save to Database
-          </button>{' '}
-        </div>
 
-        {/* Workflow Info Panel */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="font-medium text-gray-800 mb-2">Workflow Information</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-gray-600">Type:</span>
-              <div className="font-medium">{getWorkflowDisplayName()}</div>
-            </div>
-            <div>
-              <span className="text-gray-600">Tasks:</span>
-              <div className="font-medium">{workflow.tasks.length}</div>
-            </div>
-            <div>
-              <span className="text-gray-600">Generation:</span>
-              <div className="font-medium capitalize">{generatorType || 'Unknown'}</div>
-            </div>
-            <div>
-              <span className="text-gray-600">Critical Path:</span>
-              <div className="font-medium">{workflow.criticalPath?.length || 0} tasks</div>
+          {/* Workflow Info Panel */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-medium text-gray-800 mb-2">Workflow Information</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Type:</span>
+                <div className="font-medium">{getWorkflowDisplayName()}</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Tasks:</span>
+                <div className="font-medium">{workflow.tasks.length}</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Generation:</span>
+                <div className="font-medium capitalize">{generatorType || 'Unknown'}</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Critical Path:</span>
+                <div className="font-medium">{workflow.criticalPath?.length || 0} tasks</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
 

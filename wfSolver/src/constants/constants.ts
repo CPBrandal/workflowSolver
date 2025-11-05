@@ -24,3 +24,6 @@ export const TRANSFER_PARAM_DISTRIBUTIONS = {
 
 export const ALGORITHMS = ['Greedy', 'HEFT'] as const;
 export type SchedulingAlgorithm = (typeof ALGORITHMS)[number];
+
+export const TOPOLOGY_TYPES = ['arbitrary', 'scientific'] as const;
+export type TopologyType = (typeof TOPOLOGY_TYPES)[number];
