@@ -1,13 +1,16 @@
+import type { SchedulingAlgorithm } from '../../../constants/constants';
 import type { SimulationRecord } from '../../../types/database';
 import { ViewWorkflowService } from './ViewWorkflow.service';
 
 export class ViewWorkflowController {
-  static async getSimulationsByWorkflowAndWorkerCount({
+  static async getSimulationsByWorkersAndAlgorithm({
     workflowId,
     numberOfWorkers,
+    algorithm,
   }: {
     workflowId: string;
     numberOfWorkers: number;
+    algorithm: SchedulingAlgorithm;
   }): Promise<SimulationRecord[]> {
     if (!workflowId || !workflowId.trim())
       throw new Error('Workflow ID is required and cannot be empty');
@@ -18,6 +21,7 @@ export class ViewWorkflowController {
     const { data, error } = await ViewWorkflowService.getSimulationsByWorkflowAndWorkerCount({
       workflowId,
       numberOfWorkers,
+      algorithm,
     });
 
     if (error)

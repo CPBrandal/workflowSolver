@@ -21,3 +21,6 @@ export const TRANSFER_PARAM_DISTRIBUTIONS = {
     scale: 0.75,
   } as GammaParams,
 };
+
+export const ALGORITHMS = ['Greedy', 'HEFT'] as const;
+export type SchedulingAlgorithm = (typeof ALGORITHMS)[number];

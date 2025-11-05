@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Layout } from '../../../components/Layout';
+import type { SchedulingAlgorithm } from '../../../constants/constants';
+import { ALGORITHMS } from '../../../constants/constants';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
+import { heftScheduleWithWorkerConstraints } from '../../../utils/heft';
 import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
 import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
-import TaskTimelineChart from '../components/TaskTimelineChart';
 import { WorkflowService } from '../services/workflowService';
+import TaskTimelineChart from './TaskTimelineChart';
 import { ViewWorkflowController } from './ViewWorkflow.controller';
 
 function ViewWorkflow() {
@@ -20,6 +23,7 @@ function ViewWorkflow() {
   const [selectedSimulationId, setSelectedSimulationId] = useState<string>('');
   const [loadingSimulations, setLoadingSimulations] = useState(false);
   const [selectedSimulation, setSelectedSimulation] = useState<SimulationRecord | null>(null);
+  const [chosenAlgorithm, setChosenAlgorithm] = useState<SchedulingAlgorithm>('Greedy');
 
   // Simulation running states
   const [simulationResult, setSimulationResult] = useState<{
@@ -64,9 +68,10 @@ function ViewWorkflow() {
       // Load simulations for this workflow
       setLoadingSimulations(true);
       try {
-        const sims = await ViewWorkflowController.getSimulationsByWorkflowAndWorkerCount({
+        const sims = await ViewWorkflowController.getSimulationsByWorkersAndAlgorithm({
           workflowId: selectedWorkflowId,
           numberOfWorkers: selectedNumberOfWorkers,
+          algorithm: chosenAlgorithm,
         });
         setSimulations(sims);
       } catch (error) {
@@ -78,7 +83,7 @@ function ViewWorkflow() {
     };
 
     loadSelectedWorkflow();
-  }, [selectedWorkflowId, selectedNumberOfWorkers]);
+  }, [selectedWorkflowId, selectedNumberOfWorkers, chosenAlgorithm]);
 
   // Load selected simulation details and automatically run it
   useEffect(() => {
@@ -136,7 +141,10 @@ function ViewWorkflow() {
         }
 
         // Schedule the workflow with the specific execution times
-        const schedule = scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
+        const schedule =
+          chosenAlgorithm === 'Greedy'
+            ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers)
+            : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
 
         // Calculate final worker states
         const finalWorkers = workers.map(w => ({ ...w }));
@@ -164,7 +172,7 @@ function ViewWorkflow() {
     };
 
     runSimulation();
-  }, [selectedSimulationId, simulations, workflow]);
+  }, [selectedSimulationId, simulations, workflow, chosenAlgorithm]);
 
   const getSelectedWorkflowDetails = () => {
     return savedWorkflows.find(w => w.id === selectedWorkflowId);
@@ -241,6 +249,33 @@ function ViewWorkflow() {
                 ))}
             </select>
           </div>
+
+          {workflow && (
+            <div className="mt-4 mx-auto p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex-1 mb-3">
+                <label className="text-sm font-medium text-gray-700">Scheduling Algorithm</label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Choose the algorithm to use for task scheduling
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {ALGORITHMS.map(algorithm => (
+                  <button
+                    key={algorithm}
+                    type="button"
+                    onClick={() => setChosenAlgorithm(algorithm)}
+                    className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      chosenAlgorithm === algorithm
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {algorithm}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Simulation Selector */}
           {selectedWorkflowId && selectedNumberOfWorkers > 0 && (

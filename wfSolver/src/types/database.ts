@@ -23,6 +23,7 @@ export interface SimulationRecord {
   efficiency_ratio?: number;
   critical_path_node_ids?: string[];
   worker_count: number;
+  algorithm: string;
 }
 
 export interface WorkflowStatistics {

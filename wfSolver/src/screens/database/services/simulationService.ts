@@ -1,3 +1,4 @@
+import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { supabase } from '../../../lib/supabase';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowStatistics } from '../../../types/database';
@@ -13,7 +14,8 @@ export class SimulationService {
     theoreticalRuntime: number,
     workflow: Workflow,
     workers: Worker[],
-    originalEdgeTransferTimes: Record<string, number>
+    originalEdgeTransferTimes: Record<string, number>,
+    algorithm: SchedulingAlgorithm
   ): Promise<string | null> {
     try {
       // Extract execution times
@@ -47,6 +49,7 @@ export class SimulationService {
         workers_final_state: workers,
         critical_path_node_ids: criticalPathNodeIds,
         worker_count: workers.length,
+        algorithm: algorithm.toLowerCase(),
       };
 
       const { data, error } = await supabase

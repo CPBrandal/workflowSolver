@@ -4,7 +4,7 @@ import type { WorkflowRecord } from '../../../types/database';
 import { WorkflowService } from '../services/workflowService';
 
 const SimulationResultsVisualization = lazy(() =>
-  import('../components/SimulationResultsVisualization').then(module => ({
+  import('./SimulationResultsVisualization').then(module => ({
     default: module.SimulationResultsVisualization,
   }))
 );

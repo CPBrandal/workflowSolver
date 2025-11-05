@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Layout } from '../../../components/Layout';
+import { ALGORITHMS, type SchedulingAlgorithm } from '../../../constants/constants';
 import type { Worker, Workflow } from '../../../types';
 import type { WorkflowRecord } from '../../../types/database';
 import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
@@ -16,13 +17,13 @@ function WorkflowFromDBScreen() {
   const [workerCount, setWorkerCount] = useState<number>(2);
   const [showWorkflow, setShowWorkflow] = useState(false);
   const [useTransferTime, setUseTransferTime] = useState(true);
+  const [chosenAlgorithm, setChosenAlgorithm] = useState<SchedulingAlgorithm>('Greedy');
 
   // Simulation states
   const [numberOfSimulations, setNumberOfSimulations] = useState<number>(100);
   const [isRunningSimulations, setIsRunningSimulations] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState({ current: 0, total: 0 });
 
-  // Fetch saved workflows when component mounts
   useEffect(() => {
     const fetchWorkflows = async () => {
       setLoadingWorkflows(true);
@@ -114,7 +115,8 @@ function WorkflowFromDBScreen() {
         (current, total) => {
           setSimulationProgress({ current, total });
         },
-        useTransferTime
+        useTransferTime,
+        chosenAlgorithm
       );
 
       alert(`Successfully completed ${savedIds.length} simulations!`);
@@ -269,6 +271,33 @@ function WorkflowFromDBScreen() {
                 }`}
               />
             </button>
+          </div>
+        )}
+
+        {workflow && (
+          <div className="mt-4 max-w-lg mx-auto p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex-1 mb-3">
+              <label className="text-sm font-medium text-gray-700">Scheduling Algorithm</label>
+              <p className="text-xs text-gray-500 mt-1">
+                Choose the algorithm to use for task scheduling
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {ALGORITHMS.map(algorithm => (
+                <button
+                  key={algorithm}
+                  type="button"
+                  onClick={() => setChosenAlgorithm(algorithm)}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    chosenAlgorithm === algorithm
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {algorithm}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
