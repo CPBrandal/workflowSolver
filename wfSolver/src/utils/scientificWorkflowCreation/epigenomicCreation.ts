@@ -273,12 +273,3 @@ export function createDeterministicEpigenomicsWorkflow(nodeCount: number = 8): W
 
   return nodes;
 }
-
-/**
- * Wrapper function that matches the existing workflow preset interface
- * @param nodeCount Total number of nodes requested (minimum 8 enforced)
- */
-export const createEpigenomicsWorkflow = (nodeCount: number): WorkflowNode[] => {
-  // Pass nodeCount directly - the generator enforces minimum of 8 nodes
-  return createDeterministicEpigenomicsWorkflow(nodeCount);
-};

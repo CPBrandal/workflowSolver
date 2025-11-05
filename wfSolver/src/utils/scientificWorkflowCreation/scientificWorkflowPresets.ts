@@ -2,9 +2,11 @@
 
 import type { WorkflowNode } from '../../types';
 import { generateProbabilisticWorkflow } from '../probabilisticGenerator';
+import { createBroadbandWorkflow } from './broadbandCreation';
 import { createDeterministicCyberShakeWorkflow } from './cybershakeCreation';
 import { createDeterministicEpigenomicsWorkflow } from './epigenomicCreation';
 import { createDeterministicMontageWorkflow } from './montageCreation';
+import { createSiphtWorkflow } from './siphtCreation';
 
 export type ScientificWorkflowType =
   | 'montage'
@@ -103,46 +105,6 @@ export const scientificWorkflowMetadata = {
   },
 };
 
-export const createBroadbandWorkflow = (nodeCount: number): WorkflowNode[] => {
-  return generateProbabilisticWorkflow({
-    nodeCount,
-    topologyType: 'custom',
-    levelDistribution: 'poisson',
-    levelParams: { lambda: Math.ceil(Math.sqrt(nodeCount)) },
-    widthDistribution: 'power_law',
-    widthParams: { alpha: 2.0 }, // Lower alpha = more hubs
-    maxWidth: Math.min(Math.floor(nodeCount * 0.4), nodeCount - 2),
-
-    // REDUCED EVEN FOR "COMPLEX" WORKFLOWS
-    edgeProbability: 0.1, // REDUCED from 0.6 to 0.4
-    connectivityDecay: 0.7, // INCREASED from 0.5 to 0.7
-    hubProbability: 0.15, // REDUCED from 0.25 to 0.15
-    maxEdgeSpan: 3, // REDUCED from 4 to 3
-    clusteringCoefficient: 0.25, // REDUCED from 0.4 to 0.25
-    preferentialAttachment: false, // DISABLED even for complex
-  });
-};
-
-export const createSiphtWorkflow = (nodeCount: number): WorkflowNode[] => {
-  return generateProbabilisticWorkflow({
-    nodeCount,
-    topologyType: 'custom',
-    levelDistribution: 'poisson',
-    levelParams: { lambda: Math.ceil(Math.sqrt(nodeCount)) },
-    widthDistribution: 'power_law',
-    widthParams: { alpha: 2.0 }, // Lower alpha = more hubs
-    maxWidth: Math.min(Math.floor(nodeCount * 0.4), nodeCount - 2),
-
-    // REDUCED EVEN FOR "COMPLEX" WORKFLOWS
-    edgeProbability: 0.1, // REDUCED from 0.6 to 0.4
-    connectivityDecay: 0.7, // INCREASED from 0.5 to 0.7
-    hubProbability: 0.15, // REDUCED from 0.25 to 0.15
-    maxEdgeSpan: 3, // REDUCED from 4 to 3
-    clusteringCoefficient: 0.25, // REDUCED from 0.4 to 0.25
-    preferentialAttachment: false, // DISABLED even for complex
-  });
-};
-
 /**
  * BALANCED WORKFLOWS - SPARSE AND CLEAN
  * Best for: General use, testing, balanced characteristics
@@ -166,47 +128,6 @@ export const createBalancedWorkflow = (nodeCount: number): WorkflowNode[] => {
     maxWidth: Math.ceil(nodeCount / 3),
     singleSink: true,
   });
-};
-
-/**
- * WORKFLOW METADATA FOR DISPLAY (Updated descriptions)
- */
-export const workflowTypeMetadata = {
-  scientific: {
-    name: 'Scientific Research',
-    description: 'Research workflows with sparse coordinator tasks and clean structure',
-    icon: '🔬',
-    characteristics: ['Diamond shape', 'Few coordinators', 'Clean connections'],
-    bestFor: 'Data analysis, simulations, research pipelines',
-  },
-  dataPipeline: {
-    name: 'Data Pipeline',
-    description: 'Sequential processing stages with minimal cross-connections',
-    icon: '🔄',
-    characteristics: ['Sequential stages', 'Adjacent connections', 'Pipeline structure'],
-    bestFor: 'ETL processes, stream processing, data transformation',
-  },
-  machineLearning: {
-    name: 'Machine Learning',
-    description: 'Parallel workflows with controlled connectivity',
-    icon: '🤖',
-    characteristics: ['Controlled parallelism', 'Fan structure', 'Sparse connections'],
-    bestFor: 'Model training, hyperparameter tuning, ensemble methods',
-  },
-  complex: {
-    name: 'Complex Systems',
-    description: 'More connected workflows but still readable and manageable',
-    icon: '🕸️',
-    characteristics: ['Moderate connections', 'Some hubs', 'Controlled complexity'],
-    bestFor: 'Testing scenarios, distributed computing, moderate mesh networks',
-  },
-  balanced: {
-    name: 'Balanced General',
-    description: 'Clean, sparse workflows ideal for visualization and testing',
-    icon: '⚖️',
-    characteristics: ['Sparse connections', 'Clean structure', 'Highly readable'],
-    bestFor: 'General testing, benchmarking, clean visualizations',
-  },
 };
 
 export const createScientificWorkflowByType = (

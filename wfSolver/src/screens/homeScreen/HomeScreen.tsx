@@ -25,14 +25,11 @@ function HomeScreen() {
   const [workflowType, setWorkflowType] = useState<WorkflowType>('balanced');
   const [scientificWorkflowType, setScientificWorkflowType] =
     useState<ScientificWorkflowType>('montage');
+  const [chosenTopology, setChosenTopology] = useState<TopologyType>('arbitrary');
 
   // Common parameters
   const [nodeCount, setNodeCount] = useState<number>(20);
   const [generatingWorkflow, setGeneratingWorkflow] = useState(false);
-  const [chosenTopology, setChosenTopology] = useState<TopologyType>('arbitrary');
-
-  // Legacy workflow generator parameters (only shown for legacy mode)
-  const [maxWidth, setMaxWidth] = useState<number>(4);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -94,8 +91,6 @@ function HomeScreen() {
 
   const handleNodeCountChange = (newNodeCount: number) => {
     setNodeCount(newNodeCount);
-    const optimalWidth = Math.max(2, Math.ceil(Math.sqrt(newNodeCount)));
-    setMaxWidth(Math.min(optimalWidth, 8));
   };
 
   const isSuccess = uploadStatus.includes('Successfully');
@@ -251,7 +246,6 @@ function HomeScreen() {
                                 value={type}
                                 checked={scientificWorkflowType === type}
                                 onChange={e => {
-                                  console.log(e.target.value);
                                   setScientificWorkflowType(
                                     e.target.value as ScientificWorkflowType
                                   );

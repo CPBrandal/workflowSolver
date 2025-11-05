@@ -184,7 +184,7 @@ export const createWorkflowByType = (nodeCount: number, type: WorkflowType): Wor
     case 'machineLearning':
       return createMLWorkflow(nodeCount);
     case 'complex':
-      return createComplexWorkflow(nodeCount);
+      return createComplexWorkflow(nodeCount); // TODO FIX THIS SHIT
     case 'balanced':
       return createBalancedWorkflow(nodeCount);
     default:
