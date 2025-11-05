@@ -1,8 +1,10 @@
 // utils/workflowPresets.ts - Workflow type presets with REDUCED CONNECTIVITY
 
-import type { WorkflowNode } from '../types';
+import type { WorkflowNode } from '../../types';
+import { generateProbabilisticWorkflow } from '../probabilisticGenerator';
+import { createDeterministicCyberShakeWorkflow } from './cybershakeCreation';
+import { createDeterministicEpigenomicsWorkflow } from './epigenomicCreation';
 import { createDeterministicMontageWorkflow } from './montageCreation';
-import { generateProbabilisticWorkflow } from './probabilisticGenerator';
 
 export type ScientificWorkflowType =
   | 'montage'
@@ -99,46 +101,6 @@ export const scientificWorkflowMetadata = {
     structure: 'BLAST search → Candidate identification → Pattern analysis → Verification',
     scalability: 'Composed of independent sub-workflows, scales with genome database size',
   },
-};
-
-export const createMontageWorkflow = (nodeCount: number): WorkflowNode[] => {
-  return createDeterministicMontageWorkflow(nodeCount);
-};
-
-export const createCybershakeWorkflow = (nodeCount: number): WorkflowNode[] => {
-  return generateProbabilisticWorkflow({
-    nodeCount,
-    topologyType: 'pipeline', // Many sequential stages
-    levelDistribution: 'geometric', // Exponentially decreasing level probability
-    levelParams: { p: 0.3 }, // 30% chance to stop adding levels
-    widthDistribution: 'exponential', // Most levels narrow, few wide
-    widthParams: { scale: 0.4 }, // Low scale = prefer narrow levels
-
-    // MINIMAL CONNECTIVITY PARAMETERS
-    edgeProbability: 0.15, // VERY LOW - pipelines should be sparse
-    connectivityDecay: 0.95, // VERY HIGH decay - mostly adjacent connections
-    hubProbability: 0.02, // MINIMAL hubs in pipelines
-    maxEdgeSpan: 1, // ONLY adjacent level connections
-    clusteringCoefficient: 0.1, // MINIMAL clustering
-    preferentialAttachment: false, // NO preferential attachment
-  });
-};
-
-export const createEpigenomicsWorkflow = (nodeCount: number): WorkflowNode[] => {
-  return generateProbabilisticWorkflow({
-    nodeCount,
-    topologyType: 'fan', // High parallelism
-    widthDistribution: 'poisson', // Natural width variation
-    widthParams: { lambda: 5 }, // Average 5 nodes per level
-
-    // CONTROLLED CONNECTIVITY PARAMETERS
-    edgeProbability: 0.1, // REDUCED from higher values
-    connectivityDecay: 0.8, // MODERATE decay for some long connections
-    hubProbability: 0.1, // REDUCED from 0.2 to 0.1
-    maxEdgeSpan: 2, // REDUCED from longer spans
-    clusteringCoefficient: 0.15, // REDUCED clustering
-    preferentialAttachment: false, // DISABLED to control connection growth
-  });
 };
 
 export const createBroadbandWorkflow = (nodeCount: number): WorkflowNode[] => {
@@ -253,11 +215,11 @@ export const createScientificWorkflowByType = (
 ): WorkflowNode[] => {
   switch (type) {
     case 'montage':
-      return createMontageWorkflow(nodeCount);
+      return createDeterministicMontageWorkflow(nodeCount);
     case 'cybershake':
-      return createCybershakeWorkflow(nodeCount);
+      return createDeterministicCyberShakeWorkflow(nodeCount);
     case 'epigenomics':
-      return createEpigenomicsWorkflow(nodeCount);
+      return createDeterministicEpigenomicsWorkflow(nodeCount);
     case 'broadband':
       return createBroadbandWorkflow(nodeCount);
     case 'sipht':

@@ -7,7 +7,7 @@ import {
   createScientificWorkflowByType,
   scientificWorkflowMetadata,
   type ScientificWorkflowType,
-} from '../../utils/scientificWorkflowPresets';
+} from '../../utils/scientificWorkflowCreation/scientificWorkflowPresets';
 import {
   createWorkflowByType,
   workflowTypeMetadata,
@@ -250,11 +250,12 @@ function HomeScreen() {
                                 name="scientificWorkflowType"
                                 value={type}
                                 checked={scientificWorkflowType === type}
-                                onChange={e =>
+                                onChange={e => {
+                                  console.log(e.target.value);
                                   setScientificWorkflowType(
                                     e.target.value as ScientificWorkflowType
-                                  )
-                                }
+                                  );
+                                }}
                                 className="text-blue-600 focus:ring-blue-500 mt-1"
                               />
                               <div className="flex-1">

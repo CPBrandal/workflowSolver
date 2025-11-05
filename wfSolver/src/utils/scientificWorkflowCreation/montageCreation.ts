@@ -1,12 +1,12 @@
 // utils/montageWorkflowGenerator.ts - Deterministic Montage Workflow Generator
 
-import type { WorkflowNode, Edge } from '../types';
-import { createGammaParam } from './createGammaParam';
-import { gammaSampler } from './gammaSampler';
 import {
   EXECUTION_PARAM_DISTRIBUTIONS,
   TRANSFER_PARAM_DISTRIBUTIONS,
-} from '../constants/constants';
+} from '../../constants/constants';
+import type { Edge, WorkflowNode } from '../../types';
+import { createGammaParam } from '../createGammaParam';
+import { gammaSampler } from '../gammaSampler';
 
 /**
  * Montage Workflow Structure:
