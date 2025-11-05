@@ -1,0 +1,25 @@
+name: Rename issue branches
+on:
+  create:
+    branches:
+      - '*'
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if branch name matches pattern
+        id: check
+        run: |
+          if [[ "${{ github.ref_name }}" =~ ^[a-zA-Z0-9_-]+/issue-([0-9]+)$ ]]; then
+            echo "num=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          fi
+      - name: Rename branch
+        if: steps.check.outputs.num != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          issue_num=${{ steps.check.outputs.num }}
+          issue_title=$(gh issue view $issue_num --json title --jq '.title' | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]- ' | tr ' ' '-')
+          new_name="issue${issue_num}-${issue_title}"
+          gh api repos/${{ github.repository }}/git/refs/heads/${{ github.ref_name }} -X PATCH -f ref="refs/heads/$new_name"
