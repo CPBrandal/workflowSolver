@@ -36,11 +36,6 @@ import { gammaSampler } from '../gammaSampler';
  *    - Produces hazard maps and statistics
  */
 
-export interface CyberShakeConfig {
-  numRuptures: number; // Number of rupture scenarios (affects ExtractSGT count)
-  numStations: number; // Number of recording stations (affects synthesis parallelism)
-}
-
 /**
  * Create a deterministic CyberShake workflow matching the actual structure
  */

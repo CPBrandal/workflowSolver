@@ -1,18 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { TOPOLOGY_TYPES, type TopologyType } from '../../constants/constants';
-import type { LocationState } from '../../types';
-import {
-  createScientificWorkflowByType,
-  scientificWorkflowMetadata,
-  type ScientificWorkflowType,
-} from '../../utils/scientificWorkflowCreation/scientificWorkflowPresets';
-import {
-  createWorkflowByType,
-  workflowTypeMetadata,
-  type WorkflowType,
-} from '../../utils/workflowPresets';
+import type { LocationState, WorkflowType } from '../../types';
+import { createScientificWorkflowByType } from '../../utils/scientificWorkflowCreation/scientificWorkflowPresets';
+import { createWorkflowByType, workflowTypeMetadata } from '../../utils/workflowPresets';
 
 function HomeScreen() {
   const navigate = useNavigate();
@@ -20,16 +12,29 @@ function HomeScreen() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showUploadOption, setShowUploadOption] = useState(false);
 
-  // Generator selection
-  const [generatorType, setGeneratorType] = useState<'probabilistic'>('probabilistic');
-  const [workflowType, setWorkflowType] = useState<WorkflowType>('balanced');
-  const [scientificWorkflowType, setScientificWorkflowType] =
-    useState<ScientificWorkflowType>('montage');
-  const [chosenTopology, setChosenTopology] = useState<TopologyType>('arbitrary');
+  const [workflowType, setWorkflowType] = useState<WorkflowType>(
+    () => (localStorage.getItem('workflowType') as WorkflowType) || 'balanced'
+  );
+  const [chosenTopology, setChosenTopology] = useState<TopologyType>(
+    () => (localStorage.getItem('chosenTopology') as TopologyType) || 'arbitrary'
+  );
 
-  // Common parameters
-  const [nodeCount, setNodeCount] = useState<number>(20);
+  const [nodeCount, setNodeCount] = useState<number>(
+    () => Number(localStorage.getItem('nodeCount')) || 20
+  );
   const [generatingWorkflow, setGeneratingWorkflow] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('workflowType', workflowType);
+  }, [workflowType]);
+
+  useEffect(() => {
+    localStorage.setItem('chosenTopology', chosenTopology);
+  }, [chosenTopology]);
+
+  useEffect(() => {
+    localStorage.setItem('nodeCount', nodeCount.toString());
+  }, [nodeCount]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -64,7 +69,7 @@ function HomeScreen() {
       if (chosenTopology === 'arbitrary') {
         nodes = createWorkflowByType(nodeCount, workflowType);
       } else {
-        nodes = createScientificWorkflowByType(nodeCount, scientificWorkflowType);
+        nodes = createScientificWorkflowByType(nodeCount, workflowType);
       }
       if (!nodes) {
         throw new Error('Failed to generate nodes');
@@ -75,9 +80,8 @@ function HomeScreen() {
         navigate('/workflow', {
           state: {
             generatedNodes: nodes,
-            workflowType: generatorType === 'probabilistic' ? workflowType : 'legacy',
+            workflowType: workflowType,
             nodeCount,
-            generatorType,
           } as LocationState,
         });
       }, 500);
@@ -168,7 +172,11 @@ function HomeScreen() {
                     <button
                       key={topology}
                       type="button"
-                      onClick={() => setChosenTopology(topology)}
+                      onClick={() => {
+                        setChosenTopology(topology);
+                        const workflowType = topology === 'arbitrary' ? 'scientific' : 'montage';
+                        setWorkflowType(workflowType);
+                      }}
                       className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                         chosenTopology === topology
                           ? 'bg-blue-600 text-white'
@@ -186,55 +194,10 @@ function HomeScreen() {
                 {chosenTopology === 'arbitrary' && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-3">
-                      {(Object.keys(workflowTypeMetadata) as WorkflowType[]).map(type => {
-                        const metadata = workflowTypeMetadata[type];
-                        return (
-                          <label
-                            key={type}
-                            className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="radio"
-                              name="workflowType"
-                              value={type}
-                              checked={workflowType === type}
-                              onChange={e => setWorkflowType(e.target.value as WorkflowType)}
-                              className="text-blue-600 focus:ring-blue-500 mt-1"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-lg">{metadata.icon}</span>
-                                <span className="text-sm font-medium text-gray-700">
-                                  {metadata.name}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">{metadata.description}</p>
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {metadata.characteristics.map((char, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
-                                  >
-                                    {char}
-                                  </span>
-                                ))}
-                              </div>
-                              <p className="text-xs text-gray-400 mt-1">
-                                <strong>Best for:</strong> {metadata.bestFor}
-                              </p>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {chosenTopology === 'scientific' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-3">
-                      {(Object.keys(scientificWorkflowMetadata) as ScientificWorkflowType[]).map(
-                        type => {
-                          const metadata = scientificWorkflowMetadata[type];
+                      {(Object.keys(workflowTypeMetadata) as WorkflowType[])
+                        .slice(0, 5)
+                        .map(type => {
+                          const metadata = workflowTypeMetadata[type];
                           return (
                             <label
                               key={type}
@@ -242,13 +205,11 @@ function HomeScreen() {
                             >
                               <input
                                 type="radio"
-                                name="scientificWorkflowType"
+                                name="workflowType"
                                 value={type}
-                                checked={scientificWorkflowType === type}
+                                checked={workflowType === type}
                                 onChange={e => {
-                                  setScientificWorkflowType(
-                                    e.target.value as ScientificWorkflowType
-                                  );
+                                  setWorkflowType(e.target.value as WorkflowType);
                                 }}
                                 className="text-blue-600 focus:ring-blue-500 mt-1"
                               />
@@ -270,11 +231,58 @@ function HomeScreen() {
                                     </span>
                                   ))}
                                 </div>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  <strong>Best for:</strong> {metadata.bestFor}
+                                </p>
                               </div>
                             </label>
                           );
-                        }
-                      )}
+                        })}
+                    </div>
+                  </div>
+                )}
+                {chosenTopology === 'scientific' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3">
+                      {(Object.keys(workflowTypeMetadata) as WorkflowType[]).slice(-5).map(type => {
+                        const metadata = workflowTypeMetadata[type];
+                        return (
+                          <label
+                            key={type}
+                            className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type="radio"
+                              name="scientificWorkflowType"
+                              value={type}
+                              checked={workflowType === type}
+                              onChange={e => {
+                                setWorkflowType(e.target.value as WorkflowType);
+                              }}
+                              className="text-blue-600 focus:ring-blue-500 mt-1"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-lg">{metadata.icon}</span>
+                                <span className="text-sm font-medium text-gray-700">
+                                  {metadata.name}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">{metadata.description}</p>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {metadata.characteristics.map((char, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
+                                  >
+                                    {char}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -312,7 +320,7 @@ function HomeScreen() {
                   >
                     {generatingWorkflow
                       ? 'Generating Workflow...'
-                      : `Generate ${nodeCount}-Task ${generatorType === 'probabilistic' ? workflowTypeMetadata[workflowType].name : 'Legacy'} Workflow`}
+                      : `Generate ${nodeCount}-Task Workflow`}
                   </button>
                 </div>
               </div>
