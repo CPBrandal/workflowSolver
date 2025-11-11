@@ -26,11 +26,12 @@ interface CustomTooltipProps {
 }
 
 export function EfficiencyGraph() {
-  const validWorkers = [1, 2, 3, 4, 5, 10];
+  const validWorkers = [2, 3, 4, 5];
   const workflowId = '01473911-ec10-4772-8ffa-2dd42ee5dee5';
 
   const [distributionData, setDistributionData] = useState<RDistributionPoint[]>([]);
   const [heftDistributionData, setHeftDistributionData] = useState<RDistributionPoint[]>([]);
+  const [cpHeftDistributionData, setCpHeftDistributionData] = useState<RDistributionPoint[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +55,16 @@ export function EfficiencyGraph() {
           workerCounts: validWorkers,
           algorithm: 'heft',
         });
+
         setHeftDistributionData(heftData);
+        const cpHeftData = await AlgorithComparisonController.getRDistributionForWorkersByAlgorithm(
+          {
+            workflowId,
+            workerCounts: validWorkers,
+            algorithm: 'cp_heft',
+          }
+        );
+        setCpHeftDistributionData(cpHeftData);
       } catch (error) {
         setError((error as Error).message);
       } finally {
@@ -69,6 +79,7 @@ export function EfficiencyGraph() {
   const lineChartData = validWorkers.map(workerCount => {
     const greedyRow = distributionData.find(row => row.workerCount === workerCount);
     const heftRow = heftDistributionData.find(row => row.workerCount === workerCount);
+    const cpHeftRow = cpHeftDistributionData.find(row => row.workerCount === workerCount);
 
     return {
       workers: workerCount,
@@ -78,6 +89,9 @@ export function EfficiencyGraph() {
       heftP10: heftRow?.p10,
       heftP50: heftRow?.p50,
       heftP90: heftRow?.p90,
+      cpHeftP10: cpHeftRow?.p10,
+      cpHeftP50: cpHeftRow?.p50,
+      cpHeftP90: cpHeftRow?.p90,
     };
   });
 
@@ -210,6 +224,39 @@ export function EfficiencyGraph() {
                   activeDot={{ r: 6 }}
                   strokeDasharray="5 5"
                 />
+                {/* CP_HEFT Lines - Green shades */}
+                <Line
+                  type="monotone"
+                  dataKey="cpHeftP10"
+                  stroke="#34d399"
+                  strokeWidth={2}
+                  name="CP_HEFT P10"
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  strokeDasharray="2 2"
+                />
+
+                <Line
+                  type="monotone"
+                  dataKey="cpHeftP50"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  name="CP_HEFT P50"
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  strokeDasharray="2 2"
+                />
+
+                <Line
+                  type="monotone"
+                  dataKey="cpHeftP90"
+                  stroke="#047857"
+                  strokeWidth={2}
+                  name="CP_HEFT P90"
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                  strokeDasharray="2 2"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -276,6 +323,40 @@ export function EfficiencyGraph() {
                           {row.p50.toFixed(3)}
                         </td>
                         <td className="p-3 text-right font-medium" style={{ color: '#c2410c' }}>
+                          {row.p90.toFixed(3)}
+                        </td>
+                        <td className="p-3 text-right font-medium">{row.spread.toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {/* CP_HEFT Table */}
+            <div>
+              <h3 className="text-xl font-bold mb-2 text-green-600">CP_HEFT Algorithm</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-gray-300 bg-green-50">
+                      <th className="p-3 text-left">Workers</th>
+                      <th className="p-3 text-right">P10</th>
+                      <th className="p-3 text-right">P50</th>
+                      <th className="p-3 text-right">P90</th>
+                      <th className="p-3 text-right">Spread</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cpHeftDistributionData.map(row => (
+                      <tr key={row.workerCount} className="border-b border-gray-200">
+                        <td className="p-3">{row.workerCount}</td>
+                        <td className="p-3 text-right font-medium" style={{ color: '#34d399' }}>
+                          {row.p10.toFixed(3)}
+                        </td>
+                        <td className="p-3 text-right font-medium" style={{ color: '#10b981' }}>
+                          {row.p50.toFixed(3)}
+                        </td>
+                        <td className="p-3 text-right font-medium" style={{ color: '#047857' }}>
                           {row.p90.toFixed(3)}
                         </td>
                         <td className="p-3 text-right font-medium">{row.spread.toFixed(3)}</td>

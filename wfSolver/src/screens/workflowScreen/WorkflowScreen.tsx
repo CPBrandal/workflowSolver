@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { WorkflowService } from '../../screens/database/services/workflowService';
-import type { LocationState, Worker, Workflow, WorkflowType } from '../../types';
+import type { LocationState, Worker, Workflow } from '../../types';
 import {
   analyzeCriticalPath,
   getMinimumProjectDuration,
@@ -84,21 +84,6 @@ function WorkflowScreen() {
       console.log(`Created ${workerCount} workers for ${workflow.tasks.length} tasks`);
     }
   }, [workflow?.tasks.length]);
-
-  const isGeneratedWorkflow = () => {
-    if (!generatedNodes || !workflowType) return false;
-
-    // Accept new probabilistic workflow types
-    const validProbabilisticTypes: (WorkflowType | string)[] = [
-      'scientific',
-      'dataPipeline',
-      'machineLearning',
-      'complex',
-      'balanced',
-    ];
-
-    return validProbabilisticTypes.includes(workflowType);
-  };
 
   // Helper function to get display name for workflow type
   const getWorkflowDisplayName = () => {

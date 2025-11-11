@@ -6,8 +6,9 @@ import {
   setCriticalPathEdgesTransferTimes,
 } from '../../../utils/criticalPathAnalyzer';
 import { gammaSampler } from '../../../utils/gammaSampler';
-import { heftScheduleWithWorkerConstraints } from '../../../utils/heft';
-import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
+import { CP_HEFT_Schedule } from '../../../utils/schedulers/cpHeftScheduler';
+import { heftScheduleWithWorkerConstraints } from '../../../utils/schedulers/heft';
+import { scheduleWithWorkerConstraints } from '../../../utils/schedulers/scheduler';
 import { SimulationService } from '../services/simulationService';
 
 export class InstantSimulationRunner {
@@ -59,7 +60,9 @@ export class InstantSimulationRunner {
       const schedule =
         algorithm === 'Greedy'
           ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime)
-          : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime);
+          : algorithm === 'CP_HEFT'
+            ? CP_HEFT_Schedule(simulatedWorkflow.tasks, workers, useTransferTime)
+            : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime);
 
       // 8. Calculate actual runtime
       const actualRuntime =

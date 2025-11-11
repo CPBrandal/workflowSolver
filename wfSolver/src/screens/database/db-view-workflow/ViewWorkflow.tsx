@@ -4,8 +4,9 @@ import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { ALGORITHMS } from '../../../constants/constants';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
-import { heftScheduleWithWorkerConstraints } from '../../../utils/heft';
-import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
+import { CP_HEFT_Schedule } from '../../../utils/schedulers/cpHeftScheduler';
+import { heftScheduleWithWorkerConstraints } from '../../../utils/schedulers/heft';
+import { scheduleWithWorkerConstraints } from '../../../utils/schedulers/scheduler';
 import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
 import { WorkflowService } from '../services/workflowService';
 import TaskTimelineChart from './TaskTimelineChart';
@@ -27,6 +28,12 @@ function ViewWorkflow() {
 
   // Simulation running states
   const [simulationResult, setSimulationResult] = useState<{
+    workflow: Workflow;
+    schedule: any[];
+    workers: Worker[];
+  } | null>(null);
+  // Simulation running states
+  const [simulationCompareResult, setSimulationCompareResult] = useState<{
     workflow: Workflow;
     schedule: any[];
     workers: Worker[];
@@ -144,7 +151,9 @@ function ViewWorkflow() {
         const schedule =
           chosenAlgorithm === 'Greedy'
             ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers)
-            : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
+            : chosenAlgorithm === 'CP_HEFT'
+              ? CP_HEFT_Schedule(simulatedWorkflow.tasks, workers)
+              : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
 
         // Calculate final worker states
         const finalWorkers = workers.map(w => ({ ...w }));
@@ -159,6 +168,21 @@ function ViewWorkflow() {
           workflow: simulatedWorkflow,
           schedule,
           workers: finalWorkers,
+        });
+
+        const compareSchedule = heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
+        const compareFinalWorkers = workers.map(w => ({ ...w }));
+        compareSchedule.forEach(task => {
+          const worker = compareFinalWorkers.find(w => w.id === task.workerId);
+          if (worker) {
+            worker.time += task.endTime - task.startTime;
+          }
+        });
+
+        setSimulationCompareResult({
+          workflow: simulatedWorkflow,
+          schedule: compareSchedule,
+          workers: compareFinalWorkers,
         });
 
         // Brief delay for visual feedback
@@ -440,6 +464,16 @@ function ViewWorkflow() {
                   schedule={simulationResult.schedule}
                   workflow={simulationResult.workflow}
                   workers={simulationResult.workers}
+                />
+              </div>
+            )}
+
+            {simulationCompareResult && (
+              <div className="mb-6">
+                <TaskTimelineChart
+                  schedule={simulationCompareResult.schedule}
+                  workflow={simulationCompareResult.workflow}
+                  workers={simulationCompareResult.workers}
                 />
               </div>
             )}
