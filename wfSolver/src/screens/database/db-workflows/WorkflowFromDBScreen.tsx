@@ -15,6 +15,8 @@ function WorkflowFromDBScreen() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [workerCount, setWorkerCount] = useState<number>(2);
+  const [minWorkers, setMinWorkers] = useState<number>(2);
+  const [maxWorkers, setMaxWorkers] = useState<number>(5);
   const [showWorkflow, setShowWorkflow] = useState(false);
   const [useTransferTime, setUseTransferTime] = useState(true);
   const [chosenAlgorithm, setChosenAlgorithm] = useState<SchedulingAlgorithm>('Greedy');
@@ -22,7 +24,12 @@ function WorkflowFromDBScreen() {
   // Simulation states
   const [numberOfSimulations, setNumberOfSimulations] = useState<number>(100);
   const [isRunningSimulations, setIsRunningSimulations] = useState(false);
-  const [simulationProgress, setSimulationProgress] = useState({ current: 0, total: 0 });
+  const [simulationProgress, setSimulationProgress] = useState({
+    current: 0,
+    total: 0,
+    currentWorkerCount: 0,
+    totalWorkerCounts: 0,
+  });
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -91,8 +98,9 @@ function WorkflowFromDBScreen() {
       return;
     }
 
-    if (workers.length === 0) {
-      alert('Please configure workers first');
+    // Validate worker range
+    if (minWorkers < 1 || maxWorkers < minWorkers) {
+      alert('Please configure a valid worker range (min must be >= 1 and max >= min)');
       return;
     }
 
@@ -103,29 +111,77 @@ function WorkflowFromDBScreen() {
       return;
     }
 
+    const workerCounts = maxWorkers - minWorkers + 1;
     setIsRunningSimulations(true);
-    setSimulationProgress({ current: 0, total: numberOfSimulations });
+    setSimulationProgress({
+      current: 0,
+      total: numberOfSimulations,
+      currentWorkerCount: 0,
+      totalWorkerCounts: workerCounts,
+    });
 
     try {
-      const savedIds = await InstantSimulationRunner.runBatchSimulations(
-        selectedWorkflowId,
-        workflow,
-        workers,
-        numberOfSimulations,
-        (current, total) => {
-          setSimulationProgress({ current, total });
-        },
-        useTransferTime,
-        chosenAlgorithm
-      );
+      let totalSimulationsCompleted = 0;
 
-      alert(`Successfully completed ${savedIds.length} simulations!`);
+      // Loop through each worker count
+      for (
+        let currentWorkerCount = minWorkers;
+        currentWorkerCount <= maxWorkers;
+        currentWorkerCount++
+      ) {
+        // Create workers for this iteration
+        const currentWorkers: Worker[] = [];
+        for (let i = 0; i < currentWorkerCount; i++) {
+          currentWorkers.push({
+            id: `worker-${i + 1}`,
+            time: 0,
+            isActive: false,
+            currentTask: null,
+            criticalPathWorker: i === 0,
+          });
+        }
+
+        console.log(
+          `\n=== Running ${numberOfSimulations} simulations with ${currentWorkerCount} workers ===`
+        );
+
+        // Run simulations for this worker count
+        const savedIds = await InstantSimulationRunner.runBatchSimulations(
+          selectedWorkflowId,
+          workflow,
+          currentWorkers,
+          numberOfSimulations,
+          (current, total) => {
+            setSimulationProgress({
+              current,
+              total,
+              currentWorkerCount,
+              totalWorkerCounts: workerCounts,
+            });
+          },
+          useTransferTime,
+          chosenAlgorithm
+        );
+
+        totalSimulationsCompleted += savedIds.length;
+        console.log(`Completed ${savedIds.length} simulations with ${currentWorkerCount} workers`);
+      }
+
+      alert(
+        `Successfully completed ${totalSimulationsCompleted} total simulations!\n` +
+          `(${numberOfSimulations} simulations × ${workerCounts} worker configurations)`
+      );
     } catch (error) {
       console.error('Simulation error:', error);
       alert('Failed to run simulations. Check console for details.');
     } finally {
       setIsRunningSimulations(false);
-      setSimulationProgress({ current: 0, total: 0 });
+      setSimulationProgress({
+        current: 0,
+        total: 0,
+        currentWorkerCount: 0,
+        totalWorkerCounts: 0,
+      });
     }
   };
 
@@ -222,25 +278,75 @@ function WorkflowFromDBScreen() {
         {workflow && (
           <div className="mt-6 pt-6 border-t max-w-lg mx-auto">
             <h3 className="text-lg font-medium text-gray-700 mb-3">Worker Configuration</h3>
-            <div>
-              <label htmlFor="workerCount" className="block text-sm font-medium text-gray-700 mb-1">
-                Number of Workers
-              </label>
-              <input
-                id="workerCount"
-                type="number"
-                min="1"
-                max={workflow.tasks.length}
-                value={workerCount}
-                onChange={e => setWorkerCount(parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Number of parallel workers available for task execution (1-{workflow.tasks.length})
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="minWorkers"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Min Workers
+                  </label>
+                  <input
+                    id="minWorkers"
+                    type="number"
+                    min="1"
+                    max={workflow.tasks.length}
+                    value={minWorkers}
+                    onChange={e => {
+                      const val = parseInt(e.target.value) || 1;
+                      setMinWorkers(val);
+                      if (val > maxWorkers) setMaxWorkers(val);
+                    }}
+                    disabled={isRunningSimulations}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="maxWorkers"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Max Workers
+                  </label>
+                  <input
+                    id="maxWorkers"
+                    type="number"
+                    min={minWorkers}
+                    max={workflow.tasks.length}
+                    value={maxWorkers}
+                    onChange={e => {
+                      const val = parseInt(e.target.value) || minWorkers;
+                      setMaxWorkers(Math.max(val, minWorkers));
+                    }}
+                    disabled={isRunningSimulations}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Simulations will be run for each worker count from {minWorkers} to {maxWorkers} (
+                {maxWorkers - minWorkers + 1} configuration
+                {maxWorkers - minWorkers !== 0 ? 's' : ''})
               </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Current: {workers.length} worker{workers.length !== 1 ? 's' : ''} configured
-              </p>
+              <div className="bg-blue-50 p-3 rounded-md">
+                <p className="text-xs text-blue-700">
+                  <strong>Visualization Worker Count (for display only)</strong>
+                </p>
+                <input
+                  id="workerCount"
+                  type="number"
+                  min="1"
+                  max={workflow.tasks.length}
+                  value={workerCount}
+                  onChange={e => setWorkerCount(parseInt(e.target.value) || 1)}
+                  className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  This only affects the workflow visualization below. Simulations use the range
+                  above.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -329,36 +435,60 @@ function WorkflowFromDBScreen() {
               </div>
 
               {isRunningSimulations && (
-                <div className="bg-blue-50 p-4 rounded-md">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Progress</span>
-                    <span className="text-sm text-gray-600">
-                      {simulationProgress.current} / {simulationProgress.total}
-                    </span>
+                <div className="bg-blue-50 p-4 rounded-md space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        Worker Count {simulationProgress.currentWorkerCount} of {minWorkers}-
+                        {maxWorkers}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        Configuration {simulationProgress.currentWorkerCount - minWorkers + 1} /{' '}
+                        {simulationProgress.totalWorkerCounts}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${((simulationProgress.currentWorkerCount - minWorkers + 1) / simulationProgress.totalWorkerCounts) * 100}%`,
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${(simulationProgress.current / simulationProgress.total) * 100}%`,
-                      }}
-                    />
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        Simulations (current worker count)
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {simulationProgress.current} / {simulationProgress.total}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${(simulationProgress.current / simulationProgress.total) * 100}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
               <button
                 onClick={handleRunSimulations}
-                disabled={isRunningSimulations || !selectedWorkflowId || workers.length === 0}
+                disabled={isRunningSimulations || !selectedWorkflowId || !workflow}
                 className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
-                  !isRunningSimulations && selectedWorkflowId && workers.length > 0
+                  !isRunningSimulations && selectedWorkflowId && workflow
                     ? 'bg-green-600 hover:bg-green-700'
                     : 'bg-gray-400 cursor-not-allowed'
                 }`}
               >
                 {isRunningSimulations
-                  ? `Running Simulations... (${simulationProgress.current}/${simulationProgress.total})`
-                  : `Run ${numberOfSimulations} Simulation${numberOfSimulations !== 1 ? 's' : ''}`}
+                  ? `Running... (Worker ${simulationProgress.currentWorkerCount}: ${simulationProgress.current}/${simulationProgress.total})`
+                  : `Run ${numberOfSimulations} Simulations for ${maxWorkers - minWorkers + 1} Worker Config${maxWorkers - minWorkers !== 0 ? 's' : ''}`}
               </button>
             </div>
           </div>

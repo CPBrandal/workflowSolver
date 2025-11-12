@@ -1,31 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Layout } from '../../../components/Layout';
-import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
+import type { WorkflowRecord } from '../../../types/database';
 import { SimulationService } from '../services/simulationService';
 import { WorkflowService } from '../services/workflowService';
 
 function DataBaseEditScreen() {
   const [workflows, setWorkflows] = useState<WorkflowRecord[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
-  const [simulations, setSimulations] = useState<SimulationRecord[]>([]);
+  const [simulationCount, setSimulationCount] = useState<number>(0);
+  const [workflowToSimulationsMap, setWorkflowToSimulationsMap] = useState<Record<string, number>>(
+    {}
+  );
 
   const [loading, setLoading] = useState(false);
-  const [loadingSimulations, setLoadingSimulations] = useState(false);
   const [operationInProgress, setOperationInProgress] = useState(false);
 
   // Load workflows on mount
   useEffect(() => {
     loadWorkflows();
   }, []);
-
-  // Load simulations when workflow is selected
-  useEffect(() => {
-    if (selectedWorkflowId) {
-      loadSimulations(selectedWorkflowId);
-    } else {
-      setSimulations([]);
-    }
-  }, [selectedWorkflowId]);
 
   const loadWorkflows = async () => {
     setLoading(true);
@@ -40,16 +33,24 @@ function DataBaseEditScreen() {
     }
   };
 
+  useEffect(() => {
+    setSimulationCount(workflowToSimulationsMap[selectedWorkflowId] || 0);
+  }, [selectedWorkflowId]);
+
+  useEffect(() => {
+    workflows.forEach(workflow => {
+      loadSimulations(workflow.id);
+    });
+  }, [workflows]);
+
   const loadSimulations = async (workflowId: string) => {
-    setLoadingSimulations(true);
     try {
-      const data = await SimulationService.getSimulationsByWorkflow(workflowId);
-      setSimulations(data);
+      const data = await SimulationService.getNumberOfSimulationsForWorkflow(workflowId);
+      setSimulationCount(data);
+      setWorkflowToSimulationsMap(prev => ({ ...prev, [workflowId]: data }));
     } catch (error) {
       console.error('Error loading simulations:', error);
       alert('Failed to load simulations');
-    } finally {
-      setLoadingSimulations(false);
     }
   };
 
@@ -70,9 +71,9 @@ function DataBaseEditScreen() {
 
       if (success) {
         alert(`Workflow "${workflow.topology.name}" deleted successfully!`);
-        await loadWorkflows(); // Reload the list
+        await loadWorkflows();
         if (selectedWorkflowId === workflowId) {
-          setSelectedWorkflowId(''); // Clear selection if deleted workflow was selected
+          setSelectedWorkflowId('');
         }
       } else {
         alert('Failed to delete workflow');
@@ -87,7 +88,6 @@ function DataBaseEditScreen() {
 
   const handleDeleteAllSimulations = async (workflowId: string) => {
     const workflow = workflows.find(w => w.id === workflowId);
-    const simulationCount = simulations.length;
 
     if (simulationCount === 0) {
       alert('No simulations found for this workflow.');
@@ -109,7 +109,7 @@ function DataBaseEditScreen() {
         alert(
           `Successfully deleted ${result.deletedCount} simulation${result.deletedCount !== 1 ? 's' : ''}!`
         );
-        await loadSimulations(workflowId); // Reload simulations
+        await loadSimulations(workflowId);
       } else {
         alert(`Failed to delete simulations: ${result.error || 'Unknown error'}`);
       }
@@ -120,8 +120,6 @@ function DataBaseEditScreen() {
       setOperationInProgress(false);
     }
   };
-
-  const getSelectedWorkflow = () => workflows.find(w => w.id === selectedWorkflowId);
 
   if (loading) {
     return (
@@ -164,12 +162,18 @@ function DataBaseEditScreen() {
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-center">
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900 mb-1">{workflow.topology.name}</h4>
                         <div className="text-sm text-gray-600 space-y-1">
                           <p>
-                            <span className="font-medium">Nodes:</span> {workflow.node_count} |
+                            <span className="font-medium">Simulations:</span>{' '}
+                            {workflowToSimulationsMap[workflow.id] !== undefined
+                              ? workflowToSimulationsMap[workflow.id]
+                              : 'Loading...'}
+                          </p>
+                          <p>
+                            <span className="font-medium">Nodes:</span> {workflow.node_count}
                           </p>
                           <p>
                             <span className="font-medium">Created:</span>
@@ -182,27 +186,13 @@ function DataBaseEditScreen() {
                           )}
                         </div>
                       </div>
-
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          onClick={() =>
-                            setSelectedWorkflowId(
-                              selectedWorkflowId === workflow.id ? '' : workflow.id
-                            )
-                          }
-                          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                        >
-                          {selectedWorkflowId === workflow.id ? 'Hide' : 'View'} Simulations
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteWorkflow(workflow.id)}
-                          disabled={operationInProgress}
-                          className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleDeleteWorkflow(workflow.id)}
+                        disabled={operationInProgress}
+                        className="px-6 py-3 text-lg bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -210,89 +200,14 @@ function DataBaseEditScreen() {
             )}
           </div>
 
-          {/* Simulations Section */}
-          {selectedWorkflowId && (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Simulations for "{getSelectedWorkflow()?.topology.name}" ({simulations.length})
-                </h3>
-
-                {simulations.length > 0 && (
-                  <button
-                    onClick={() => handleDeleteAllSimulations(selectedWorkflowId)}
-                    disabled={operationInProgress}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400"
-                  >
-                    Delete All Simulations
-                  </button>
-                )}
-              </div>
-
-              {loadingSimulations ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                  <p className="ml-2 text-gray-600">Loading simulations...</p>
-                </div>
-              ) : simulations.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">
-                  No simulations found for this workflow.
-                </p>
-              ) : (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
-                    <div>
-                      <span className="font-medium text-gray-700">Total Simulations:</span>
-                      <p className="text-lg font-semibold text-blue-600">{simulations.length}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Avg Actual Runtime:</span>
-                      <p className="text-lg font-semibold text-green-600">
-                        {(
-                          simulations.reduce((sum, sim) => sum + sim.actual_runtime, 0) /
-                          simulations.length
-                        ).toFixed(2)}
-                        s
-                      </p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Avg Theoretical Runtime:</span>
-                      <p className="text-lg font-semibold text-purple-600">
-                        {(
-                          simulations.reduce((sum, sim) => sum + sim.theoretical_runtime, 0) /
-                          simulations.length
-                        ).toFixed(2)}
-                        s
-                      </p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Workers Used:</span>
-                      <p className="text-lg font-semibold text-orange-600">
-                        {simulations[0]?.worker_count || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-gray-600">
-                    <p>
-                      <span className="font-medium">Simulation Range:</span>#
-                      {Math.min(...simulations.map(s => s.simulation_number || 0))} - #
-                      {Math.max(...simulations.map(s => s.simulation_number || 0))}
-                    </p>
-                    <p>
-                      <span className="font-medium">Date Range:</span>
-                      {new Date(
-                        Math.min(...simulations.map(s => new Date(s.created_at).getTime()))
-                      ).toLocaleDateString()}{' '}
-                      -
-                      {new Date(
-                        Math.max(...simulations.map(s => new Date(s.created_at).getTime()))
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+          {simulationCount > 0 && (
+            <button
+              onClick={() => handleDeleteAllSimulations(selectedWorkflowId)}
+              disabled={operationInProgress}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400"
+            >
+              Delete All Simulations
+            </button>
           )}
 
           {/* Warning Message */}

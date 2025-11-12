@@ -37,8 +37,8 @@ export class InstantSimulationRunner {
         });
       });
 
-      // 2. Find critical path using EXECUTION TIMES ONLY
-      const cpmResult = analyzeCriticalPath(simulatedWorkflow.tasks, false);
+      // 2. Find critical path
+      const cpmResult = analyzeCriticalPath(simulatedWorkflow.tasks, true);
 
       // 3. Mark nodes that are on the critical path
       simulatedWorkflow.tasks = simulatedWorkflow.tasks.map(task => ({

@@ -88,6 +88,20 @@ export class SimulationService {
     return data || [];
   }
 
+  static async getNumberOfSimulationsForWorkflow(workflowId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('simulations')
+      .select('*', { count: 'exact', head: true })
+      .eq('workflow_id', workflowId);
+
+    if (error) {
+      console.error('Error counting simulations:', error);
+      return 0;
+    }
+
+    return count || 0;
+  }
+
   static async getSimulationsByWorkflowAndWorkerCount(
     workflowId: string,
     numberOfWorkers: number

@@ -34,7 +34,7 @@ function WorkflowScreen() {
       const minimumDuration = getMinimumProjectDuration(workflow.tasks);
       console.log('The minimum time the project will take is: ', minimumDuration, ' seconds');
 
-      const cpResult = analyzeCriticalPath(workflow.tasks, false);
+      const cpResult = analyzeCriticalPath(workflow.tasks, true);
 
       console.log(
         'Critical path sequence:',
