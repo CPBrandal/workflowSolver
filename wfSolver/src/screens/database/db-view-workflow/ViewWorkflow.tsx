@@ -4,6 +4,7 @@ import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { ALGORITHMS } from '../../../constants/constants';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
+import { CP_First_Schedule } from '../../../utils/schedulers/cpFirstScheduler';
 import { CP_HEFT_Schedule } from '../../../utils/schedulers/cpHeftScheduler';
 import { heftScheduleWithWorkerConstraints } from '../../../utils/schedulers/heft';
 import { scheduleWithWorkerConstraints } from '../../../utils/schedulers/scheduler';
@@ -32,8 +33,14 @@ function ViewWorkflow() {
     schedule: any[];
     workers: Worker[];
   } | null>(null);
-  // Simulation running states
+  // compare cp heft running states
   const [simulationCompareResult, setSimulationCompareResult] = useState<{
+    workflow: Workflow;
+    schedule: any[];
+    workers: Worker[];
+  } | null>(null);
+  // compare cp heft running states
+  const [simulationNewSchedulerResult, setSimulationNewSchedulerResult] = useState<{
     workflow: Workflow;
     schedule: any[];
     workers: Worker[];
@@ -170,9 +177,13 @@ function ViewWorkflow() {
           workers: finalWorkers,
         });
 
-        const compareSchedule = heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
+        // ================== Compare CP HEFT ==================
+        const compareCpHeftSchedule = heftScheduleWithWorkerConstraints(
+          simulatedWorkflow.tasks,
+          workers
+        );
         const compareFinalWorkers = workers.map(w => ({ ...w }));
-        compareSchedule.forEach(task => {
+        compareCpHeftSchedule.forEach(task => {
           const worker = compareFinalWorkers.find(w => w.id === task.workerId);
           if (worker) {
             worker.time += task.endTime - task.startTime;
@@ -181,8 +192,26 @@ function ViewWorkflow() {
 
         setSimulationCompareResult({
           workflow: simulatedWorkflow,
-          schedule: compareSchedule,
+          schedule: compareCpHeftSchedule,
           workers: compareFinalWorkers,
+        });
+
+        // ================== New Scheduler ==================
+
+        const { scheduledTasks: newSchedulerSchedule, availableWorkers: newSchedulerWorkersList } =
+          CP_First_Schedule(simulatedWorkflow.tasks, workers);
+        const newSchedulerWorkers = newSchedulerWorkersList.map(w => ({ ...w }));
+        // newSchedulerSchedule.forEach(task => {
+        //   const worker = newSchedulerWorkers.find(w => w.id === task.workerId);
+        //   if (worker) {
+        //     worker.time += task.endTime - task.startTime;
+        //   }
+        // });
+
+        setSimulationNewSchedulerResult({
+          workflow: simulatedWorkflow,
+          schedule: newSchedulerSchedule,
+          workers: newSchedulerWorkersList,
         });
 
         // Brief delay for visual feedback
@@ -475,6 +504,19 @@ function ViewWorkflow() {
                   workflow={simulationCompareResult.workflow}
                   workers={simulationCompareResult.workers}
                 />
+              </div>
+            )}
+
+            {simulationNewSchedulerResult && (
+              <div className="mb-6">
+                <TaskTimelineChart
+                  schedule={simulationNewSchedulerResult.schedule}
+                  workflow={simulationNewSchedulerResult.workflow}
+                  workers={simulationNewSchedulerResult.workers}
+                />
+                <button onClick={() => console.log(simulationNewSchedulerResult.workers)}>
+                  Log workers
+                </button>
               </div>
             )}
 
