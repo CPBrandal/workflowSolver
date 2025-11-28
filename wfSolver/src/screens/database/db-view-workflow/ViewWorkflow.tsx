@@ -211,7 +211,7 @@ function ViewWorkflow() {
         setSimulationNewSchedulerResult({
           workflow: simulatedWorkflow,
           schedule: newSchedulerSchedule,
-          workers: newSchedulerWorkersList,
+          workers: newSchedulerWorkers,
         });
 
         // Brief delay for visual feedback
@@ -489,6 +489,7 @@ function ViewWorkflow() {
 
             {simulationResult && (
               <div className="mb-6">
+                <h1>{chosenAlgorithm}: CP tasks on one same worker</h1>
                 <TaskTimelineChart
                   schedule={simulationResult.schedule}
                   workflow={simulationResult.workflow}
@@ -499,6 +500,7 @@ function ViewWorkflow() {
 
             {simulationCompareResult && (
               <div className="mb-6">
+                <h1>Regular Heft</h1>
                 <TaskTimelineChart
                   schedule={simulationCompareResult.schedule}
                   workflow={simulationCompareResult.workflow}
@@ -509,6 +511,7 @@ function ViewWorkflow() {
 
             {simulationNewSchedulerResult && (
               <div className="mb-6">
+                <h1>{'CP_First_Schedule'}</h1>
                 <TaskTimelineChart
                   schedule={simulationNewSchedulerResult.schedule}
                   workflow={simulationNewSchedulerResult.workflow}

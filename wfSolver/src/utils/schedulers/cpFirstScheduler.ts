@@ -19,6 +19,9 @@ interface TaskRank {
  * 1. Scheduling all CP tasks on a dedicated CP worker first (0 transfer time between them)
  * 2. Scheduling non-CP tasks on other workers
  * 3. Creating new workers when scheduling would violate CP timing
+ *
+ * FIXED: Now uses multi-pass approach to ensure non-CP predecessors are scheduled
+ * before their CP successors
  */
 export function CP_First_Schedule(
   nodes: WorkflowNode[],
@@ -30,15 +33,9 @@ export function CP_First_Schedule(
   }
 
   // Find critical path worker and nodes
-  let criticalPathWorker = workers.find(w => w.criticalPathWorker === true);
+  const criticalPathWorker = workers.find(w => w.criticalPathWorker === true) || workers[0];
   const criticalPathNodes = nodes.filter(n => n.criticalPath === true);
   const criticalPathNodeIds = new Set(criticalPathNodes.map(n => n.id));
-
-  // If no CP worker designated, use the first one
-  if (!criticalPathWorker) {
-    criticalPathWorker = workers[0];
-    console.log('No CP worker designated, using first worker as CP worker');
-  }
 
   // Create a mutable copy of workers array for dynamic worker creation
   const availableWorkers = [...workers];
@@ -66,100 +63,294 @@ export function CP_First_Schedule(
   const scheduledNodeIds = new Set<string>();
   const nodeToWorker: Map<string, string> = new Map();
 
-  console.log('=== CP-First Scheduling with Dynamic Workers ===');
+  console.log('=== CP-First Scheduling with Dynamic Workers (Multi-Pass) ===');
   console.log(`Critical Path Worker: ${criticalPathWorker.id}`);
   console.log(`Critical Path Nodes: ${criticalPathNodes.map(n => n.name).join(' → ')}`);
   console.log('');
 
-  // STEP 1: Schedule all critical path tasks on the CP worker
-  console.log('STEP 1: Scheduling Critical Path Tasks');
-  console.log('----------------------------------------');
-
   // Sort CP nodes by their position in the critical path (using dependencies)
   const cpNodesSorted = topologicalSort(criticalPathNodes, nodes);
 
+  // Calculate ranks for all nodes to determine scheduling order for non-CP tasks
+  const ranks = calculateUpwardRanks(nodes, includeTransferTimes);
+
+  // PRE-CALCULATE IDEAL CP SCHEDULE (ignoring non-CP dependencies temporarily)
+  // This establishes the timing constraints that non-CP tasks must respect
+  console.log('PRE-CALCULATION: Establishing CP timing constraints');
+  console.log('---------------------------------------------------');
+
+  const idealCpSchedule = new Map<string, { startTime: number; endTime: number }>();
+  let cpTime = 0;
+
   for (const cpNode of cpNodesSorted) {
-    // Calculate start time based on CP dependencies already scheduled
+    // Only consider CP dependencies for this ideal schedule
     const cpDependencies = getNodeDependencies(cpNode.id, nodes).filter(depId =>
       criticalPathNodeIds.has(depId)
     );
 
-    let startTime = 0;
+    let cpStartTime = 0;
     for (const depId of cpDependencies) {
-      const depEndTime = completionTimes.get(depId);
-      if (depEndTime !== undefined) {
-        // No transfer time since all CP tasks are on same worker
-        startTime = Math.max(startTime, depEndTime);
+      const depIdeal = idealCpSchedule.get(depId);
+      if (depIdeal) {
+        // No transfer time between CP tasks (same worker)
+        cpStartTime = Math.max(cpStartTime, depIdeal.endTime);
       }
     }
 
-    // Also check non-CP dependencies (they might affect start time)
-    const nonCpDependencies = getNodeDependencies(cpNode.id, nodes).filter(
-      depId => !criticalPathNodeIds.has(depId) && scheduledNodeIds.has(depId)
-    );
-
-    for (const depId of nonCpDependencies) {
-      const depEndTime = completionTimes.get(depId);
-      const depWorkerId = nodeToWorker.get(depId);
-      if (depEndTime !== undefined && depWorkerId !== undefined) {
-        let transferTime = 0;
-        if (includeTransferTimes && depWorkerId !== criticalPathWorker.id) {
-          const depNode = nodes.find(n => n.id === depId);
-          if (depNode) {
-            const connection = depNode.connections.find(c => c.targetNodeId === cpNode.id);
-            transferTime = connection ? connection.transferTime : 0;
-          }
-        }
-        startTime = Math.max(startTime, depEndTime + transferTime);
-      }
-    }
-
-    const endTime = startTime + (cpNode.executionTime || 0);
-
-    // Schedule the CP task
-    const scheduledTask: ScheduledTask = {
-      nodeId: cpNode.id,
-      startTime,
-      endTime,
-      workerId: criticalPathWorker.id,
-    };
-
-    scheduledTasks.push(scheduledTask);
-    completionTimes.set(cpNode.id, endTime);
-    scheduledNodeIds.add(cpNode.id);
-    nodeToWorker.set(cpNode.id, criticalPathWorker.id);
-
-    // Update processor schedule
-    const schedule = processorSchedules.get(criticalPathWorker.id)!;
-    schedule.push({
-      startTime,
-      endTime,
-      taskId: cpNode.id,
-    });
+    const cpEndTime = cpStartTime + (cpNode.executionTime || 0);
+    idealCpSchedule.set(cpNode.id, { startTime: cpStartTime, endTime: cpEndTime });
 
     console.log(
-      `Scheduled CP task ${cpNode.name} on ${criticalPathWorker.id}: [${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s]`
+      `  CP task ${cpNode.name} ideal window: [${cpStartTime.toFixed(2)}s - ${cpEndTime.toFixed(2)}s]`
     );
   }
 
-  // Store CP task timing constraints for violation checking
-  const cpTimingConstraints = new Map<string, { mustStartBy: number }>();
-  for (const cpNode of cpNodesSorted) {
-    const scheduled = scheduledTasks.find(t => t.nodeId === cpNode.id);
-    if (scheduled) {
-      cpTimingConstraints.set(cpNode.id, { mustStartBy: scheduled.startTime });
+  console.log('');
+
+  /**
+   * Helper function to schedule a single task
+   */
+  function scheduleTask(
+    task: WorkflowNode,
+    isCpTask: boolean
+  ): { scheduled: boolean; workerId: string | null } {
+    // Check if all dependencies are scheduled
+    const dependencies = getNodeDependencies(task.id, nodes);
+    const unscheduledDeps = dependencies.filter(depId => !scheduledNodeIds.has(depId));
+
+    if (unscheduledDeps.length > 0) {
+      // Cannot schedule yet - dependencies not ready
+      return { scheduled: false, workerId: null };
+    }
+
+    // Calculate start time based on all dependencies (both CP and non-CP)
+    let dataReadyTime = 0;
+    for (const depId of dependencies) {
+      const depEndTime = completionTimes.get(depId);
+      const depWorkerId = nodeToWorker.get(depId);
+
+      if (depEndTime !== undefined && depWorkerId !== undefined) {
+        let transferTime = 0;
+
+        // For CP tasks, check if coming from another worker
+        if (isCpTask && includeTransferTimes && depWorkerId !== criticalPathWorker.id) {
+          const depNode = nodes.find(n => n.id === depId);
+          if (depNode) {
+            const connection = depNode.connections.find(c => c.targetNodeId === task.id);
+            transferTime = connection ? connection.transferTime : 0;
+          }
+        } else if (!isCpTask && includeTransferTimes) {
+          // For non-CP tasks, transfer time will be calculated per-worker below
+        }
+
+        if (isCpTask) {
+          // CP tasks: no transfer time between CP tasks, but include from non-CP
+          dataReadyTime = Math.max(dataReadyTime, depEndTime + transferTime);
+        } else {
+          // Non-CP tasks: just track when data is ready from dependencies
+          dataReadyTime = Math.max(dataReadyTime, depEndTime);
+        }
+      }
+    }
+
+    if (isCpTask) {
+      // Schedule CP task on the CP worker
+      const startTime = dataReadyTime;
+      const endTime = startTime + (task.executionTime || 0);
+
+      const scheduledTask: ScheduledTask = {
+        nodeId: task.id,
+        startTime,
+        endTime,
+        workerId: criticalPathWorker.id,
+      };
+
+      scheduledTasks.push(scheduledTask);
+      completionTimes.set(task.id, endTime);
+      scheduledNodeIds.add(task.id);
+      nodeToWorker.set(task.id, criticalPathWorker.id);
+
+      // Update processor schedule
+      const schedule = processorSchedules.get(criticalPathWorker.id)!;
+      schedule.push({
+        startTime,
+        endTime,
+        taskId: task.id,
+      });
+
+      console.log(
+        `  Scheduled CP task ${task.name} on ${criticalPathWorker.id}: [${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s]`
+      );
+
+      return { scheduled: true, workerId: criticalPathWorker.id };
+    } else {
+      // Schedule non-CP task - find best worker or create new one
+      // Use pre-calculated ideal CP schedule as timing constraints
+      const cpTimingConstraints = new Map<string, { mustStartBy: number }>();
+
+      // Use ideal CP times if available, otherwise use actual scheduled times
+      for (const [cpNodeId, idealTiming] of idealCpSchedule) {
+        cpTimingConstraints.set(cpNodeId, { mustStartBy: idealTiming.startTime });
+      }
+
+      // Override with actual scheduled times if they exist (more accurate)
+      for (const scheduledTask of scheduledTasks) {
+        if (criticalPathNodeIds.has(scheduledTask.nodeId)) {
+          cpTimingConstraints.set(scheduledTask.nodeId, { mustStartBy: scheduledTask.startTime });
+        }
+      }
+
+      let bestWorkerId: string | null = null;
+      let bestStartTime = Infinity;
+      let bestEndTime = Infinity;
+      let wouldViolateCp = false;
+
+      // Try scheduling on each existing worker
+      for (const worker of availableWorkers) {
+        const { startTime, endTime, violatesCp } = calculateTaskTiming(
+          task,
+          worker.id,
+          nodes,
+          processorSchedules,
+          completionTimes,
+          nodeToWorker,
+          cpTimingConstraints,
+          includeTransferTimes,
+          criticalPathWorker.id
+        );
+
+        if (!violatesCp && endTime < bestEndTime) {
+          bestWorkerId = worker.id;
+          bestStartTime = startTime;
+          bestEndTime = endTime;
+          wouldViolateCp = false;
+        } else if (violatesCp && bestWorkerId === null) {
+          wouldViolateCp = true;
+        }
+      }
+
+      // If scheduling on any existing worker would violate CP, create a new worker
+      if (wouldViolateCp || bestWorkerId === null) {
+        if (wouldViolateCp) {
+          console.log(`  → Creating new worker to avoid CP violation for task ${task.name}`);
+        } else {
+          console.log(`  → Creating new worker for task ${task.name} (no suitable worker found)`);
+        }
+
+        const newWorker: Worker = {
+          id: `worker-${nextWorkerId}`,
+          criticalPathWorker: false,
+          time: 0,
+          isActive: false,
+          currentTask: null,
+        };
+        nextWorkerId++;
+        availableWorkers.push(newWorker);
+        processorSchedules.set(newWorker.id, []);
+
+        // Calculate timing for the new worker
+        const { startTime, endTime } = calculateTaskTiming(
+          task,
+          newWorker.id,
+          nodes,
+          processorSchedules,
+          completionTimes,
+          nodeToWorker,
+          cpTimingConstraints,
+          includeTransferTimes,
+          criticalPathWorker.id
+        );
+
+        bestWorkerId = newWorker.id;
+        bestStartTime = startTime;
+        bestEndTime = endTime;
+      }
+
+      // Schedule the task
+      const scheduledTask: ScheduledTask = {
+        nodeId: task.id,
+        startTime: bestStartTime,
+        endTime: bestEndTime,
+        workerId: bestWorkerId!,
+      };
+
+      scheduledTasks.push(scheduledTask);
+      completionTimes.set(task.id, bestEndTime);
+      scheduledNodeIds.add(task.id);
+      nodeToWorker.set(task.id, bestWorkerId!);
+
+      // Update processor schedule
+      const schedule = processorSchedules.get(bestWorkerId!)!;
+      schedule.push({
+        startTime: bestStartTime,
+        endTime: bestEndTime,
+        taskId: task.id,
+      });
+      schedule.sort((a, b) => a.startTime - b.startTime);
+
+      console.log(
+        `  Scheduled non-CP task ${task.name} on ${bestWorkerId}: [${bestStartTime.toFixed(2)}s - ${bestEndTime.toFixed(2)}s]`
+      );
+
+      return { scheduled: true, workerId: bestWorkerId! };
     }
   }
 
-  console.log('\nSTEP 2: Scheduling Non-Critical Path Tasks');
-  console.log('-------------------------------------------');
+  /**
+   * Recursively schedule a task and all its unscheduled dependencies
+   */
+  function scheduleTaskWithDependencies(task: WorkflowNode, isCpTask: boolean): boolean {
+    // If already scheduled, return true
+    if (scheduledNodeIds.has(task.id)) {
+      return true;
+    }
 
-  // STEP 2: Schedule non-critical path tasks
-  const nonCpNodes = nodes.filter(n => !n.criticalPath);
+    // Get all dependencies
+    const dependencies = getNodeDependencies(task.id, nodes);
 
-  // Calculate ranks for non-CP nodes to determine scheduling order
-  const ranks = calculateUpwardRanks(nodes, includeTransferTimes);
-  const sortedNonCpNodes = nonCpNodes
+    // First, recursively schedule all unscheduled dependencies
+    for (const depId of dependencies) {
+      if (!scheduledNodeIds.has(depId)) {
+        const depNode = nodes.find(n => n.id === depId);
+        if (!depNode) {
+          console.error(`Dependency node ${depId} not found`);
+          return false;
+        }
+
+        const depIsCp = criticalPathNodeIds.has(depId);
+        const success = scheduleTaskWithDependencies(depNode, depIsCp);
+        if (!success) {
+          console.error(`Failed to schedule dependency ${depNode.name} for ${task.name}`);
+          return false;
+        }
+      }
+    }
+
+    // Now all dependencies are scheduled, schedule this task
+    const result = scheduleTask(task, isCpTask);
+    return result.scheduled;
+  }
+
+  // MULTI-PASS APPROACH:
+  // Pass 1: Schedule all CP tasks (and their non-CP dependencies recursively)
+  console.log('PASS 1: Scheduling Critical Path Tasks (and their dependencies)');
+  console.log('----------------------------------------------------------------');
+
+  for (const cpNode of cpNodesSorted) {
+    if (!scheduledNodeIds.has(cpNode.id)) {
+      const success = scheduleTaskWithDependencies(cpNode, true);
+      if (!success) {
+        console.error(`Failed to schedule CP task ${cpNode.name}`);
+      }
+    }
+  }
+
+  console.log('\nPASS 2: Scheduling Remaining Non-Critical Path Tasks');
+  console.log('---------------------------------------------------');
+
+  // Pass 2: Schedule remaining non-CP tasks
+  const remainingNonCpNodes = nodes
+    .filter(n => !scheduledNodeIds.has(n.id))
     .map(node => ({
       node,
       rank: ranks.find(r => r.nodeId === node.id)?.rank || 0,
@@ -167,103 +358,13 @@ export function CP_First_Schedule(
     .sort((a, b) => b.rank - a.rank)
     .map(item => item.node);
 
-  for (const task of sortedNonCpNodes) {
-    // Check if all dependencies are scheduled
-    const dependencies = getNodeDependencies(task.id, nodes);
-    const allDepsScheduled = dependencies.every(depId => scheduledNodeIds.has(depId));
-
-    if (!allDepsScheduled) {
-      console.warn(`Skipping ${task.name} - dependencies not ready`);
-      continue;
-    }
-
-    // Find the best worker for this task
-    let bestWorkerId: string | null = null;
-    let bestStartTime = Infinity;
-    let bestEndTime = Infinity;
-    let wouldViolateCp = false;
-
-    // Try scheduling on each existing worker
-    for (const worker of availableWorkers) {
-      const { startTime, endTime, violatesCp } = calculateTaskTiming(
-        task,
-        worker.id,
-        nodes,
-        processorSchedules,
-        completionTimes,
-        nodeToWorker,
-        cpTimingConstraints,
-        includeTransferTimes
-      );
-
-      if (!violatesCp && endTime < bestEndTime) {
-        bestWorkerId = worker.id;
-        bestStartTime = startTime;
-        bestEndTime = endTime;
-        wouldViolateCp = false;
-      } else if (violatesCp && bestWorkerId === null) {
-        // Track that all existing workers would violate CP
-        wouldViolateCp = true;
+  for (const task of remainingNonCpNodes) {
+    if (!scheduledNodeIds.has(task.id)) {
+      const success = scheduleTaskWithDependencies(task, false);
+      if (!success) {
+        console.warn(`Could not schedule ${task.name}`);
       }
     }
-
-    // If scheduling on any existing worker would violate CP, create a new worker
-    if (wouldViolateCp || bestWorkerId === null) {
-      console.log(`  → Creating new worker to avoid CP violation for task ${task.name}`);
-
-      const newWorker: Worker = {
-        id: `worker-${nextWorkerId}`,
-        criticalPathWorker: false,
-        time: 0,
-        isActive: false,
-        currentTask: null,
-      };
-      nextWorkerId++;
-      availableWorkers.push(newWorker);
-      processorSchedules.set(newWorker.id, []);
-
-      // Calculate timing for the new worker
-      const { startTime, endTime } = calculateTaskTiming(
-        task,
-        newWorker.id,
-        nodes,
-        processorSchedules,
-        completionTimes,
-        nodeToWorker,
-        cpTimingConstraints,
-        includeTransferTimes
-      );
-
-      bestWorkerId = newWorker.id;
-      bestStartTime = startTime;
-      bestEndTime = endTime;
-    }
-
-    // Schedule the task
-    const scheduledTask: ScheduledTask = {
-      nodeId: task.id,
-      startTime: bestStartTime,
-      endTime: bestEndTime,
-      workerId: bestWorkerId!,
-    };
-
-    scheduledTasks.push(scheduledTask);
-    completionTimes.set(task.id, bestEndTime);
-    scheduledNodeIds.add(task.id);
-    nodeToWorker.set(task.id, bestWorkerId!);
-
-    // Update processor schedule
-    const schedule = processorSchedules.get(bestWorkerId!)!;
-    schedule.push({
-      startTime: bestStartTime,
-      endTime: bestEndTime,
-      taskId: task.id,
-    });
-    schedule.sort((a, b) => a.startTime - b.startTime);
-
-    console.log(
-      `Scheduled ${task.name} on ${bestWorkerId}: [${bestStartTime.toFixed(2)}s - ${bestEndTime.toFixed(2)}s]`
-    );
   }
 
   // Calculate final metrics
@@ -302,7 +403,8 @@ function calculateTaskTiming(
   completionTimes: Map<string, number>,
   nodeToWorker: Map<string, string>,
   cpTimingConstraints: Map<string, { mustStartBy: number }>,
-  includeTransferTimes: boolean
+  includeTransferTimes: boolean,
+  cpWorkerId: string
 ): { startTime: number; endTime: number; violatesCp: boolean } {
   const taskDuration = task.executionTime || 0;
 
@@ -341,14 +443,54 @@ function calculateTaskTiming(
     const targetConstraint = cpTimingConstraints.get(connection.targetNodeId);
     if (targetConstraint) {
       // This task feeds into a CP task
+
+      // IMPORTANT: If the CP task is already scheduled, we can't violate it anymore!
+      // It's already completed, so skip this constraint check
+      const cpTaskAlreadyScheduled = completionTimes.has(connection.targetNodeId);
+      if (cpTaskAlreadyScheduled) {
+        continue; // Skip - this CP task is already done, can't violate it
+      }
+
+      // Calculate the ACTUAL earliest start time for the CP task considering all its scheduled dependencies
+      const cpTask = allNodes.find(n => n.id === connection.targetNodeId);
+      if (!cpTask) continue;
+
+      const cpDependencies = getNodeDependencies(cpTask.id, allNodes);
+      let cpActualEarliestStart = 0;
+
+      for (const cpDepId of cpDependencies) {
+        const cpDepTime = completionTimes.get(cpDepId);
+        if (cpDepTime === undefined) continue; // Not scheduled yet
+
+        const cpDepWorkerId = nodeToWorker.get(cpDepId);
+        if (!cpDepWorkerId) continue;
+
+        // Add transfer time if dependency is on different worker than CP worker
+        let cpTransferTime = 0;
+        if (includeTransferTimes && cpDepWorkerId !== cpWorkerId) {
+          const cpDepNode = allNodes.find(n => n.id === cpDepId);
+          if (cpDepNode) {
+            const cpConnection = cpDepNode.connections.find(c => c.targetNodeId === cpTask.id);
+            cpTransferTime = cpConnection ? cpConnection.transferTime : 0;
+          }
+        }
+
+        cpActualEarliestStart = Math.max(cpActualEarliestStart, cpDepTime + cpTransferTime);
+      }
+
+      // Now calculate when this non-CP task would let the CP task start
       let transferTime = 0;
-      if (includeTransferTimes && workerId !== 'worker-0') {
-        // Assuming CP worker is worker-0
+      if (includeTransferTimes && workerId !== cpWorkerId) {
         transferTime = connection.transferTime;
       }
 
-      const wouldCompleteAt = endTime + transferTime;
-      if (wouldCompleteAt > targetConstraint.mustStartBy) {
+      const thisTaskWouldAllowCpAt = endTime + transferTime;
+
+      // The CP task is "delayed" only if this task would push it beyond what's already unavoidable
+      // Compare against the max of (ideal time, actual earliest based on other deps)
+      const effectiveConstraint = Math.max(targetConstraint.mustStartBy, cpActualEarliestStart);
+
+      if (thisTaskWouldAllowCpAt > effectiveConstraint) {
         violatesCp = true;
         break;
       }

@@ -334,19 +334,17 @@ export function SimulationResultsVisualization({ workflowId, numberOfWorkers }: 
           </p>
         </div>
       )}
-      {/* Theoretical Validation */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200">
+      {/* <div className="bg-white p-6 rounded-lg border border-gray-200">
         <h3 className="text-lg font-semibold mb-4">Theoretical Validation</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-gray-600">Expected Task Time E[t]:</p>
-            {/* <p className="font-semibold">
+            <p className="font-semibold">
               {analysis.theoreticalValidation.expectedTaskTime.toFixed(3)}s
-            </p> */}
-            {/* <p className="text-xs text-gray-500">
+            </p>
+            <p className="text-xs text-gray-500">
               shape × scale = {gammaParams.shape} × {gammaParams.scale}
-            </p> */}{' '}
-            // TODO remove gammaParams reference
+            </p>
           </div>
           <div>
             <p className="text-gray-600">Avg Critical Path Length:</p>
@@ -361,14 +359,14 @@ export function SimulationResultsVisualization({ workflowId, numberOfWorkers }: 
               {analysis.theoreticalValidation.observedMeanT.toFixed(3)}s
             </p>
           </div>
-          {/* <div>
+          <div>
             <p className="text-gray-600">Theoretical Mean T(-):</p>
             <p className="font-semibold">
               {analysis.theoreticalValidation.theoreticalMeanT.toFixed(3)}s
             </p>
             <p className="text-xs text-gray-500">E[t] × Avg N(j)</p>
-          </div> */}
-          {/* <div className="col-span-2">
+          </div>
+          <div className="col-span-2">
             <p className="text-gray-600">Validation Error:</p>
             <p
               className={`font-bold text-lg ${
@@ -382,9 +380,9 @@ export function SimulationResultsVisualization({ workflowId, numberOfWorkers }: 
                 ? '✓ Implementation validated'
                 : '⚠ Check implementation - error should be < 5%'}
             </p>
-          </div> */}
+          </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
