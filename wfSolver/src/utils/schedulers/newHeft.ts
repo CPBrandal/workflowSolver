@@ -12,6 +12,8 @@ interface TaskRank {
   rank: number;
 }
 
+// TODO CHECK AND FIX THIS CLAUDE CODE
+
 /**
  * HEFT (Heterogeneous Earliest Finish Time) Scheduler
  *

@@ -12,6 +12,8 @@ interface TaskRank {
   rank: number;
 }
 
+// TODO CHECK AND FIX THIS CLAUDE CODE
+
 interface OptimisticCostTable {
   [nodeId: string]: number[]; // OCT value for each processor
 }

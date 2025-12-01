@@ -20,8 +20,6 @@ interface TaskRank {
  * 2. Scheduling non-CP tasks on other workers
  * 3. Creating new workers when scheduling would violate CP timing
  *
- * FIXED: Now uses multi-pass approach to ensure non-CP predecessors are scheduled
- * before their CP successors
  */
 export function CP_First_Schedule(
   nodes: WorkflowNode[],
