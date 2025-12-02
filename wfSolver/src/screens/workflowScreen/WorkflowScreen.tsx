@@ -3,11 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { WorkflowService } from '../../screens/database/services/workflowService';
 import type { LocationState, Worker, Workflow } from '../../types';
-import {
-  analyzeCriticalPath,
-  getMinimumProjectDuration,
-  setCriticalPathEdgesTransferTimes,
-} from '../../utils/criticalPathAnalyzer';
+import { analyzeCriticalPath, getMinimumProjectDuration } from '../../utils/criticalPathAnalyzer';
 import { workflowTypeMetadata } from '../../utils/workflowPresets';
 import VisualWorkflow from './VisualWorkflow';
 import { InputFileHandler } from './utils/InputFileHandler';
@@ -46,8 +42,6 @@ function WorkflowScreen() {
         const isOnCriticalPath = cpResult.orderedCriticalPath.some(n => n.id === task.id);
         return { ...task, criticalPath: isOnCriticalPath };
       });
-
-      setCriticalPathEdgesTransferTimes(updatedTasks);
 
       setWorkflow(prev =>
         prev

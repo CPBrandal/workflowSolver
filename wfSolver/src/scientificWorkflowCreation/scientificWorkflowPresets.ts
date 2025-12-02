@@ -1,8 +1,8 @@
 // utils/workflowPresets.ts - Workflow type presets with REDUCED CONNECTIVITY
 
-import type { WorkflowNode } from '../../types';
-import { generateProbabilisticWorkflow } from '../probabilisticGenerator';
-import type { WorkflowType } from '../../types';
+import type { WorkflowNode } from '../utils/../types';
+import { generateProbabilisticWorkflow } from '../utils/probabilisticGenerator';
+import type { WorkflowType } from '../utils/../types';
 import { createBroadbandWorkflow } from './broadbandCreation';
 import { createDeterministicCyberShakeWorkflow } from './cybershakeCreation';
 import { createDeterministicEpigenomicsWorkflow } from './epigenomicCreation';

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { TOPOLOGY_TYPES, type TopologyType } from '../../constants/constants';
+import { createScientificWorkflowByType } from '../../scientificWorkflowCreation/scientificWorkflowPresets';
 import type { LocationState, WorkflowType } from '../../types';
-import { createScientificWorkflowByType } from '../../utils/scientificWorkflowCreation/scientificWorkflowPresets';
 import { createWorkflowByType, workflowTypeMetadata } from '../../utils/workflowPresets';
 
 function HomeScreen() {

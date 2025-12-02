@@ -1,5 +1,5 @@
-import type { ScheduledTask, Worker, WorkflowNode } from '../../types';
-import { getNodeDependencies } from '../getNodeDependencies';
+import type { ScheduledTask, Worker, WorkflowNode } from '../utils/../types';
+import { getNodeDependencies } from '../utils/getNodeDependencies';
 
 interface ProcessorSlot {
   startTime: number;
@@ -109,8 +109,7 @@ export function peftSchedule(
         nodes,
         processorSchedules,
         completionTimes,
-        includeTransferTimes,
-        workers
+        includeTransferTimes
       );
 
       // PEFT criterion: minimize EFT + OCT
@@ -242,7 +241,6 @@ function computeOptimisticCostTable(
       continue;
     }
 
-    const node = nodes.find(n => n.id === nodeId)!;
     const successors = getSuccessors(nodeId);
 
     oct[nodeId] = new Array(numProcessors).fill(0);
@@ -307,8 +305,7 @@ function calculateEFT(
   nodes: WorkflowNode[],
   processorSchedules: Map<string, ProcessorSlot[]>,
   completionTimes: Map<string, number>,
-  includeTransferTimes: boolean,
-  workers: Worker[]
+  includeTransferTimes: boolean
 ): { eft: number; startTime: number } {
   let dataReadyTime = 0;
 

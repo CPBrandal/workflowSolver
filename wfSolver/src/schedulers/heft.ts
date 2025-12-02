@@ -1,5 +1,5 @@
-import type { ScheduledTask, Worker, WorkflowNode } from '../../types';
-import { getNodeDependencies } from '../getNodeDependencies';
+import type { ScheduledTask, Worker, WorkflowNode } from '../utils/../types';
+import { getNodeDependencies } from '../utils/getNodeDependencies';
 
 interface ProcessorSlot {
   startTime: number;

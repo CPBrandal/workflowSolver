@@ -1,5 +1,5 @@
-import type { ScheduledTask, Worker, WorkflowNode } from '../../types';
-import { getNodeDependencies } from '../getNodeDependencies';
+import type { ScheduledTask, Worker, WorkflowNode } from '../utils/../types';
+import { getNodeDependencies } from '../utils/getNodeDependencies';
 
 interface ProcessorSlot {
   startTime: number;
@@ -78,7 +78,6 @@ export function CP_First_Schedule(
   console.log('---------------------------------------------------');
 
   const idealCpSchedule = new Map<string, { startTime: number; endTime: number }>();
-  let cpTime = 0;
 
   for (const cpNode of cpNodesSorted) {
     // Only consider CP dependencies for this ideal schedule

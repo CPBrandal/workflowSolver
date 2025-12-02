@@ -1,14 +1,10 @@
 import type { SchedulingAlgorithm } from '../../../constants/constants';
+import { CP_HEFT_Schedule } from '../../../schedulers/cpHeftScheduler';
+import { heftScheduleWithWorkerConstraints } from '../../../schedulers/heft';
+import { scheduleWithWorkerConstraints } from '../../../schedulers/scheduler';
 import type { ScheduledTask, Worker, Workflow } from '../../../types';
-import {
-  analyzeCriticalPath,
-  getProjectDuration,
-  setCriticalPathEdgesTransferTimes,
-} from '../../../utils/criticalPathAnalyzer';
+import { analyzeCriticalPath, getProjectDuration } from '../../../utils/criticalPathAnalyzer';
 import { gammaSampler } from '../../../utils/gammaSampler';
-import { CP_HEFT_Schedule } from '../../../utils/schedulers/cpHeftScheduler';
-import { heftScheduleWithWorkerConstraints } from '../../../utils/schedulers/heft';
-import { scheduleWithWorkerConstraints } from '../../../utils/schedulers/scheduler';
 import { SimulationService } from '../services/simulationService';
 
 export class InstantSimulationRunner {
@@ -49,9 +45,6 @@ export class InstantSimulationRunner {
       // 4. Store critical path in workflow
       simulatedWorkflow.criticalPath = cpmResult.orderedCriticalPath;
       simulatedWorkflow.criticalPathResult = cpmResult;
-
-      // 5. Set critical path edge transfer times to 0
-      setCriticalPathEdgesTransferTimes(simulatedWorkflow.tasks);
 
       // 6. Calculate theoretical runtime using execution times only
       const theoreticalRuntime = getProjectDuration(simulatedWorkflow.tasks, false);

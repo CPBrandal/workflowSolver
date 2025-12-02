@@ -1,5 +1,5 @@
-import type { ScheduledTask, Worker, WorkflowNode } from '../../types';
-import { getNodeDependencies } from '../getNodeDependencies';
+import type { ScheduledTask, Worker, WorkflowNode } from '../utils/../types';
+import { getNodeDependencies } from '../utils/getNodeDependencies';
 
 interface ProcessorSlot {
   startTime: number;
@@ -83,8 +83,7 @@ export function heftSchedule(
         nodes,
         processorSchedules,
         completionTimes,
-        includeTransferTimes,
-        workers
+        includeTransferTimes
       );
 
       if (eft < minEFT) {
@@ -235,8 +234,7 @@ function calculateEFT(
   nodes: WorkflowNode[],
   processorSchedules: Map<string, ProcessorSlot[]>,
   completionTimes: Map<string, number>,
-  includeTransferTimes: boolean,
-  workers: Worker[]
+  includeTransferTimes: boolean
 ): { eft: number; startTime: number } {
   // Step 1: Calculate data ready time (when all predecessor data is available)
   let dataReadyTime = 0;

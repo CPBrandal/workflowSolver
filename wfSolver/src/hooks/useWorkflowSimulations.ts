@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { scheduleWithWorkerConstraints } from '../schedulers/scheduler';
 import type { ScheduledTask, UseWorkflowSimulationProps, WorkflowNode } from '../types';
-import { scheduleWithWorkerConstraints } from '../utils/schedulers/scheduler';
 
 export function useWorkflowSimulation({
   initialNodes,

@@ -3,10 +3,10 @@
 import {
   EXECUTION_PARAM_DISTRIBUTIONS,
   TRANSFER_PARAM_DISTRIBUTIONS,
-} from '../../constants/constants';
-import type { Edge, WorkflowNode } from '../../types';
-import { createGammaParam } from '../createGammaParam';
-import { gammaSampler } from '../gammaSampler';
+} from '../constants/constants';
+import type { Edge, WorkflowNode } from '../utils/../types';
+import { createGammaParam } from '../utils/createGammaParam';
+import { gammaSampler } from '../utils/gammaSampler';
 
 /**
  * SIPHT Workflow Structure:
