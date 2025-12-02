@@ -1,6 +1,4 @@
-# .github/workflows/build.yml
 name: Build Check
-
 on:
   pull_request:
     branches: [main]
@@ -8,6 +6,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./wfSolver
     steps:
       - uses: actions/checkout@v4
 
@@ -16,6 +17,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: ./wfSolver/package-lock.json
 
       - name: Install dependencies
         run: npm ci
