@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Layout } from '../../../components/Layout';
 import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { ALGORITHMS } from '../../../constants/constants';
+import { CP_HEFT_Schedule } from '../../../schedulers/cpHeftScheduler';
+import { heftScheduleWithWorkerConstraints } from '../../../schedulers/heft';
+import { peftSchedule } from '../../../schedulers/peft';
+import { scheduleWithWorkerConstraints } from '../../../schedulers/scheduler';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
-import { heftScheduleWithWorkerConstraints } from '../../../utils/heft';
-import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
 import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
 import { WorkflowService } from '../services/workflowService';
 import TaskTimelineChart from './TaskTimelineChart';
@@ -31,7 +33,140 @@ function ViewWorkflow() {
     schedule: any[];
     workers: Worker[];
   } | null>(null);
+  // compare cp heft running states
+  const [simulationCompareResult, setSimulationCompareResult] = useState<{
+    workflow: Workflow;
+    schedule: any[];
+    workers: Worker[];
+  } | null>(null);
+  // k-heft running states
+  const [simulationNewSchedulerResult, setSimulationNewSchedulerResult] = useState<{
+    workflow: Workflow;
+    schedule: any[];
+    workers: Worker[];
+  } | null>(null);
   const [processingSimulation, setProcessingSimulation] = useState(false);
+
+  // Function to run the simulation with all three algorithms
+  const runSimulationWithAllAlgorithms = async (sim: SimulationRecord, workflowData: Workflow) => {
+    if (!sim || !workflowData) {
+      setSimulationResult(null);
+      setSimulationCompareResult(null);
+      setSimulationNewSchedulerResult(null);
+      return;
+    }
+
+    setProcessingSimulation(true);
+
+    try {
+      // Create a copy of the workflow with the simulation's execution times
+      const simulatedWorkflow: Workflow = {
+        ...workflowData,
+        tasks: workflowData.tasks.map(task => ({
+          ...task,
+          executionTime: sim.node_execution_times[task.id] || 0,
+          connections: task.connections.map(edge => ({
+            ...edge,
+            transferTime:
+              sim.edge_transfer_times[`${edge.sourceNodeId}->${edge.targetNodeId}`] || 0,
+          })),
+        })),
+      };
+
+      // Create workers based on the simulation's worker count
+      const workers: Worker[] = [];
+      const workerCount = sim.worker_count || 2;
+      for (let i = 0; i < workerCount; i++) {
+        workers.push({
+          id: `worker-${i + 1}`,
+          time: 0,
+          isActive: false,
+          currentTask: null,
+          criticalPathWorker: i === 0,
+        });
+      }
+
+      // Mark critical path nodes
+      if (sim.critical_path_node_ids) {
+        simulatedWorkflow.tasks = simulatedWorkflow.tasks.map(task => ({
+          ...task,
+          criticalPath: sim.critical_path_node_ids?.includes(task.id) || false,
+        }));
+      }
+
+      // ================== Algorithm 1: Chosen Algorithm ==================
+      const schedule =
+        chosenAlgorithm === 'Greedy'
+          ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers)
+          : chosenAlgorithm === 'CP_HEFT'
+            ? CP_HEFT_Schedule(simulatedWorkflow.tasks, workers)
+            : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
+
+      const finalWorkers = workers.map(w => ({ ...w }));
+      schedule.forEach(task => {
+        const worker = finalWorkers.find(w => w.id === task.workerId);
+        if (worker) {
+          worker.time += task.endTime - task.startTime;
+        }
+      });
+
+      setSimulationResult({
+        workflow: simulatedWorkflow,
+        schedule,
+        workers: finalWorkers,
+      });
+
+      // ================== Algorithm 2: Regular HEFT ==================
+      const compareCpHeftSchedule = heftScheduleWithWorkerConstraints(
+        simulatedWorkflow.tasks,
+        workers
+      );
+      const compareFinalWorkers = workers.map(w => ({ ...w }));
+      compareCpHeftSchedule.forEach(task => {
+        const worker = compareFinalWorkers.find(w => w.id === task.workerId);
+        if (worker) {
+          worker.time += task.endTime - task.startTime;
+        }
+      });
+
+      setSimulationCompareResult({
+        workflow: simulatedWorkflow,
+        schedule: compareCpHeftSchedule,
+        workers: compareFinalWorkers,
+      });
+
+      // ================== Algorithm 3: PEFT ==================
+      const peftScheduledTasks = peftSchedule(simulatedWorkflow.tasks, workers);
+      const peftFinalWorkers = workers.map(w => ({ ...w }));
+      peftScheduledTasks.forEach(task => {
+        const worker = peftFinalWorkers.find(w => w.id === task.workerId);
+        if (worker) {
+          worker.time += task.endTime - task.startTime;
+        }
+      });
+
+      setSimulationNewSchedulerResult({
+        workflow: simulatedWorkflow,
+        schedule: peftScheduledTasks,
+        workers: peftFinalWorkers,
+      });
+
+      // Brief delay for visual feedback
+      setTimeout(() => {
+        setProcessingSimulation(false);
+      }, 500);
+    } catch (error) {
+      console.error('Error processing simulation:', error);
+      setProcessingSimulation(false);
+    }
+  };
+
+  // Handler for re-run button
+  const handleRerunSimulation = () => {
+    if (selectedSimulation && workflow) {
+      runSimulationWithAllAlgorithms(selectedSimulation, workflow);
+    }
+  };
 
   // Fetch saved workflows when component mounts
   useEffect(() => {
@@ -91,83 +226,16 @@ function ViewWorkflow() {
       if (!selectedSimulationId) {
         setSelectedSimulation(null);
         setSimulationResult(null);
+        setSimulationCompareResult(null);
+        setSimulationNewSchedulerResult(null);
         return;
       }
 
       const sim = simulations.find(s => s.id === selectedSimulationId);
       setSelectedSimulation(sim || null);
 
-      if (!sim || !workflow) {
-        setSimulationResult(null);
-        return;
-      }
-
-      setProcessingSimulation(true);
-
-      try {
-        // Create a copy of the workflow with the simulation's execution times
-        const simulatedWorkflow: Workflow = {
-          ...workflow,
-          tasks: workflow.tasks.map(task => ({
-            ...task,
-            executionTime: sim.node_execution_times[task.id] || 0,
-            connections: task.connections.map(edge => ({
-              ...edge,
-              transferTime:
-                sim.edge_transfer_times[`${edge.sourceNodeId}->${edge.targetNodeId}`] || 0,
-            })),
-          })),
-        };
-
-        // Create workers based on the simulation's worker count
-        const workers: Worker[] = [];
-        const workerCount = sim.worker_count || 2;
-        for (let i = 0; i < workerCount; i++) {
-          workers.push({
-            id: `worker-${i + 1}`,
-            time: 0,
-            isActive: false,
-            currentTask: null,
-            criticalPathWorker: i === 0,
-          });
-        }
-
-        // Mark critical path nodes
-        if (sim.critical_path_node_ids) {
-          simulatedWorkflow.tasks = simulatedWorkflow.tasks.map(task => ({
-            ...task,
-            criticalPath: sim.critical_path_node_ids?.includes(task.id) || false,
-          }));
-        }
-
-        // Schedule the workflow with the specific execution times
-        const schedule =
-          chosenAlgorithm === 'Greedy'
-            ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers)
-            : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
-
-        // Calculate final worker states
-        const finalWorkers = workers.map(w => ({ ...w }));
-        schedule.forEach(task => {
-          const worker = finalWorkers.find(w => w.id === task.workerId);
-          if (worker) {
-            worker.time += task.endTime - task.startTime;
-          }
-        });
-
-        setSimulationResult({
-          workflow: simulatedWorkflow,
-          schedule,
-          workers: finalWorkers,
-        });
-
-        // Brief delay for visual feedback
-        setTimeout(() => {
-          setProcessingSimulation(false);
-        }, 500);
-      } catch (error) {
-        console.error('Error processing simulation:', error);
-        setProcessingSimulation(false);
+      if (sim && workflow) {
+        await runSimulationWithAllAlgorithms(sim, workflow);
       }
     };
 
@@ -406,9 +474,35 @@ function ViewWorkflow() {
         {/* Workflow Visualization */}
         {(workflow || simulationResult) && (
           <div className="mt-8 pt-6 border-t">
-            <h3 className="text-lg font-medium text-gray-700 mb-4 text-center">
-              {simulationResult ? 'Simulation Result' : 'Workflow Visualization'}
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-700">
+                {simulationResult ? 'Simulation Result' : 'Workflow Visualization'}
+              </h3>
+
+              {/* Re-run Button */}
+              {selectedSimulation && workflow && (
+                <button
+                  onClick={handleRerunSimulation}
+                  disabled={processingSimulation}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2"
+                >
+                  <svg
+                    className={`w-4 h-4 ${processingSimulation ? 'animate-spin' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  {processingSimulation ? 'Re-running...' : 'Re-run Simulation'}
+                </button>
+              )}
+            </div>
 
             {simulationResult && (
               <div className="mb-4 p-4 bg-gray-50 rounded-lg">
@@ -436,11 +530,50 @@ function ViewWorkflow() {
 
             {simulationResult && (
               <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-2">
+                  {chosenAlgorithm}: CP tasks on one same worker
+                </h4>
                 <TaskTimelineChart
                   schedule={simulationResult.schedule}
                   workflow={simulationResult.workflow}
                   workers={simulationResult.workers}
                 />
+              </div>
+            )}
+
+            {simulationCompareResult && (
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-2">Regular HEFT</h4>
+                <TaskTimelineChart
+                  schedule={simulationCompareResult.schedule}
+                  workflow={simulationCompareResult.workflow}
+                  workers={simulationCompareResult.workers}
+                />
+              </div>
+            )}
+
+            {simulationNewSchedulerResult && (
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-2">PEFT</h4>
+                <TaskTimelineChart
+                  schedule={simulationNewSchedulerResult.schedule}
+                  workflow={simulationNewSchedulerResult.workflow}
+                  workers={simulationNewSchedulerResult.workers}
+                />
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => console.log('Workers:', simulationNewSchedulerResult.workers)}
+                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+                  >
+                    Log Workers
+                  </button>
+                  <button
+                    onClick={() => console.log('Schedule:', simulationNewSchedulerResult.schedule)}
+                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+                  >
+                    Log Schedule
+                  </button>
+                </div>
               </div>
             )}
 

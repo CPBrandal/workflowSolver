@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Layout } from '../../components/Layout';
 import { WorkflowService } from '../../screens/database/services/workflowService';
 import type { LocationState, Worker, Workflow } from '../../types';
-import {
-  analyzeCriticalPath,
-  getMinimumProjectDuration,
-  setCriticalPathEdgesTransferTimes,
-} from '../../utils/criticalPathAnalyzer';
-import { workflowTypeMetadata, type WorkflowType } from '../../utils/workflowPresets';
+import { analyzeCriticalPath, getMinimumProjectDuration } from '../../utils/criticalPathAnalyzer';
+import { workflowTypeMetadata } from '../../utils/workflowPresets';
 import VisualWorkflow from './VisualWorkflow';
 import { InputFileHandler } from './utils/InputFileHandler';
 
@@ -18,8 +15,7 @@ function WorkflowScreen() {
   const state = location.state as LocationState | null;
   const file = state?.file;
   const generatedNodes = state?.generatedNodes;
-  const workflowType = state?.workflowType;
-  const generatorType = state?.generatorType;
+  const workflowType = state?.workflowType || 'complex';
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -34,7 +30,7 @@ function WorkflowScreen() {
       const minimumDuration = getMinimumProjectDuration(workflow.tasks);
       console.log('The minimum time the project will take is: ', minimumDuration, ' seconds');
 
-      const cpResult = analyzeCriticalPath(workflow.tasks, false);
+      const cpResult = analyzeCriticalPath(workflow.tasks, true);
 
       console.log(
         'Critical path sequence:',
@@ -46,8 +42,6 @@ function WorkflowScreen() {
         const isOnCriticalPath = cpResult.orderedCriticalPath.some(n => n.id === task.id);
         return { ...task, criticalPath: isOnCriticalPath };
       });
-
-      setCriticalPathEdgesTransferTimes(updatedTasks);
 
       setWorkflow(prev =>
         prev
@@ -85,68 +79,16 @@ function WorkflowScreen() {
     }
   }, [workflow?.tasks.length]);
 
-  // Helper function to determine if we have a generated workflow
-  const isGeneratedWorkflow = () => {
-    if (!generatedNodes || !workflowType) return false;
-
-    // Accept new probabilistic workflow types
-    const validProbabilisticTypes: (WorkflowType | string)[] = [
-      'scientific',
-      'dataPipeline',
-      'machineLearning',
-      'complex',
-      'balanced',
-    ];
-
-    // Accept legacy workflow types
-    const validLegacyTypes = ['legacy', 'arbitrary'];
-
-    // Accept old workflow types for backward compatibility
-    const validOldTypes = ['workflow', 'preset'];
-
-    return (
-      validProbabilisticTypes.includes(workflowType) ||
-      validLegacyTypes.includes(workflowType) ||
-      validOldTypes.includes(workflowType)
-    );
-  };
-
   // Helper function to get display name for workflow type
   const getWorkflowDisplayName = () => {
     if (!workflowType) return 'Generated Workflow';
-
-    // Handle new probabilistic workflow types
-    if (workflowType in workflowTypeMetadata) {
-      const metadata = workflowTypeMetadata[workflowType as WorkflowType];
-      return `${metadata.name} Workflow`;
-    }
-
-    // Handle legacy and old types
-    switch (workflowType) {
-      case 'legacy':
-        return 'Legacy Generated Workflow';
-      case 'arbitrary':
-        return 'Arbitrary Workflow';
-      case 'workflow':
-        return 'Workflow-Optimized';
-      case 'preset':
-        return 'Preset Configuration';
-      default:
-        return 'Generated Workflow';
-    }
+    return `${workflowTypeMetadata[workflowType].name} Workflow`;
   };
 
   // Helper function to get workflow description
   const getWorkflowDescription = () => {
     const nodeCount = state?.nodeCount || generatedNodes?.length || 0;
-    const generationMethod = generatorType === 'probabilistic' ? 'probabilistic' : 'deterministic';
-
-    if (workflowType && workflowType in workflowTypeMetadata) {
-      const metadata = workflowTypeMetadata[workflowType as WorkflowType];
-      return `Generated ${metadata.name.toLowerCase()} workflow with ${nodeCount} nodes using ${generationMethod} generation`;
-    }
-
-    return `Generated ${getWorkflowDisplayName().toLowerCase()} with ${nodeCount} nodes using ${generationMethod} generation`;
+    return `Generated ${workflowTypeMetadata[workflowType].name.toLowerCase()} workflow with ${nodeCount} nodes.`;
   };
 
   // Initial Workflow Processing Effect
@@ -157,13 +99,7 @@ function WorkflowScreen() {
         setError(null);
 
         // Handle generated workflows (new system)
-        if (generatedNodes && isGeneratedWorkflow()) {
-          console.log('Processing generated workflow:', {
-            workflowType,
-            generatorType,
-            nodeCount: generatedNodes.length,
-          });
-
+        if (generatedNodes) {
           setWorkflow({
             name: getWorkflowDisplayName(),
             tasks: generatedNodes,
@@ -206,7 +142,7 @@ function WorkflowScreen() {
     };
 
     processWorkflow();
-  }, [file, generatedNodes, workflowType, generatorType, state, navigate]);
+  }, [file, generatedNodes, workflowType, state, navigate]);
 
   const testSaveWorkflow = async () => {
     if (!workflow) {
@@ -239,11 +175,6 @@ function WorkflowScreen() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">
-            {isGeneratedWorkflow()
-              ? `Generating ${getWorkflowDisplayName().toLowerCase()}...`
-              : 'Processing workflow...'}
-          </p>
         </div>
       </div>
     );
@@ -279,60 +210,49 @@ function WorkflowScreen() {
   }
 
   return (
-    <div>
-      {workflow.info && (
-        <div className="max-w mx-auto px-6 pt-6 flex flex-col md:flex-row md:justify-between items-start md:items-center">
-          <button
-            onClick={() => navigate('/')}
-            className="px-4 bg-gray-600 py-2 text-white rounded hover:bg-gray-700 transition-colors"
-          >
-            Go Back Home
-          </button>
-          <div className="px-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-blue-800 text-sm font-medium">{workflow.info}</p>
+    <Layout>
+      <div>
+        <VisualWorkflow
+          nodes={workflow.tasks}
+          workers={workers}
+          onWorkersUpdate={setWorkers}
+          cpmAnalysis={workflow.criticalPathResult || null}
+        />
+        <div className="max-w-4xl mx-auto p-6 space-y-4">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <button
+              onClick={testSaveWorkflow}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+            >
+              Save to Database
+            </button>{' '}
           </div>
-        </div>
-      )}
-      <VisualWorkflow
-        nodes={workflow.tasks}
-        workers={workers}
-        onWorkersUpdate={setWorkers}
-        cpmAnalysis={workflow.criticalPathResult || null}
-      />
-      <div className="max-w-4xl mx-auto p-6 space-y-4">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <button
-            onClick={testSaveWorkflow}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-          >
-            Save to Database
-          </button>{' '}
-        </div>
 
-        {/* Workflow Info Panel */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="font-medium text-gray-800 mb-2">Workflow Information</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-gray-600">Type:</span>
-              <div className="font-medium">{getWorkflowDisplayName()}</div>
-            </div>
-            <div>
-              <span className="text-gray-600">Tasks:</span>
-              <div className="font-medium">{workflow.tasks.length}</div>
-            </div>
-            <div>
-              <span className="text-gray-600">Generation:</span>
-              <div className="font-medium capitalize">{generatorType || 'Unknown'}</div>
-            </div>
-            <div>
-              <span className="text-gray-600">Critical Path:</span>
-              <div className="font-medium">{workflow.criticalPath?.length || 0} tasks</div>
+          {/* Workflow Info Panel */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-medium text-gray-800 mb-2">Workflow Information</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Type:</span>
+                <div className="font-medium">{getWorkflowDisplayName()}</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Tasks:</span>
+                <div className="font-medium">{workflow.tasks.length}</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Generation:</span>
+                <div className="font-medium capitalize">{workflowType || 'Unknown'}</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Critical Path:</span>
+                <div className="font-medium">{workflow.criticalPath?.length || 0} tasks</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
 

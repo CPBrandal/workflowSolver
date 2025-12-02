@@ -1,14 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
-import type { LocationState } from '../../types';
-import type { ArbitraryWorkflowConfig } from '../../utils/generateArbitraryWorkflow';
-import { generateArbitraryWorkflow } from '../../utils/generateArbitraryWorkflow';
-import {
-  createWorkflowByType,
-  workflowTypeMetadata,
-  type WorkflowType,
-} from '../../utils/workflowPresets';
+import { TOPOLOGY_TYPES, type TopologyType } from '../../constants/constants';
+import { createScientificWorkflowByType } from '../../scientificWorkflowCreation/scientificWorkflowPresets';
+import type { LocationState, WorkflowType } from '../../types';
+import { createWorkflowByType, workflowTypeMetadata } from '../../utils/workflowPresets';
 
 function HomeScreen() {
   const navigate = useNavigate();
@@ -16,21 +12,29 @@ function HomeScreen() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showUploadOption, setShowUploadOption] = useState(false);
 
-  // Generator selection
-  const [generatorType, setGeneratorType] = useState<'probabilistic' | 'legacy'>('probabilistic');
-  const [workflowType, setWorkflowType] = useState<WorkflowType>('balanced');
+  const [workflowType, setWorkflowType] = useState<WorkflowType>(
+    () => (localStorage.getItem('workflowType') as WorkflowType) || 'balanced'
+  );
+  const [chosenTopology, setChosenTopology] = useState<TopologyType>(
+    () => (localStorage.getItem('chosenTopology') as TopologyType) || 'arbitrary'
+  );
 
-  // Common parameters
-  const [nodeCount, setNodeCount] = useState<number>(20);
+  const [nodeCount, setNodeCount] = useState<number>(
+    () => Number(localStorage.getItem('nodeCount')) || 20
+  );
   const [generatingWorkflow, setGeneratingWorkflow] = useState(false);
 
-  // Legacy workflow generator parameters (only shown for legacy mode)
-  const [maxWidth, setMaxWidth] = useState<number>(4);
-  const [edgeProbability, setEdgeProbability] = useState<number>(0.2);
-  const [maxEdgeSpan, setMaxEdgeSpan] = useState<number>(1);
-  const [singleSink, setSingleSink] = useState<boolean>(true);
+  useEffect(() => {
+    localStorage.setItem('workflowType', workflowType);
+  }, [workflowType]);
 
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  useEffect(() => {
+    localStorage.setItem('chosenTopology', chosenTopology);
+  }, [chosenTopology]);
+
+  useEffect(() => {
+    localStorage.setItem('nodeCount', nodeCount.toString());
+  }, [nodeCount]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -58,38 +62,15 @@ function HomeScreen() {
       alert('Please enter a node count between 1 and 200');
       return;
     }
-
-    if (generatorType === 'legacy') {
-      if (maxWidth < 1 || maxWidth > nodeCount - 2) {
-        alert('Max width must be between 1 and node count minus 2');
-        return;
-      }
-
-      if (edgeProbability < 0 || edgeProbability > 1) {
-        alert('Edge probability must be between 0 and 1');
-        return;
-      }
-    }
-
     setGeneratingWorkflow(true);
-
     try {
       let nodes;
 
-      if (generatorType === 'probabilistic') {
+      if (chosenTopology === 'arbitrary') {
         nodes = createWorkflowByType(nodeCount, workflowType);
       } else {
-        const config: ArbitraryWorkflowConfig = {
-          nodeCount,
-          maxWidth,
-          edgeProbability,
-          maxEdgeSpan,
-          singleSink,
-          densityFactor: 0.6,
-        };
-        nodes = generateArbitraryWorkflow(config);
+        nodes = createScientificWorkflowByType(nodeCount, workflowType);
       }
-
       if (!nodes) {
         throw new Error('Failed to generate nodes');
       }
@@ -99,9 +80,8 @@ function HomeScreen() {
         navigate('/workflow', {
           state: {
             generatedNodes: nodes,
-            workflowType: generatorType === 'probabilistic' ? workflowType : 'legacy',
+            workflowType: workflowType,
             nodeCount,
-            generatorType,
           } as LocationState,
         });
       }, 500);
@@ -115,8 +95,6 @@ function HomeScreen() {
 
   const handleNodeCountChange = (newNodeCount: number) => {
     setNodeCount(newNodeCount);
-    const optimalWidth = Math.max(2, Math.ceil(Math.sqrt(newNodeCount)));
-    setMaxWidth(Math.min(optimalWidth, 8));
   };
 
   const isSuccess = uploadStatus.includes('Successfully');
@@ -180,65 +158,93 @@ function HomeScreen() {
                 methods.
               </p>
 
-              <div className="space-y-6 max-w-lg mx-auto">
-                {/* Generator Type Selection */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-800 border-b pb-2">
-                    Generation Method
-                  </h3>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        name="generatorType"
-                        value="probabilistic"
-                        checked={generatorType === 'probabilistic'}
-                        onChange={e =>
-                          setGeneratorType(e.target.value as 'probabilistic' | 'legacy')
-                        }
-                        className="text-blue-600 focus:ring-blue-500"
-                      />
-                      <div>
-                        <span className="text-sm font-medium text-gray-700">
-                          Probabilistic Generation
-                        </span>
-                        <p className="text-xs text-gray-500">
-                          Realistic workflows using probability distributions
-                        </p>
-                      </div>
-                    </label>
-
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        name="generatorType"
-                        value="legacy"
-                        checked={generatorType === 'legacy'}
-                        onChange={e =>
-                          setGeneratorType(e.target.value as 'probabilistic' | 'legacy')
-                        }
-                        className="text-blue-600 focus:ring-blue-500"
-                      />
-                      <div>
-                        <span className="text-sm font-medium text-gray-700">Legacy Generator</span>
-                        <p className="text-xs text-gray-500">
-                          Original deterministic workflow generation
-                        </p>
-                      </div>
-                    </label>
-                  </div>
+              <div className="mt-4 max-w-lg mx-auto p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex-1 mb-3">
+                  <label className="text-sm font-medium text-gray-700">
+                    Topology creation method
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Choose the method for creating workflow topology
+                  </p>
                 </div>
+                <div className="flex gap-2">
+                  {TOPOLOGY_TYPES.map(topology => (
+                    <button
+                      key={topology}
+                      type="button"
+                      onClick={() => {
+                        setChosenTopology(topology);
+                        const workflowType = topology === 'arbitrary' ? 'scientific' : 'montage';
+                        setWorkflowType(workflowType);
+                      }}
+                      className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                        chosenTopology === topology
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {topology}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                {/* Workflow Type Selection (only for probabilistic) */}
-                {generatorType === 'probabilistic' && (
+              <div className="space-y-6 max-w-lg mx-auto">
+                <h3 className="text-lg font-medium text-gray-800 border-b pb-2">Workflow Type</h3>
+                {chosenTopology === 'arbitrary' && (
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-800 border-b pb-2">
-                      Workflow Type
-                    </h3>
-
                     <div className="grid grid-cols-1 gap-3">
-                      {(Object.keys(workflowTypeMetadata) as WorkflowType[]).map(type => {
+                      {(Object.keys(workflowTypeMetadata) as WorkflowType[])
+                        .slice(0, 5)
+                        .map(type => {
+                          const metadata = workflowTypeMetadata[type];
+                          return (
+                            <label
+                              key={type}
+                              className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="radio"
+                                name="workflowType"
+                                value={type}
+                                checked={workflowType === type}
+                                onChange={e => {
+                                  setWorkflowType(e.target.value as WorkflowType);
+                                }}
+                                className="text-blue-600 focus:ring-blue-500 mt-1"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-lg">{metadata.icon}</span>
+                                  <span className="text-sm font-medium text-gray-700">
+                                    {metadata.name}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">{metadata.description}</p>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {metadata.characteristics.map((char, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
+                                    >
+                                      {char}
+                                    </span>
+                                  ))}
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  <strong>Best for:</strong> {metadata.bestFor}
+                                </p>
+                              </div>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+                {chosenTopology === 'scientific' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3">
+                      {(Object.keys(workflowTypeMetadata) as WorkflowType[]).slice(-5).map(type => {
                         const metadata = workflowTypeMetadata[type];
                         return (
                           <label
@@ -247,10 +253,12 @@ function HomeScreen() {
                           >
                             <input
                               type="radio"
-                              name="workflowType"
+                              name="scientificWorkflowType"
                               value={type}
                               checked={workflowType === type}
-                              onChange={e => setWorkflowType(e.target.value as WorkflowType)}
+                              onChange={e => {
+                                setWorkflowType(e.target.value as WorkflowType);
+                              }}
                               className="text-blue-600 focus:ring-blue-500 mt-1"
                             />
                             <div className="flex-1">
@@ -271,9 +279,6 @@ function HomeScreen() {
                                   </span>
                                 ))}
                               </div>
-                              <p className="text-xs text-gray-400 mt-1">
-                                <strong>Best for:</strong> {metadata.bestFor}
-                              </p>
                             </div>
                           </label>
                         );
@@ -282,13 +287,7 @@ function HomeScreen() {
                   </div>
                 )}
 
-                {/* Basic Parameters */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-800 border-b pb-2">
-                    Basic Parameters
-                  </h3>
-
-                  {/* Node Count Input */}
                   <div>
                     <label
                       htmlFor="nodeCount"
@@ -310,173 +309,30 @@ function HomeScreen() {
                       Total number of tasks in the workflow
                     </p>
                   </div>
-
-                  {/* Legacy-specific parameters */}
-                  {generatorType === 'legacy' && (
-                    <div>
-                      <label
-                        htmlFor="maxWidth"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Maximum Parallelism Level
-                      </label>
-                      <input
-                        id="maxWidth"
-                        type="number"
-                        min="1"
-                        max={Math.min(nodeCount, 8)}
-                        value={maxWidth}
-                        onChange={e => setMaxWidth(parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Maximum number of tasks that can run in parallel
-                      </p>
-                    </div>
-                  )}
+                  <button
+                    onClick={handleCreateArbitraryWorkflow}
+                    disabled={generatingWorkflow || nodeCount < 1 || nodeCount > 200}
+                    className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
+                      !generatingWorkflow && nodeCount >= 1 && nodeCount <= 200
+                        ? 'bg-green-500 hover:bg-green-600'
+                        : 'bg-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {generatingWorkflow
+                      ? 'Generating Workflow...'
+                      : `Generate ${nodeCount}-Task Workflow`}
+                  </button>
                 </div>
+              </div>
 
-                {/* Advanced Parameters for Legacy Generator */}
-                {generatorType === 'legacy' && (
-                  <div>
-                    <button
-                      onClick={() => setShowAdvanced(!showAdvanced)}
-                      className="flex items-center justify-between w-full px-4 py-2 text-left text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <span>Advanced Legacy Parameters</span>
-                      <span
-                        className={`transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
-                      >
-                        ▼
-                      </span>
-                    </button>
-
-                    {showAdvanced && (
-                      <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-md">
-                        <div>
-                          <label
-                            htmlFor="edgeProbability"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                          >
-                            Edge Probability: {edgeProbability.toFixed(2)}
-                          </label>
-                          <input
-                            id="edgeProbability"
-                            type="range"
-                            min="0.1"
-                            max="0.9"
-                            step="0.1"
-                            value={edgeProbability}
-                            onChange={e => setEdgeProbability(parseFloat(e.target.value))}
-                            className="w-full"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Probability of creating dependencies between tasks
-                          </p>
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor="maxEdgeSpan"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                          >
-                            Maximum Edge Span
-                          </label>
-                          <select
-                            id="maxEdgeSpan"
-                            value={maxEdgeSpan}
-                            onChange={e => setMaxEdgeSpan(parseInt(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value={1}>1 - Direct connections only</option>
-                            <option value={2}>2 - Skip one level</option>
-                            <option value={3}>3 - Skip two levels</option>
-                            <option value={4}>4 - Skip three levels</option>
-                          </select>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Maximum number of levels a dependency can span
-                          </p>
-                        </div>
-
-                        <div>
-                          <label className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={singleSink}
-                              onChange={e => setSingleSink(e.target.checked)}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-medium text-gray-700">
-                              Single End Task
-                            </span>
-                          </label>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Create a single final task that all paths converge to
-                          </p>
-                        </div>
-
-                        {/* Gamma Distribution Parameters */}
-                        <div className="border-t pt-4">
-                          <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                            Task Execution Time Distribution
-                          </h4>
-                          <p className="text-xs text-gray-500 mt-2">
-                            Gamma distribution generates realistic task execution times. Lower shape
-                            = more variable times, higher scale = longer average times.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Generation Info */}
-                <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded-md">
-                  <p className="font-medium mb-2">
-                    {generatorType === 'probabilistic'
-                      ? `${workflowTypeMetadata[workflowType].name} Workflow`
-                      : 'Legacy Generation'}
-                  </p>
-                  {generatorType === 'probabilistic' && (
-                    <p>
-                      {workflowTypeMetadata[workflowType].description}. Uses probabilistic
-                      distributions to create realistic workflow structures with varied topologies.
-                    </p>
-                  )}
-                  {generatorType === 'legacy' && (
-                    <p>
-                      Creates a workflow structure with predictable layouts, guaranteed single
-                      endpoints, and visual optimization. Uses gamma distribution for task durations
-                      and transfer times.
-                    </p>
-                  )}
-                </div>
-
-                {/* Generate Button */}
+              <div className="text-center text-sm text-gray-500 mt-6">
                 <button
-                  onClick={handleCreateArbitraryWorkflow}
-                  disabled={generatingWorkflow || nodeCount < 1 || nodeCount > 200}
-                  className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors ${
-                    !generatingWorkflow && nodeCount >= 1 && nodeCount <= 200
-                      ? 'bg-green-500 hover:bg-green-600'
-                      : 'bg-gray-400 cursor-not-allowed'
-                  }`}
+                  className="bg-blue-400 hover:bg-blue-500 text-white px-4 py-2 rounded"
+                  onClick={() => setShowUploadOption(!showUploadOption)}
                 >
-                  {generatingWorkflow
-                    ? 'Generating Workflow...'
-                    : `Generate ${nodeCount}-Task ${generatorType === 'probabilistic' ? workflowTypeMetadata[workflowType].name : 'Legacy'} Workflow`}
+                  {showUploadOption ? 'Disable upload option' : 'Enable upload option'}
                 </button>
               </div>
-            </div>
-
-            {/* Footer */}
-            <div className="text-center text-sm text-gray-500">
-              <button
-                className="bg-blue-400 hover:bg-blue-500 text-white px-4 py-2 rounded"
-                onClick={() => setShowUploadOption(!showUploadOption)}
-              >
-                {showUploadOption ? 'Disable upload option' : 'Enable upload option'}
-              </button>
             </div>
           </div>
         </div>

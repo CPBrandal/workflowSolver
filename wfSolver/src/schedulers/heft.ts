@@ -1,5 +1,5 @@
-import type { ScheduledTask, Worker, WorkflowNode } from '../types';
-import { getNodeDependencies } from './getNodeDependencies';
+import type { ScheduledTask, Worker, WorkflowNode } from '../utils/../types';
+import { getNodeDependencies } from '../utils/getNodeDependencies';
 
 interface ProcessorSlot {
   startTime: number;
@@ -18,11 +18,10 @@ interface TaskRank {
  * This implements the HEFT algorithm for scheduling tasks on heterogeneous processors.
  * The algorithm:
  * 1. Calculates upward rank for each task (average execution time + max successor rank)
- * 2. At each step, considers only tasks whose dependencies are satisfied
- * 3. Among ready tasks, prioritizes: CP tasks, then tasks feeding CP, then by rank
- * 4. For each task, assigns it to the processor that gives the earliest finish time
+ * 2. Sorts tasks by rank in descending order
+ * 3. For each task, assigns it to the processor that gives the earliest finish time
  */
-export function heftCPScheduleWithWorkerConstraints(
+export function heftScheduleWithWorkerConstraints(
   nodes: WorkflowNode[],
   workers: Worker[],
   includeTransferTimes: boolean = true
@@ -31,41 +30,19 @@ export function heftCPScheduleWithWorkerConstraints(
     return [];
   }
 
-  // Find the dedicated critical path worker
-  const criticalPathWorker = workers.find(worker => worker.criticalPathWorker);
-  const criticalPathWorkerId = criticalPathWorker?.id;
-
-  if (!criticalPathWorker) {
-    console.warn('No critical path worker found! Falling back to regular HEFT scheduling.');
-  } else {
-    console.log(`Using ${criticalPathWorkerId} as dedicated critical path worker`);
-  }
-
   // Calculate upward ranks for all nodes
   const ranks = calculateUpwardRanks(nodes, includeTransferTimes);
-  const rankMap = new Map(ranks.map(r => [r.nodeId, r.rank]));
 
-  // Identify tasks that have edges to CP tasks (they should have higher priority)
-  const feedsIntoCriticalPath = new Map<string, boolean>();
-  nodes.forEach(node => {
-    const hasConnectionToCP = node.connections.some(conn => {
-      const targetNode = nodes.find(n => n.id === conn.targetNodeId);
-      return targetNode?.criticalPath === true;
-    });
-    feedsIntoCriticalPath.set(node.id, hasConnectionToCP);
-  });
+  // Sort nodes by rank (descending order)
+  const sortedTasks = ranks
+    .sort((a, b) => b.rank - a.rank)
+    .map(r => nodes.find(n => n.id === r.nodeId)!);
 
   console.log('=== HEFT Task Ranking ===');
-  ranks
-    .sort((a, b) => b.rank - a.rank)
-    .forEach((r, idx) => {
-      const task = nodes.find(n => n.id === r.nodeId)!;
-      const cpIndicator = task.criticalPath ? ' (CP)' : '';
-      const feedsCP = feedsIntoCriticalPath.get(task.id) ? ' [→CP]' : '';
-      console.log(
-        `${idx + 1}. ${task.name} (${task.id}): rank=${r.rank.toFixed(2)}${cpIndicator}${feedsCP}`
-      );
-    });
+  sortedTasks.forEach((task, idx) => {
+    const rank = ranks.find(r => r.nodeId === task.id)!.rank;
+    console.log(`${idx + 1}. ${task.name} (${task.id}): rank=${rank.toFixed(2)}`);
+  });
 
   // Initialize processor schedules
   const processorSchedules: Map<string, ProcessorSlot[]> = new Map();
@@ -75,95 +52,28 @@ export function heftCPScheduleWithWorkerConstraints(
 
   const scheduledTasks: ScheduledTask[] = [];
   const completionTimes: Map<string, number> = new Map();
-  const processedNodes = new Set<string>();
-  const nodesToProcess = [...nodes];
 
-  // Schedule tasks iteratively, only considering ready tasks
-  while (nodesToProcess.length > 0) {
-    // Find ready tasks (all dependencies satisfied)
-    const readyTasks = nodesToProcess.filter(node => {
-      const dependencies = getNodeDependencies(node.id, nodes);
-      return dependencies.every(depId => processedNodes.has(depId));
-    });
+  // Schedule each task
+  for (const task of sortedTasks) {
+    let minEFT = Infinity;
+    let bestWorkerId = workers[0].id;
+    let bestStartTime = 0;
 
-    if (readyTasks.length === 0) {
-      console.warn(
-        'No ready tasks found, but nodes remain unprocessed. Possible circular dependency.'
-      );
-      break;
-    }
-
-    // Sort ready tasks by priority:
-    // 1. CP tasks first
-    // 2. Tasks that feed into CP tasks
-    // 3. Other tasks by rank (descending)
-    readyTasks.sort((a, b) => {
-      // CP tasks always have highest priority
-      if (a.criticalPath && !b.criticalPath) return -1;
-      if (!a.criticalPath && b.criticalPath) return 1;
-
-      // Among non-CP tasks, prioritize those that feed into CP
-      const aFeedsCP = feedsIntoCriticalPath.get(a.id) || false;
-      const bFeedsCP = feedsIntoCriticalPath.get(b.id) || false;
-
-      if (aFeedsCP && !bFeedsCP) return -1;
-      if (!aFeedsCP && bFeedsCP) return 1;
-
-      // Otherwise sort by rank (descending)
-      const aRank = rankMap.get(a.id) || 0;
-      const bRank = rankMap.get(b.id) || 0;
-      return bRank - aRank;
-    });
-
-    // Schedule the highest priority ready task
-    const task = readyTasks[0];
-
-    let bestWorkerId: string;
-    let bestStartTime: number;
-    let minEFT: number;
-
-    // If task is on critical path and we have a dedicated CP worker, assign directly
-    if (task.criticalPath && criticalPathWorker) {
+    // Try scheduling on each processor
+    for (const worker of workers) {
       const { eft, startTime } = calculateEFT(
         task,
-        criticalPathWorkerId!,
+        worker.id,
         nodes,
         processorSchedules,
         completionTimes,
         includeTransferTimes
       );
 
-      bestWorkerId = criticalPathWorkerId!;
-      bestStartTime = startTime;
-      minEFT = eft;
-
-      console.log(`CP task ${task.name} assigned directly to ${criticalPathWorkerId}`);
-    } else {
-      // For non-CP tasks, use HEFT on non-CP workers
-      const nonCPWorkers = criticalPathWorker
-        ? workers.filter(w => w.id !== criticalPathWorkerId)
-        : workers;
-
-      minEFT = Infinity;
-      bestWorkerId = nonCPWorkers[0].id;
-      bestStartTime = 0;
-
-      // Try scheduling on each non-CP processor
-      for (const worker of nonCPWorkers) {
-        const { eft, startTime } = calculateEFT(
-          task,
-          worker.id,
-          nodes,
-          processorSchedules,
-          completionTimes,
-          includeTransferTimes
-        );
-
-        if (eft < minEFT) {
-          minEFT = eft;
-          bestWorkerId = worker.id;
-          bestStartTime = startTime;
-        }
+      if (eft < minEFT) {
+        minEFT = eft;
+        bestWorkerId = worker.id;
+        bestStartTime = startTime;
       }
     }
 
@@ -177,7 +87,6 @@ export function heftCPScheduleWithWorkerConstraints(
 
     scheduledTasks.push(scheduledTask);
     completionTimes.set(task.id, minEFT);
-    processedNodes.add(task.id);
 
     // Add to processor schedule
     const schedule = processorSchedules.get(bestWorkerId)!;
@@ -188,16 +97,8 @@ export function heftCPScheduleWithWorkerConstraints(
     });
     schedule.sort((a, b) => a.startTime - b.startTime);
 
-    // Remove from nodes to process
-    const index = nodesToProcess.findIndex(n => n.id === task.id);
-    if (index > -1) {
-      nodesToProcess.splice(index, 1);
-    }
-
-    const cpIndicator = task.criticalPath ? ' (CP)' : '';
-    const feedsCP = feedsIntoCriticalPath.get(task.id) ? ' [→CP]' : '';
     console.log(
-      `Scheduled ${task.name}${cpIndicator}${feedsCP} on ${bestWorkerId}: [${bestStartTime.toFixed(2)}s - ${minEFT.toFixed(2)}s]`
+      `Scheduled ${task.name} on ${bestWorkerId}: [${bestStartTime.toFixed(2)}s - ${minEFT.toFixed(2)}s]`
     );
   }
 

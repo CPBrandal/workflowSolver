@@ -330,21 +330,6 @@ export function getProjectDuration(
   return result.minimumProjectDuration;
 }
 
-export function setCriticalPathEdgesTransferTimes(nodes: WorkflowNode[]): Boolean {
-  if (!nodes || nodes.length === 0) return false;
-  const getCriticalPathNodes = getCriticalPath(nodes, false);
-  console.log(getCriticalPathNodes);
-  for (let i = 0; i < getCriticalPathNodes.length - 1; i++) {
-    for (const edge of getCriticalPathNodes[i].connections) {
-      if (edge.targetNodeId === getCriticalPathNodes[i + 1].id) {
-        edge.transferTime = 0;
-        break;
-      }
-    }
-  }
-  return true;
-}
-
 export function getMinimumProjectDuration(nodes: WorkflowNode[]): number {
   // Get theoretical minimum using execution times only
   if (!nodes || nodes.length === 0) return 0;

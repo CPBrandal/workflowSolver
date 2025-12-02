@@ -1,13 +1,10 @@
 import type { SchedulingAlgorithm } from '../../../constants/constants';
+import { CP_HEFT_Schedule } from '../../../schedulers/cpHeftScheduler';
+import { heftScheduleWithWorkerConstraints } from '../../../schedulers/heft';
+import { scheduleWithWorkerConstraints } from '../../../schedulers/scheduler';
 import type { ScheduledTask, Worker, Workflow } from '../../../types';
-import {
-  analyzeCriticalPath,
-  getProjectDuration,
-  setCriticalPathEdgesTransferTimes,
-} from '../../../utils/criticalPathAnalyzer';
+import { analyzeCriticalPath, getProjectDuration } from '../../../utils/criticalPathAnalyzer';
 import { gammaSampler } from '../../../utils/gammaSampler';
-import { heftScheduleWithWorkerConstraints } from '../../../utils/heft';
-import { scheduleWithWorkerConstraints } from '../../../utils/scheduler';
 import { SimulationService } from '../services/simulationService';
 
 export class InstantSimulationRunner {
@@ -36,8 +33,8 @@ export class InstantSimulationRunner {
         });
       });
 
-      // 2. Find critical path using EXECUTION TIMES ONLY
-      const cpmResult = analyzeCriticalPath(simulatedWorkflow.tasks, false);
+      // 2. Find critical path
+      const cpmResult = analyzeCriticalPath(simulatedWorkflow.tasks, true);
 
       // 3. Mark nodes that are on the critical path
       simulatedWorkflow.tasks = simulatedWorkflow.tasks.map(task => ({
@@ -49,9 +46,6 @@ export class InstantSimulationRunner {
       simulatedWorkflow.criticalPath = cpmResult.orderedCriticalPath;
       simulatedWorkflow.criticalPathResult = cpmResult;
 
-      // 5. Set critical path edge transfer times to 0
-      setCriticalPathEdgesTransferTimes(simulatedWorkflow.tasks);
-
       // 6. Calculate theoretical runtime using execution times only
       const theoreticalRuntime = getProjectDuration(simulatedWorkflow.tasks, false);
 
@@ -59,7 +53,9 @@ export class InstantSimulationRunner {
       const schedule =
         algorithm === 'Greedy'
           ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime)
-          : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime);
+          : algorithm === 'CP_HEFT'
+            ? CP_HEFT_Schedule(simulatedWorkflow.tasks, workers, useTransferTime)
+            : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime);
 
       // 8. Calculate actual runtime
       const actualRuntime =

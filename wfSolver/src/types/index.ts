@@ -4,7 +4,12 @@ export type WorkflowType =
   | 'dataPipeline'
   | 'machineLearning'
   | 'complex'
-  | 'balanced';
+  | 'balanced'
+  | 'montage'
+  | 'cybershake'
+  | 'epigenomics'
+  | 'broadband'
+  | 'sipht';
 
 export interface Workflow {
   name: string;
@@ -115,11 +120,10 @@ export interface VisualWorkflowProps {
 export interface LocationState {
   file?: File;
   generatedNodes?: WorkflowNode[];
-  workflowType?: WorkflowType | 'legacy' | string; // Keeps backward compatibility
+  workflowType: WorkflowType; // Keeps backward compatibility
   nodeCount?: number;
-  layout?: string; // Keep this if you use it somewhere
-  generatorType?: 'probabilistic' | 'legacy' | string; // Keeps backward compatibility
-  message?: string; // Keep this if you use it somewhere
+  layout?: string;
+  message?: string;
 }
 
 export interface CriticalPathNode extends WorkflowNode {
