@@ -53,7 +53,6 @@ export function WorkflowConnections({
   // Track node completion status to detect when new transfers should start
   const previousNodeStatusRef = useRef<Map<string, string>>(new Map());
 
-  // Update current simulation time
   useEffect(() => {
     let animationFrame: number;
 
