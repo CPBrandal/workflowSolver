@@ -116,7 +116,7 @@ function WorkflowFromDBScreen() {
     setSimulationProgress({
       current: 0,
       total: numberOfSimulations,
-      currentWorkerCount: 0,
+      currentWorkerCount: minWorkers,
       totalWorkerCounts: workerCounts,
     });
 

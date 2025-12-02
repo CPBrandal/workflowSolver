@@ -1,12 +1,11 @@
 // utils/workflowPresets.ts - Workflow type presets with REDUCED CONNECTIVITY
 
-import type { WorkflowNode } from '../utils/../types';
+import type { WorkflowNode, WorkflowType } from '../utils/../types';
 import { generateProbabilisticWorkflow } from '../utils/probabilisticGenerator';
-import type { WorkflowType } from '../utils/../types';
 import { createBroadbandWorkflow } from './broadbandCreation';
-import { createDeterministicCyberShakeWorkflow } from './cybershakeCreation';
-import { createDeterministicEpigenomicsWorkflow } from './epigenomicCreation';
-import { createDeterministicMontageWorkflow } from './montageCreation';
+import { createCybershakeWorkflow } from './cybershakeCreation';
+import { createEpigenomicsWorkflow } from './epigenomicCreation';
+import { createMontageWorkflow } from './montageCreation';
 import { createSiphtWorkflow } from './siphtCreation';
 
 /**
@@ -40,11 +39,11 @@ export const createScientificWorkflowByType = (
 ): WorkflowNode[] => {
   switch (type) {
     case 'montage':
-      return createDeterministicMontageWorkflow(nodeCount);
+      return createMontageWorkflow(nodeCount);
     case 'cybershake':
-      return createDeterministicCyberShakeWorkflow(nodeCount);
+      return createCybershakeWorkflow(nodeCount);
     case 'epigenomics':
-      return createDeterministicEpigenomicsWorkflow(nodeCount);
+      return createEpigenomicsWorkflow(nodeCount);
     case 'broadband':
       return createBroadbandWorkflow(nodeCount);
     case 'sipht':

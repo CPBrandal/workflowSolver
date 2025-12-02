@@ -273,3 +273,10 @@ export function createDeterministicEpigenomicsWorkflow(nodeCount: number = 8): W
 
   return nodes;
 }
+
+/**
+ * Wrapper function that matches the existing workflow preset interface
+ */
+export const createEpigenomicsWorkflow = (nodeCount: number): WorkflowNode[] => {
+  return createDeterministicEpigenomicsWorkflow(nodeCount);
+};
