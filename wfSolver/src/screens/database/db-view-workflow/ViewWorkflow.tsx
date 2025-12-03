@@ -224,10 +224,6 @@ function ViewWorkflow() {
     runSimulation();
   }, [selectedSimulationId, simulations, workflow, chosenAlgorithm]);
 
-  const getSelectedWorkflowDetails = () => {
-    return savedWorkflows.find(w => w.id === selectedWorkflowId);
-  };
-
   return (
     <Layout>
       <div className="bg-white rounded-lg shadow-lg p-8">
