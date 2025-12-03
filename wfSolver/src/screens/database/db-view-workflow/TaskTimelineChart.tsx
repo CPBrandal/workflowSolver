@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ScheduledTask, Worker, Workflow } from '../../../types';
+import { oneWorkerExecutionTime } from '../../../utils/oneWorkerTime';
 
 interface TaskTimelineChartProps {
   schedule: ScheduledTask[];
@@ -8,6 +9,7 @@ interface TaskTimelineChartProps {
 }
 
 export function TaskTimelineChart({ schedule, workflow, workers }: TaskTimelineChartProps) {
+  const oneWorkerExecutionTimeValue = oneWorkerExecutionTime(workflow);
   if (!schedule || schedule.length === 0) {
     return <div className="p-4 text-center text-gray-500">No schedule data available</div>;
   }
@@ -69,6 +71,52 @@ export function TaskTimelineChart({ schedule, workflow, workers }: TaskTimelineC
     const task = workflow?.tasks?.find(t => t.id === nodeId);
     return task?.criticalPath ? 'bg-red-500' : 'bg-blue-500';
   };
+
+  // Calculate worker efficiency metrics
+  const calculateWorkerEfficiency = () => {
+    const workerStats: {
+      [workerId: string]: {
+        totalTaskTime: number;
+        efficiency: number;
+        taskCount: number;
+      };
+    } = {};
+
+    workers.forEach(worker => {
+      workerStats[worker.id] = {
+        totalTaskTime: 0,
+        efficiency: 0,
+        taskCount: 0,
+      };
+    });
+
+    // Calculate total task execution time per worker
+    schedule.forEach(task => {
+      const taskDuration = task.endTime - task.startTime;
+      if (workerStats[task.workerId]) {
+        workerStats[task.workerId].totalTaskTime += taskDuration;
+        workerStats[task.workerId].taskCount += 1;
+      }
+    });
+
+    // Calculate efficiency (percentage of one-worker execution time)
+    Object.keys(workerStats).forEach(workerId => {
+      if (oneWorkerExecutionTimeValue > 0) {
+        workerStats[workerId].efficiency =
+          (workerStats[workerId].totalTaskTime / oneWorkerExecutionTimeValue) * 100;
+      }
+    });
+
+    return workerStats;
+  };
+
+  const workerStats = calculateWorkerEfficiency();
+  const totalWorkerTime = Object.values(workerStats).reduce(
+    (sum, stat) => sum + stat.totalTaskTime,
+    0
+  );
+  const overallEfficiency =
+    oneWorkerExecutionTimeValue > 0 ? (totalWorkerTime / oneWorkerExecutionTimeValue) * 100 : 0;
 
   const rowHeight = 60;
   const chartHeight = workers.length * rowHeight + 50;
@@ -194,15 +242,105 @@ export function TaskTimelineChart({ schedule, workflow, workers }: TaskTimelineC
       </div>
 
       {/* Summary statistics */}
-      <div className="mt-6 pt-4 border-t border-gray-200 grid grid-cols-3 gap-4 text-sm">
-        <div>
-          <span className="font-semibold">Total Runtime:</span> {maxTime.toFixed(2)}s
+      <div className="mt-6 pt-4 border-t border-gray-200">
+        {/* Basic Statistics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+          <div>
+            <span className="font-semibold">Total Runtime:</span> {maxTime.toFixed(2)}s
+          </div>
+          <div>
+            <span className="font-semibold">One-Worker Time:</span>{' '}
+            {oneWorkerExecutionTimeValue.toFixed(2)}s
+          </div>
+          <div>
+            <span className="font-semibold">Tasks:</span> {schedule.length}
+          </div>
+          <div>
+            <span className="font-semibold">Workers:</span> {workers.length}
+          </div>
         </div>
-        <div>
-          <span className="font-semibold">Tasks:</span> {schedule.length}
-        </div>
-        <div>
-          <span className="font-semibold">Workers:</span> {workers.length}
+
+        {/* Efficiency Metrics */}
+        <div className="mt-4">
+          <h4 className="font-semibold text-sm mb-3 text-gray-700">Worker Efficiency</h4>
+
+          {/* Worker Efficiency Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-gray-300">
+                  <th className="text-left py-2 px-3 font-semibold text-gray-700">Worker</th>
+                  <th className="text-right py-2 px-3 font-semibold text-gray-700">Tasks</th>
+                  <th className="text-right py-2 px-3 font-semibold text-gray-700">Time</th>
+                  <th className="text-right py-2 px-3 font-semibold text-gray-700">Efficiency</th>
+                  <th className="text-left py-2 px-3 font-semibold text-gray-700 min-w-[200px]">
+                    Utilization
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {workers.map(worker => {
+                  const stats = workerStats[worker.id];
+                  const efficiencyColor =
+                    stats.efficiency >= 20
+                      ? 'text-green-600'
+                      : stats.efficiency >= 10
+                        ? 'text-yellow-600'
+                        : 'text-red-600';
+
+                  return (
+                    <tr key={worker.id} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="py-2 px-3">
+                        <span className="font-medium text-gray-800">{worker.id}</span>
+                        {worker.criticalPathWorker && (
+                          <span className="ml-2 text-xs text-red-600 font-semibold">(CP)</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-right text-gray-600">{stats.taskCount}</td>
+                      <td className="py-2 px-3 text-right text-gray-600">
+                        {stats.totalTaskTime.toFixed(2)}s
+                      </td>
+                      <td className={`py-2 px-3 text-right font-semibold ${efficiencyColor}`}>
+                        {stats.efficiency.toFixed(1)}%
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                stats.efficiency >= 20
+                                  ? 'bg-green-500'
+                                  : stats.efficiency >= 10
+                                    ? 'bg-yellow-500'
+                                    : 'bg-red-500'
+                              }`}
+                              style={{ width: `${Math.min(100, stats.efficiency)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Overall Summary */}
+          <div className="mt-4 pt-4 border-t border-gray-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-semibold text-gray-700">Total Work Scheduled: </span>
+                <span className="text-sm font-bold text-gray-700">
+                  {overallEfficiency.toFixed(1)}%
+                </span>
+                <span className="text-xs text-gray-500 ml-1">
+                  ({totalWorkerTime.toFixed(2)}s of {oneWorkerExecutionTimeValue.toFixed(2)}s
+                  one-worker time)
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
