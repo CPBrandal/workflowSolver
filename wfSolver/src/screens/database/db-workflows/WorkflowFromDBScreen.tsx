@@ -188,10 +188,7 @@ function WorkflowFromDBScreen() {
   return (
     <Layout>
       <div className="bg-white rounded-lg shadow-lg p-8">
-        <h2 className="text-2xl font-semibold mb-4 text-center">Load Saved Workflow</h2>
-        <p className="text-gray-700 mb-6 text-center">
-          Select a previously saved workflow topology from the database.
-        </p>
+        <h2 className="text-2xl font-semibold mb-4 text-center">Run Simulations on Workflows</h2>
         <div className="space-y-4 max-w-lg mx-auto">
           {loadingWorkflows ? (
             <div className="text-center py-4">

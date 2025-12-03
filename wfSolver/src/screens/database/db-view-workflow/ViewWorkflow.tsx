@@ -4,7 +4,6 @@ import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { ALGORITHMS } from '../../../constants/constants';
 import { CP_HEFT_Schedule } from '../../../schedulers/cpHeftScheduler';
 import { heftScheduleWithWorkerConstraints } from '../../../schedulers/heft';
-import { peftSchedule } from '../../../schedulers/peft';
 import { scheduleWithWorkerConstraints } from '../../../schedulers/scheduler';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
@@ -27,6 +26,9 @@ function ViewWorkflow() {
   const [selectedSimulation, setSelectedSimulation] = useState<SimulationRecord | null>(null);
   const [chosenAlgorithm, setChosenAlgorithm] = useState<SchedulingAlgorithm>('Greedy');
 
+  const [showVisualWorkflow, setShowVisualWorkflow] = useState(
+    localStorage.getItem('showVisualWorkflow') === 'true' ? true : false
+  );
   // Simulation running states
   const [simulationResult, setSimulationResult] = useState<{
     workflow: Workflow;
@@ -39,12 +41,6 @@ function ViewWorkflow() {
     schedule: any[];
     workers: Worker[];
   } | null>(null);
-  // k-heft running states
-  const [simulationNewSchedulerResult, setSimulationNewSchedulerResult] = useState<{
-    workflow: Workflow;
-    schedule: any[];
-    workers: Worker[];
-  } | null>(null);
   const [processingSimulation, setProcessingSimulation] = useState(false);
 
   // Function to run the simulation with all three algorithms
@@ -52,7 +48,6 @@ function ViewWorkflow() {
     if (!sim || !workflowData) {
       setSimulationResult(null);
       setSimulationCompareResult(null);
-      setSimulationNewSchedulerResult(null);
       return;
     }
 
@@ -135,22 +130,6 @@ function ViewWorkflow() {
         workers: compareFinalWorkers,
       });
 
-      // ================== Algorithm 3: PEFT ==================
-      const peftScheduledTasks = peftSchedule(simulatedWorkflow.tasks, workers);
-      const peftFinalWorkers = workers.map(w => ({ ...w }));
-      peftScheduledTasks.forEach(task => {
-        const worker = peftFinalWorkers.find(w => w.id === task.workerId);
-        if (worker) {
-          worker.time += task.endTime - task.startTime;
-        }
-      });
-
-      setSimulationNewSchedulerResult({
-        workflow: simulatedWorkflow,
-        schedule: peftScheduledTasks,
-        workers: peftFinalWorkers,
-      });
-
       // Brief delay for visual feedback
       setTimeout(() => {
         setProcessingSimulation(false);
@@ -167,6 +146,10 @@ function ViewWorkflow() {
       runSimulationWithAllAlgorithms(selectedSimulation, workflow);
     }
   };
+
+  useEffect(() => {
+    localStorage.setItem('showVisualWorkflow', showVisualWorkflow.toString());
+  }, [showVisualWorkflow]);
 
   // Fetch saved workflows when component mounts
   useEffect(() => {
@@ -227,7 +210,6 @@ function ViewWorkflow() {
         setSelectedSimulation(null);
         setSimulationResult(null);
         setSimulationCompareResult(null);
-        setSimulationNewSchedulerResult(null);
         return;
       }
 
@@ -249,7 +231,7 @@ function ViewWorkflow() {
   return (
     <Layout>
       <div className="bg-white rounded-lg shadow-lg p-8">
-        <h2 className="text-2xl font-semibold mb-4 text-center">View & Run Workflows</h2>
+        <h2 className="text-2xl font-semibold mb-4 text-center">View Simulations on Workflows</h2>
         <p className="text-gray-700 mb-6 text-center">
           Browse saved workflows and replay specific simulations.
         </p>
@@ -441,7 +423,7 @@ function ViewWorkflow() {
           )}
 
           {/* Workflow Details */}
-          {selectedWorkflowId && (
+          {/* {selectedWorkflowId && (
             <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
               <h4 className="text-sm font-semibold text-gray-700 mb-2">Workflow Details</h4>
               {(() => {
@@ -468,7 +450,7 @@ function ViewWorkflow() {
                 );
               })()}
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Workflow Visualization */}
@@ -479,29 +461,39 @@ function ViewWorkflow() {
                 {simulationResult ? 'Simulation Result' : 'Workflow Visualization'}
               </h3>
 
-              {/* Re-run Button */}
-              {selectedSimulation && workflow && (
-                <button
-                  onClick={handleRerunSimulation}
-                  disabled={processingSimulation}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2"
-                >
-                  <svg
-                    className={`w-4 h-4 ${processingSimulation ? 'animate-spin' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              <div className="flex items-center gap-2">
+                {/* Re-run Button */}
+                {selectedSimulation && workflow && (
+                  <button
+                    onClick={handleRerunSimulation}
+                    disabled={processingSimulation}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                  {processingSimulation ? 'Re-running...' : 'Re-run Simulation'}
+                    <svg
+                      className={`w-4 h-4 ${processingSimulation ? 'animate-spin' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    {processingSimulation ? 'Re-running...' : 'Re-run Simulation'}
+                  </button>
+                )}
+
+                {/* Show/Hide Visual Workflow Button */}
+                <button
+                  onClick={() => setShowVisualWorkflow(!showVisualWorkflow)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                >
+                  {showVisualWorkflow ? 'Hide Visual Workflow' : 'Show Visual Workflow'}
                 </button>
-              )}
+              </div>
             </div>
 
             {simulationResult && (
@@ -552,37 +544,14 @@ function ViewWorkflow() {
               </div>
             )}
 
-            {simulationNewSchedulerResult && (
-              <div className="mb-6">
-                <h4 className="text-md font-semibold text-gray-800 mb-2">PEFT</h4>
-                <TaskTimelineChart
-                  schedule={simulationNewSchedulerResult.schedule}
-                  workflow={simulationNewSchedulerResult.workflow}
-                  workers={simulationNewSchedulerResult.workers}
-                />
-                <div className="mt-2 flex gap-2">
-                  <button
-                    onClick={() => console.log('Workers:', simulationNewSchedulerResult.workers)}
-                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
-                  >
-                    Log Workers
-                  </button>
-                  <button
-                    onClick={() => console.log('Schedule:', simulationNewSchedulerResult.schedule)}
-                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
-                  >
-                    Log Schedule
-                  </button>
-                </div>
-              </div>
+            {showVisualWorkflow && (
+              <VisualWorkflow
+                nodes={(simulationResult?.workflow || workflow)!.tasks}
+                workers={simulationResult?.workers || []}
+                onWorkersUpdate={() => {}}
+                cpmAnalysis={null}
+              />
             )}
-
-            <VisualWorkflow
-              nodes={(simulationResult?.workflow || workflow)!.tasks}
-              workers={simulationResult?.workers || []}
-              onWorkersUpdate={() => {}}
-              cpmAnalysis={null}
-            />
           </div>
         )}
       </div>
