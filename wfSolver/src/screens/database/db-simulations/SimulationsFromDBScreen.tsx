@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Layout } from '../../../components/Layout';
+import type { SchedulingAlgorithm } from '../../../constants/constants';
+import { ALGORITHMS } from '../../../constants/constants';
 import type { WorkflowRecord } from '../../../types/database';
 import { WorkflowService } from '../services/workflowService';
 
@@ -16,6 +18,7 @@ function SimulationsFromDBScreen() {
   const [showResults, setShowResults] = useState(false);
   const [showWorkflowDetails, setShowWorkflowDetails] = useState(true);
   const [numberOfWorkers, setNumberOfWorkers] = useState(0);
+  const [chosenAlgorithm, setChosenAlgorithm] = useState<SchedulingAlgorithm>('Greedy');
 
   const [isComparing, setIsComparing] = useState(false);
   const [showComparisonInput, setShowComparisonInput] = useState(false);
@@ -41,6 +44,25 @@ function SimulationsFromDBScreen() {
       setShowResults(false);
     }
   }, [selectedWorkflowId, numberOfWorkers]);
+
+  const resetAll = () => {
+    setSelectedWorkflowId('');
+    setNumberOfWorkers(0);
+    setChosenAlgorithm('Greedy');
+    setShowResults(false);
+    setShowWorkflowDetails(true);
+    setIsComparing(false);
+    setShowComparisonInput(false);
+  };
+
+  const handleWorkflowChange = (workflowId: string) => {
+    setSelectedWorkflowId(workflowId);
+
+    // Reset dependent choices so the flow stays clear
+    setNumberOfWorkers(0);
+    setIsComparing(false);
+    setShowComparisonInput(false);
+  };
 
   const handleCompareClick = () => {
     setShowComparisonInput(true);
@@ -100,7 +122,22 @@ function SimulationsFromDBScreen() {
 
           {/* Workflow Selection */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Select Workflow</h2>
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-xl font-semibold">Filters</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Choose workflow then workers then algorithm. Results update automatically.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={resetAll}
+                className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
 
             {loadingWorkflows ? (
               <div className="flex items-center justify-center py-8">
@@ -123,12 +160,12 @@ function SimulationsFromDBScreen() {
                       htmlFor="workflowSelect"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
-                      Choose Workflow:
+                      1) Workflow
                     </label>
                     <select
                       id="workflowSelect"
                       value={selectedWorkflowId}
-                      onChange={e => setSelectedWorkflowId(e.target.value)}
+                      onChange={e => handleWorkflowChange(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">-- Select a workflow --</option>
@@ -147,7 +184,7 @@ function SimulationsFromDBScreen() {
                       htmlFor="workerSelect"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
-                      Number of Workers:
+                      2) Workers
                     </label>
                     <select
                       id="workerSelect"
@@ -171,6 +208,36 @@ function SimulationsFromDBScreen() {
                           </option>
                         ))}
                     </select>
+                  </div>
+                </div>
+
+                {/* Algorithm Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    3) Algorithm
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {ALGORITHMS.map(algorithm => {
+                      const disabled = !selectedWorkflowId || numberOfWorkers <= 0;
+                      const isActive = chosenAlgorithm === algorithm;
+
+                      return (
+                        <button
+                          key={algorithm}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => setChosenAlgorithm(algorithm)}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                            isActive
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          } ${disabled ? 'opacity-50 cursor-not-allowed hover:bg-white' : ''}`}
+                          title={disabled ? 'Select workflow and workers first' : ''}
+                        >
+                          {algorithm}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -316,6 +383,7 @@ function SimulationsFromDBScreen() {
                   <SimulationResultsVisualization
                     workflowId={selectedWorkflowId}
                     numberOfWorkers={numberOfWorkers}
+                    algorithm={chosenAlgorithm}
                   />
                 </Suspense>
               </div>
@@ -332,6 +400,7 @@ function SimulationsFromDBScreen() {
                     <SimulationResultsVisualization
                       workflowId={selectedWorkflowId}
                       numberOfWorkers={comparisonWorkers}
+                      algorithm={chosenAlgorithm}
                     />
                   </Suspense>
                 </div>

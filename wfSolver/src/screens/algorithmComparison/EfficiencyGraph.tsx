@@ -9,6 +9,7 @@ import {
   YAxis,
 } from 'recharts';
 import { Layout } from '../../components/Layout';
+import { VALID_WORKERS } from '../../constants/constants';
 import type { WorkflowRecord } from '../../types/database';
 import { WorkflowService } from '../database/services/workflowService';
 import {
@@ -28,13 +29,14 @@ interface CustomTooltipProps {
 }
 
 export function EfficiencyGraph() {
-  const validWorkers = [2, 3, 4, 5];
+  const validWorkers = VALID_WORKERS;
 
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
 
-  const [distributionData, setDistributionData] = useState<RDistributionPoint[]>([]);
+  const [greedyDistributionData, setGreedyDistributionData] = useState<RDistributionPoint[]>([]);
+  const [cpGreedyDistributionData, setCpGreedyDistData] = useState<RDistributionPoint[]>([]);
   const [heftDistributionData, setHeftDistributionData] = useState<RDistributionPoint[]>([]);
   const [cpHeftDistributionData, setCpHeftDistributionData] = useState<RDistributionPoint[]>([]);
 
@@ -55,7 +57,7 @@ export function EfficiencyGraph() {
   useEffect(() => {
     const fetchData = async () => {
       if (!selectedWorkflowId) {
-        setDistributionData([]);
+        setGreedyDistributionData([]);
         setHeftDistributionData([]);
         setCpHeftDistributionData([]);
         setLoading(false);
@@ -67,6 +69,9 @@ export function EfficiencyGraph() {
       setError(null);
 
       try {
+        {
+          /* Regular greedy algorithm */
+        }
         const greedyData = await AlgorithComparisonController.getRDistributionForWorkersByAlgorithm(
           {
             workflowId: selectedWorkflowId,
@@ -74,14 +79,32 @@ export function EfficiencyGraph() {
             algorithm: 'greedy',
           }
         );
-        setDistributionData(greedyData);
+        setGreedyDistributionData(greedyData);
+
+        {
+          /* Critical path tuned greedy algorithm */
+        }
+        const cp_greedyData =
+          await AlgorithComparisonController.getRDistributionForWorkersByAlgorithm({
+            workflowId: selectedWorkflowId,
+            workerCounts: validWorkers,
+            algorithm: 'cp_greedy',
+          });
+        setCpGreedyDistData(cp_greedyData);
+
+        {
+          /* Critical path tuned greedy algorithm */
+        }
         const heftData = await AlgorithComparisonController.getRDistributionForWorkersByAlgorithm({
           workflowId: selectedWorkflowId,
           workerCounts: validWorkers,
           algorithm: 'heft',
         });
-
         setHeftDistributionData(heftData);
+
+        {
+          /* Regular heft algorithm */
+        }
         const cpHeftData = await AlgorithComparisonController.getRDistributionForWorkersByAlgorithm(
           {
             workflowId: selectedWorkflowId,
@@ -92,9 +115,6 @@ export function EfficiencyGraph() {
         setCpHeftDistributionData(cpHeftData);
       } catch (error) {
         setError((error as Error).message);
-        setDistributionData([]);
-        setHeftDistributionData([]);
-        setCpHeftDistributionData([]);
       } finally {
         setLoading(false);
       }
@@ -105,7 +125,8 @@ export function EfficiencyGraph() {
 
   // Merge both datasets into one array for the chart
   const lineChartData = validWorkers.map(workerCount => {
-    const greedyRow = distributionData.find(row => row.workerCount === workerCount);
+    const greedyRow = greedyDistributionData.find(row => row.workerCount === workerCount);
+    const cpGreedyRow = cpGreedyDistributionData.find(row => row.workerCount === workerCount);
     const heftRow = heftDistributionData.find(row => row.workerCount === workerCount);
     const cpHeftRow = cpHeftDistributionData.find(row => row.workerCount === workerCount);
 
@@ -114,6 +135,9 @@ export function EfficiencyGraph() {
       greedyP10: greedyRow?.p10,
       greedyP50: greedyRow?.p50,
       greedyP90: greedyRow?.p90,
+      cpGreedyP10: cpGreedyRow?.p10,
+      cpGreedyP50: cpGreedyRow?.p50,
+      cpGreedyP90: cpGreedyRow?.p90,
       heftP10: heftRow?.p10,
       heftP50: heftRow?.p50,
       heftP90: heftRow?.p90,
@@ -122,31 +146,6 @@ export function EfficiencyGraph() {
       cpHeftP90: cpHeftRow?.p90,
     };
   });
-
-  // Calculate the maximum value from all data points for Y-axis domain
-  const calculateMaxValue = (): number => {
-    const allValues: number[] = [];
-
-    lineChartData.forEach(row => {
-      if (row.greedyP10 != null && !isNaN(row.greedyP10)) allValues.push(row.greedyP10);
-      if (row.greedyP50 != null && !isNaN(row.greedyP50)) allValues.push(row.greedyP50);
-      if (row.greedyP90 != null && !isNaN(row.greedyP90)) allValues.push(row.greedyP90);
-      if (row.heftP10 != null && !isNaN(row.heftP10)) allValues.push(row.heftP10);
-      if (row.heftP50 != null && !isNaN(row.heftP50)) allValues.push(row.heftP50);
-      if (row.heftP90 != null && !isNaN(row.heftP90)) allValues.push(row.heftP90);
-      if (row.cpHeftP10 != null && !isNaN(row.cpHeftP10)) allValues.push(row.cpHeftP10);
-      if (row.cpHeftP50 != null && !isNaN(row.cpHeftP50)) allValues.push(row.cpHeftP50);
-      if (row.cpHeftP90 != null && !isNaN(row.cpHeftP90)) allValues.push(row.cpHeftP90);
-    });
-
-    if (allValues.length === 0) return 3; // Default max if no data
-
-    const maxValue = Math.max(...allValues);
-    // Add 10% padding above the max value, but cap at 3 as maximum
-    return Math.min(3, maxValue * 1.1);
-  };
-
-  const yAxisMax = calculateMaxValue();
 
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length > 0) {
@@ -169,9 +168,10 @@ export function EfficiencyGraph() {
 
   // Don't show the full page loading state, show it inline instead
   const hasData =
-    distributionData.length > 0 ||
+    greedyDistributionData.length > 0 ||
     heftDistributionData.length > 0 ||
-    cpHeftDistributionData.length > 0;
+    cpHeftDistributionData.length > 0 ||
+    cpGreedyDistributionData.length > 0;
 
   return (
     <Layout>
@@ -267,8 +267,7 @@ export function EfficiencyGraph() {
                       angle: -90,
                       position: 'insideLeft',
                     }}
-                    domain={[1, yAxisMax]}
-                    allowDecimals={true}
+                    domain={[1, 'dataMax']}
                   />
 
                   <Tooltip content={CustomTooltip} />
@@ -302,6 +301,40 @@ export function EfficiencyGraph() {
                     name="Greedy P90"
                     dot={{ r: 4 }}
                     activeDot={{ r: 6 }}
+                  />
+
+                  {/* HEFT Lines - Orange/Red shades */}
+                  <Line
+                    type="monotone"
+                    dataKey="cpGreedyP10"
+                    stroke="#a78bfa" // violet-400
+                    strokeWidth={2}
+                    name="CP_Greedy P10"
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                    strokeDasharray="5 5"
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="cpGreedyP50"
+                    stroke="#8b5cf6" // violet-500
+                    strokeWidth={2}
+                    name="CP_Greedy P50"
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                    strokeDasharray="5 5"
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="cpGreedyP90"
+                    stroke="#5b21b6" // violet-800
+                    strokeWidth={2}
+                    name="CP_Greedy P90"
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                    strokeDasharray="5 5"
                   />
 
                   {/* HEFT Lines - Orange/Red shades */}
@@ -400,7 +433,44 @@ export function EfficiencyGraph() {
                       </tr>
                     </thead>
                     <tbody>
-                      {distributionData.map(row => (
+                      {greedyDistributionData.map(row => (
+                        <tr key={row.workerCount} className="border-b border-gray-200">
+                          <td className="p-3">{row.workerCount}</td>
+                          <td className="p-3 text-right font-medium" style={{ color: '#60a5fa' }}>
+                            {row.p10.toFixed(3)}
+                          </td>
+                          <td className="p-3 text-right font-medium" style={{ color: '#3b82f6' }}>
+                            {row.p50.toFixed(3)}
+                          </td>
+                          <td className="p-3 text-right font-medium" style={{ color: '#1e40af' }}>
+                            {row.p90.toFixed(3)}
+                          </td>
+                          <td className="p-3 text-right font-medium">{row.spread.toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* CP greedy Table */}
+              <div>
+                <h3 className="text-xl font-bold mb-2 text-purple-600">
+                  Critical Path Greedy Algorithm
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-300 bg-purple-50">
+                        <th className="p-3 text-left">Workers</th>
+                        <th className="p-3 text-right">P10</th>
+                        <th className="p-3 text-right">P50</th>
+                        <th className="p-3 text-right">P90</th>
+                        <th className="p-3 text-right">Spread</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cpGreedyDistributionData.map(row => (
                         <tr key={row.workerCount} className="border-b border-gray-200">
                           <td className="p-3">{row.workerCount}</td>
                           <td className="p-3 text-right font-medium" style={{ color: '#60a5fa' }}>
@@ -454,7 +524,7 @@ export function EfficiencyGraph() {
                   </table>
                 </div>
               </div>
-              {/* CP_HEFT Table */}
+              {/* CP HEFT Table */}
               <div>
                 <h3 className="text-xl font-bold mb-2 text-green-600">CP_HEFT Algorithm</h3>
                 <div className="overflow-x-auto">

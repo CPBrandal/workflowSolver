@@ -1,3 +1,4 @@
+import type { SchedulingAlgorithm } from '../../../constants/constants';
 import type { SimulationRecord } from '../../../types/database';
 import { SimulationService } from './simulationService';
 
@@ -51,11 +52,13 @@ export interface SimulationAnalysis {
 export class SimulationAnalysisService {
   static async analyzeWorkflowSimulations(
     workflowId: string,
-    numberOfWorkers: number
+    numberOfWorkers: number,
+    algorithm: SchedulingAlgorithm
   ): Promise<SimulationAnalysis | null> {
     const simulations = await SimulationService.getSimulationsByWorkflowAndWorkerCount(
       workflowId,
-      numberOfWorkers
+      numberOfWorkers,
+      algorithm
     );
 
     if (!simulations || simulations.length === 0) {

@@ -104,21 +104,25 @@ export class SimulationService {
 
   static async getSimulationsByWorkflowAndWorkerCount(
     workflowId: string,
-    numberOfWorkers: number
+    numberOfWorkers: number,
+    algorithm: SchedulingAlgorithm
   ): Promise<SimulationRecord[]> {
     const { data, error } = await supabase
       .from('simulations')
       .select('*')
-      .match({ workflow_id: workflowId, worker_count: numberOfWorkers })
-      .order('simulation_number', { ascending: true })
-      .limit(2000);
+      .match({
+        workflow_id: workflowId,
+        worker_count: numberOfWorkers,
+        algorithm: algorithm.toLowerCase(),
+      })
+      .order('simulation_number', { ascending: true });
 
     if (error) {
       console.error('Error fetching simulations:', error);
       return [];
     }
 
-    return data || [];
+    return data;
   }
 
   /**
