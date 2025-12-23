@@ -1,4 +1,4 @@
-import type { ScheduledTask, Worker, WorkflowNode } from '../utils/../types';
+import type { ScheduledTask, Worker, WorkflowNode } from '../types';
 import { getNodeDependencies } from '../utils/getNodeDependencies';
 
 export function initialGreedy(
