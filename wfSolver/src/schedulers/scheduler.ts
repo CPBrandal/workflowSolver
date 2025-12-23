@@ -5,7 +5,7 @@ export function scheduleWithWorkerConstraints(
   nodes: WorkflowNode[],
   workers: Worker[],
   includeTransferTimes: boolean = true
-): ScheduledTask[] {
+) {
   const scheduledTasks: ScheduledTask[] = [];
   const completionTimes: { [nodeId: string]: number } = {};
   const processedNodes = new Set<string>();
@@ -251,6 +251,7 @@ export function scheduleWithWorkerConstraints(
           `[Non-CP] Scheduled ${node.name} on ${bestWorkerId}: ${bestStartTime}s - ${bestEndTime}s${cpWorkerNote}`
         );
       }
+      9;
     }
   }
 

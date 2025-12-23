@@ -2,7 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { EfficiencyGraph } from './screens/algorithmComparison/EfficiencyGraph';
 import SimulationsFromDBScreen from './screens/database/db-simulations/SimulationsFromDBScreen';
 import ViewWorkflow from './screens/database/db-view-workflow/ViewWorkflow';
-import WorkflowFromDBScreen from './screens/database/db-workflows/WorkflowFromDBScreen';
+import WorkflowFromDBScreen from './screens/database/db-run-simulation/WorkflowFromDBScreen';
 import DataBaseEditScreen from './screens/database/editDatabase/DataBaseEditScreen';
 import HomeScreen from './screens/homeScreen/HomeScreen';
 import WorkflowScreen from './screens/workflowScreen/WorkflowScreen';

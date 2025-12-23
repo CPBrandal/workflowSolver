@@ -3,7 +3,6 @@ import { Layout } from '../../../components/Layout';
 import { ALGORITHMS, type SchedulingAlgorithm } from '../../../constants/constants';
 import type { Worker, Workflow } from '../../../types';
 import type { WorkflowRecord } from '../../../types/database';
-import VisualWorkflow from '../../workflowScreen/VisualWorkflow';
 import { WorkflowService } from '../services/workflowService';
 import { InstantSimulationRunner } from './InstantSimulationsRunner';
 
@@ -13,8 +12,6 @@ function WorkflowFromDBScreen() {
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [workers, setWorkers] = useState<Worker[]>([]);
-  const [workerCount, setWorkerCount] = useState<number>(2);
   const [minWorkers, setMinWorkers] = useState<number>(2);
   const [maxWorkers, setMaxWorkers] = useState<number>(5);
   const [showWorkflow, setShowWorkflow] = useState(false);
@@ -41,25 +38,6 @@ function WorkflowFromDBScreen() {
 
     fetchWorkflows();
   }, []);
-
-  useEffect(() => {
-    if (workflow?.tasks && workflow.tasks.length > 0) {
-      const newWorkers: Worker[] = [];
-
-      for (let i = 0; i < workerCount; i++) {
-        newWorkers.push({
-          id: `worker-${i + 1}`,
-          time: 0,
-          isActive: false,
-          currentTask: null,
-          criticalPathWorker: i === 0,
-        });
-      }
-
-      setWorkers(newWorkers);
-      console.log(`Created ${workerCount} workers for ${workflow.tasks.length} tasks`);
-    }
-  }, [workflow?.tasks.length, workerCount]);
 
   useEffect(() => {
     const loadSelectedWorkflow = async () => {
@@ -326,24 +304,6 @@ function WorkflowFromDBScreen() {
                 {maxWorkers - minWorkers + 1} configuration
                 {maxWorkers - minWorkers !== 0 ? 's' : ''})
               </p>
-              <div className="bg-blue-50 p-3 rounded-md">
-                <p className="text-xs text-blue-700">
-                  <strong>Visualization Worker Count (for display only)</strong>
-                </p>
-                <input
-                  id="workerCount"
-                  type="number"
-                  min="1"
-                  max={workflow.tasks.length}
-                  value={workerCount}
-                  onChange={e => setWorkerCount(parseInt(e.target.value) || 1)}
-                  className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="text-xs text-gray-600 mt-1">
-                  This only affects the workflow visualization below. Simulations use the range
-                  above.
-                </p>
-              </div>
             </div>
           </div>
         )}
@@ -489,15 +449,6 @@ function WorkflowFromDBScreen() {
               </button>
             </div>
           </div>
-        )}
-
-        {showWorkflow && workflow && (
-          <VisualWorkflow
-            nodes={workflow.tasks}
-            workers={workers}
-            onWorkersUpdate={setWorkers}
-            cpmAnalysis={workflow.criticalPathResult || null}
-          />
         )}
       </div>
     </Layout>

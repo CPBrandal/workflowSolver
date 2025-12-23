@@ -4,6 +4,7 @@ import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { ALGORITHMS } from '../../../constants/constants';
 import { CP_HEFT_Schedule } from '../../../schedulers/cpHeftScheduler';
 import { heftScheduleWithWorkerConstraints } from '../../../schedulers/heft';
+import { initialGreedy } from '../../../schedulers/initialGreedy';
 import { scheduleWithWorkerConstraints } from '../../../schedulers/scheduler';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
@@ -91,11 +92,13 @@ function ViewWorkflow() {
 
       // ================== Algorithm 1: Chosen Algorithm ==================
       const schedule =
-        chosenAlgorithm === 'Greedy'
+        chosenAlgorithm === 'CP_Greedy'
           ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers)
           : chosenAlgorithm === 'CP_HEFT'
             ? CP_HEFT_Schedule(simulatedWorkflow.tasks, workers)
-            : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
+            : chosenAlgorithm === 'Greedy'
+              ? initialGreedy(simulatedWorkflow.tasks, workers)
+              : heftScheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers);
 
       const finalWorkers = workers.map(w => ({ ...w }));
       schedule.forEach(task => {

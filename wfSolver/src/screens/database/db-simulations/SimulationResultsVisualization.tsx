@@ -17,13 +17,15 @@ import {
   SimulationAnalysisService,
   type SimulationAnalysis,
 } from '../services/simulationAnalysisService';
+import type { SchedulingAlgorithm } from '../../../constants/constants';
 
 interface Props {
   workflowId: string;
   numberOfWorkers: number;
+  algorithm: SchedulingAlgorithm;
 }
 
-export function SimulationResultsVisualization({ workflowId, numberOfWorkers }: Props) {
+export function SimulationResultsVisualization({ workflowId, numberOfWorkers, algorithm }: Props) {
   const [analysis, setAnalysis] = useState<SimulationAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'histogram' | 'ecdf' | 'scatter' | 'comparison'>(
@@ -35,7 +37,8 @@ export function SimulationResultsVisualization({ workflowId, numberOfWorkers }: 
       setLoading(true);
       const data = await SimulationAnalysisService.analyzeWorkflowSimulations(
         workflowId,
-        numberOfWorkers
+        numberOfWorkers,
+        algorithm
       );
       setAnalysis(data);
       setLoading(false);
@@ -44,7 +47,7 @@ export function SimulationResultsVisualization({ workflowId, numberOfWorkers }: 
     if (workflowId && numberOfWorkers > 0) {
       loadAnalysis();
     }
-  }, [workflowId, numberOfWorkers]);
+  }, [workflowId, numberOfWorkers, algorithm]);
 
   if (loading) {
     return (
