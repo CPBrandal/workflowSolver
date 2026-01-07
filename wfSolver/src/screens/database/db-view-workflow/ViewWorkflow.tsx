@@ -115,23 +115,23 @@ function ViewWorkflow() {
       });
 
       // ================== Algorithm 2: Regular HEFT ==================
-      const compareCpHeftSchedule = heftScheduleWithWorkerConstraints(
-        simulatedWorkflow.tasks,
-        workers
-      );
-      const compareFinalWorkers = workers.map(w => ({ ...w }));
-      compareCpHeftSchedule.forEach(task => {
-        const worker = compareFinalWorkers.find(w => w.id === task.workerId);
-        if (worker) {
-          worker.time += task.endTime - task.startTime;
-        }
-      });
+      // const compareCpHeftSchedule = heftScheduleWithWorkerConstraints(
+      //   simulatedWorkflow.tasks,
+      //   workers
+      // );
+      // const compareFinalWorkers = workers.map(w => ({ ...w }));
+      // compareCpHeftSchedule.forEach(task => {
+      //   const worker = compareFinalWorkers.find(w => w.id === task.workerId);
+      //   if (worker) {
+      //     worker.time += task.endTime - task.startTime;
+      //   }
+      // });
 
-      setSimulationCompareResult({
-        workflow: simulatedWorkflow,
-        schedule: compareCpHeftSchedule,
-        workers: compareFinalWorkers,
-      });
+      // setSimulationCompareResult({
+      //   workflow: simulatedWorkflow,
+      //   schedule: compareCpHeftSchedule,
+      //   workers: compareFinalWorkers,
+      // });
 
       // Brief delay for visual feedback
       setTimeout(() => {
@@ -532,7 +532,7 @@ function ViewWorkflow() {
               </div>
             )}
 
-            {simulationCompareResult && (
+            {/* {simulationCompareResult && (
               <div className="mb-6">
                 <h4 className="text-md font-semibold text-gray-800 mb-2">Regular HEFT</h4>
                 <TaskTimelineChart
@@ -541,7 +541,7 @@ function ViewWorkflow() {
                   workers={simulationCompareResult.workers}
                 />
               </div>
-            )}
+            )} */}
 
             {showVisualWorkflow && (
               <VisualWorkflow
