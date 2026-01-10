@@ -2,7 +2,7 @@ import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { CP_HEFT_Schedule } from '../../../schedulers/cpHeft';
 import { initialGreedy } from '../../../schedulers/greedy';
 import { heftScheduleWithWorkerConstraints } from '../../../schedulers/heft';
-import { scheduleWithWorkerConstraints } from '../../../schedulers/scheduler';
+import { cpGreedy } from '../../../schedulers/scheduler';
 import type { ScheduledTask, Worker, Workflow } from '../../../types';
 import { analyzeCriticalPath, getProjectDuration } from '../../../utils/criticalPathAnalyzer';
 import { gammaSampler } from '../../../utils/gammaSampler';
@@ -53,7 +53,7 @@ export class InstantSimulationRunner {
       // 7. Schedule with worker constraints
       const schedule =
         algorithm === 'CP_Greedy'
-          ? scheduleWithWorkerConstraints(simulatedWorkflow.tasks, workers, useTransferTime)
+          ? cpGreedy(simulatedWorkflow.tasks, workers, useTransferTime)
           : algorithm === 'CP_HEFT'
             ? CP_HEFT_Schedule(simulatedWorkflow.tasks, workers, useTransferTime)
             : algorithm === 'Greedy'

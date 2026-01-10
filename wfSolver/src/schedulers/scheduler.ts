@@ -1,7 +1,7 @@
 import type { ScheduledTask, Worker, WorkflowNode } from '../utils/../types';
 import { getNodeDependencies } from '../utils/getNodeDependencies';
 
-export function scheduleWithWorkerConstraints(
+export function cpGreedy(
   nodes: WorkflowNode[],
   workers: Worker[],
   includeTransferTimes: boolean = true
@@ -50,11 +50,7 @@ export function scheduleWithWorkerConstraints(
   }
 
   // Helper to check if scheduling a task on CP worker would interfere with CP tasks
-  function wouldInterfereWithCP(
-    taskStartTime: number,
-    taskEndTime: number,
-    cpWorkerId: string
-  ): boolean {
+  function wouldInterfereWithCP(taskStartTime: number, taskEndTime: number, cpWorkerId: string) {
     // Get all CP tasks scheduled on CP worker
     const cpTasksOnCPWorker = scheduledTasks.filter(task => {
       const node = nodes.find(n => n.id === task.nodeId);
@@ -72,7 +68,7 @@ export function scheduleWithWorkerConstraints(
   }
 
   // ========== Unified scheduling: Prioritize CP tasks, but schedule all nodes ==========
-  console.log('=== Scheduling Tasks (CP First Strategy) ===');
+  console.log('=== Scheduling Tasks (CP greedy ) ===');
   const allNodesToProcess = [...nodes];
 
   while (allNodesToProcess.length > 0) {
