@@ -1,7 +1,7 @@
 import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { CP_HEFT_Schedule } from '../../../schedulers/cpHeft';
 import { initialGreedy } from '../../../schedulers/greedy';
-import { heftScheduleWithWorkerConstraints } from '../../../schedulers/heft';
+import { heftSchedule } from '../../../schedulers/heft';
 import { cpGreedy } from '../../../schedulers/scheduler';
 import type { ScheduledTask, Worker, Workflow } from '../../../types';
 import { analyzeCriticalPath, getProjectDuration } from '../../../utils/criticalPathAnalyzer';
@@ -58,11 +58,7 @@ export class InstantSimulationRunner {
             ? CP_HEFT_Schedule(simulatedWorkflow.tasks, workers, useTransferTime)
             : algorithm === 'Greedy'
               ? initialGreedy(simulatedWorkflow.tasks, workers, useTransferTime)
-              : heftScheduleWithWorkerConstraints(
-                  simulatedWorkflow.tasks,
-                  workers,
-                  useTransferTime
-                );
+              : heftSchedule(simulatedWorkflow.tasks, workers, useTransferTime);
 
       // 8. Calculate actual runtime
       const actualRuntime =

@@ -35,7 +35,7 @@ export function cpGreedy(
     targetNodeId: string,
     sourceWorkerId?: string,
     targetWorkerId?: string
-  ): number {
+  ) {
     if (!includeTransferTimes) return 0;
 
     // Transfer time is 0 if both tasks are on the same worker
@@ -228,7 +228,6 @@ export function cpGreedy(
           endTime: bestEndTime,
           workerId: bestWorkerId,
         };
-
         scheduledTasks.push(scheduledTask);
         completionTimes[node.id] = bestEndTime;
         processedNodes.add(node.id);
