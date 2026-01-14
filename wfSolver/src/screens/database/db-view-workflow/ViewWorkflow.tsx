@@ -37,18 +37,13 @@ function ViewWorkflow() {
     workers: Worker[];
   } | null>(null);
   // compare cp heft running states
-  const [simulationCompareResult, setSimulationCompareResult] = useState<{
-    workflow: Workflow;
-    schedule: any[];
-    workers: Worker[];
-  } | null>(null);
+
   const [processingSimulation, setProcessingSimulation] = useState(false);
 
   // Function to run the simulation with all three algorithms
   const runSimulationWithAllAlgorithms = async (sim: SimulationRecord, workflowData: Workflow) => {
     if (!sim || !workflowData) {
       setSimulationResult(null);
-      setSimulationCompareResult(null);
       return;
     }
 
@@ -113,25 +108,6 @@ function ViewWorkflow() {
         schedule,
         workers: finalWorkers,
       });
-
-      // ================== Algorithm 2: Regular HEFT ==================
-      // const compareCpHeftSchedule = heftScheduleWithWorkerConstraints(
-      //   simulatedWorkflow.tasks,
-      //   workers
-      // );
-      // const compareFinalWorkers = workers.map(w => ({ ...w }));
-      // compareCpHeftSchedule.forEach(task => {
-      //   const worker = compareFinalWorkers.find(w => w.id === task.workerId);
-      //   if (worker) {
-      //     worker.time += task.endTime - task.startTime;
-      //   }
-      // });
-
-      // setSimulationCompareResult({
-      //   workflow: simulatedWorkflow,
-      //   schedule: compareCpHeftSchedule,
-      //   workers: compareFinalWorkers,
-      // });
 
       // Brief delay for visual feedback
       setTimeout(() => {
@@ -212,7 +188,6 @@ function ViewWorkflow() {
       if (!selectedSimulationId) {
         setSelectedSimulation(null);
         setSimulationResult(null);
-        setSimulationCompareResult(null);
         return;
       }
 
@@ -420,36 +395,6 @@ function ViewWorkflow() {
               <p className="text-gray-600 mt-2 text-sm">Processing simulation...</p>
             </div>
           )}
-
-          {/* Workflow Details */}
-          {/* {selectedWorkflowId && (
-            <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Workflow Details</h4>
-              {(() => {
-                const selected = getSelectedWorkflowDetails();
-                if (!selected) return null;
-
-                return (
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p>
-                      <strong>Name:</strong> {selected.topology.name}
-                    </p>
-                    <p>
-                      <strong>Nodes:</strong> {selected.node_count}
-                    </p>
-                    <p>
-                      <strong>Created:</strong> {new Date(selected.created_at).toLocaleString()}
-                    </p>
-                    {selected.tags && selected.tags.length > 0 && (
-                      <p>
-                        <strong>Tags:</strong> {selected.tags.join(', ')}
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          )} */}
         </div>
 
         {/* Workflow Visualization */}
@@ -531,17 +476,6 @@ function ViewWorkflow() {
                 />
               </div>
             )}
-
-            {/* {simulationCompareResult && (
-              <div className="mb-6">
-                <h4 className="text-md font-semibold text-gray-800 mb-2">Regular HEFT</h4>
-                <TaskTimelineChart
-                  schedule={simulationCompareResult.schedule}
-                  workflow={simulationCompareResult.workflow}
-                  workers={simulationCompareResult.workers}
-                />
-              </div>
-            )} */}
 
             {showVisualWorkflow && (
               <VisualWorkflow
