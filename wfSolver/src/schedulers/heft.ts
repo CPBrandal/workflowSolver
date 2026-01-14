@@ -7,11 +7,6 @@ interface ProcessorSlot {
   taskId: string;
 }
 
-interface TaskRank {
-  nodeId: string;
-  rank: number;
-}
-
 /**
  * HEFT (Heterogeneous Earliest Finish Time) Scheduler
  *
@@ -21,25 +16,24 @@ interface TaskRank {
  * 2. Sorts tasks by rank in descending order
  * 3. For each task, assigns it to the processor that gives the earliest finish time
  */
-export function heftScheduleWithWorkerConstraints(
+export function heftSchedule(
   nodes: WorkflowNode[],
   workers: Worker[],
   includeTransferTimes: boolean = true
-): ScheduledTask[] {
+) {
   if (nodes.length === 0 || workers.length === 0) {
     return [];
   }
 
-  // Calculate upward ranks for all nodes
+  // first phase
   const ranks = calculateUpwardRanks(nodes, includeTransferTimes);
 
-  // Sort nodes by rank (descending order)
-  const sortedTasks = ranks
+  const rankSortedTasks = ranks
     .sort((a, b) => b.rank - a.rank)
     .map(r => nodes.find(n => n.id === r.nodeId)!);
 
   console.log('=== HEFT Task Ranking ===');
-  sortedTasks.forEach((task, idx) => {
+  rankSortedTasks.forEach((task, idx) => {
     const rank = ranks.find(r => r.nodeId === task.id)!.rank;
     console.log(`${idx + 1}. ${task.name} (${task.id}): rank=${rank.toFixed(2)}`);
   });
@@ -54,7 +48,7 @@ export function heftScheduleWithWorkerConstraints(
   const completionTimes: Map<string, number> = new Map();
 
   // Schedule each task
-  for (const task of sortedTasks) {
+  for (const task of rankSortedTasks) {
     let minEFT = Infinity;
     let bestWorkerId = workers[0].id;
     let bestStartTime = 0;
@@ -113,63 +107,57 @@ export function heftScheduleWithWorkerConstraints(
 /**
  * Calculate upward rank for all nodes using recursive approach
  */
-function calculateUpwardRanks(nodes: WorkflowNode[], includeTransferTimes: boolean): TaskRank[] {
+function calculateUpwardRanks(nodes: WorkflowNode[], includeTransferTimes: boolean) {
   const ranks = new Map<string, number>();
   const visited = new Set<string>();
 
-  function getSuccessors(nodeId: string): string[] {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return [];
-    return node.connections.map(conn => conn.targetNodeId);
-  }
+  // TODO: if nodes are sorted, we can just call calculateRank(nodes[0])
+  nodes.forEach(node => calculateRank(node));
 
-  function getTransferTime(sourceId: string, targetId: string): number {
-    if (!includeTransferTimes) return 0;
-    const sourceNode = nodes.find(n => n.id === sourceId);
-    if (!sourceNode) return 0;
-    const connection = sourceNode.connections.find(c => c.targetNodeId === targetId);
-    return connection ? connection.transferTime : 0;
-  }
-
-  function calculateRank(nodeId: string): number {
-    if (ranks.has(nodeId)) {
-      return ranks.get(nodeId)!;
+  function calculateRank(node: WorkflowNode) {
+    if (ranks.has(node.id)) {
+      return ranks.get(node.id)!;
     }
 
-    if (visited.has(nodeId)) {
-      // Circular dependency detected
+    if (visited.has(node.id)) {
       return 0;
     }
 
-    visited.add(nodeId);
-
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return 0;
+    visited.add(node.id);
 
     const executionTime = node.executionTime || 0;
-    const successors = getSuccessors(nodeId);
+    const successors = getSuccessors(node);
 
     if (successors.length === 0) {
-      // Exit node
-      ranks.set(nodeId, executionTime);
+      ranks.set(node.id, executionTime);
       return executionTime;
     }
 
     // Calculate max(communication + successor rank) for all successors
     let maxSuccessorRank = 0;
     for (const successorId of successors) {
-      const transferTime = getTransferTime(nodeId, successorId);
-      const successorRank = calculateRank(successorId);
+      const transferTime = getTransferTime(node.id, successorId);
+      const successorNode = nodes.find(n => n.id === successorId)!;
+      const successorRank = calculateRank(successorNode);
       maxSuccessorRank = Math.max(maxSuccessorRank, transferTime + successorRank);
     }
 
     const rank = executionTime + maxSuccessorRank;
-    ranks.set(nodeId, rank);
+    ranks.set(node.id, rank);
     return rank;
   }
 
-  // Calculate ranks for all nodes
-  nodes.forEach(node => calculateRank(node.id));
+  function getSuccessors(node: WorkflowNode) {
+    return node.connections.map(conn => conn.targetNodeId);
+  }
+
+  function getTransferTime(sourceId: string, targetId: string) {
+    if (!includeTransferTimes) return 0;
+    const sourceNode = nodes.find(n => n.id === sourceId);
+    if (!sourceNode) return 0;
+    const connection = sourceNode.connections.find(c => c.targetNodeId === targetId);
+    return connection ? connection.transferTime : 0;
+  }
 
   return Array.from(ranks.entries()).map(([nodeId, rank]) => ({ nodeId, rank }));
 }
@@ -184,7 +172,7 @@ function calculateEFT(
   processorSchedules: Map<string, ProcessorSlot[]>,
   completionTimes: Map<string, number>,
   includeTransferTimes: boolean
-): { eft: number; startTime: number } {
+) {
   const taskDuration = task.executionTime || 0;
 
   // Calculate earliest start time based on dependencies

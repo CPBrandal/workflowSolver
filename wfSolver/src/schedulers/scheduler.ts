@@ -1,7 +1,7 @@
 import type { ScheduledTask, Worker, WorkflowNode } from '../utils/../types';
 import { getNodeDependencies } from '../utils/getNodeDependencies';
 
-export function scheduleWithWorkerConstraints(
+export function cpGreedy(
   nodes: WorkflowNode[],
   workers: Worker[],
   includeTransferTimes: boolean = true
@@ -35,7 +35,7 @@ export function scheduleWithWorkerConstraints(
     targetNodeId: string,
     sourceWorkerId?: string,
     targetWorkerId?: string
-  ): number {
+  ) {
     if (!includeTransferTimes) return 0;
 
     // Transfer time is 0 if both tasks are on the same worker
@@ -50,11 +50,7 @@ export function scheduleWithWorkerConstraints(
   }
 
   // Helper to check if scheduling a task on CP worker would interfere with CP tasks
-  function wouldInterfereWithCP(
-    taskStartTime: number,
-    taskEndTime: number,
-    cpWorkerId: string
-  ): boolean {
+  function wouldInterfereWithCP(taskStartTime: number, taskEndTime: number, cpWorkerId: string) {
     // Get all CP tasks scheduled on CP worker
     const cpTasksOnCPWorker = scheduledTasks.filter(task => {
       const node = nodes.find(n => n.id === task.nodeId);
@@ -72,7 +68,7 @@ export function scheduleWithWorkerConstraints(
   }
 
   // ========== Unified scheduling: Prioritize CP tasks, but schedule all nodes ==========
-  console.log('=== Scheduling Tasks (CP First Strategy) ===');
+  console.log('=== Scheduling Tasks (CP greedy ) ===');
   const allNodesToProcess = [...nodes];
 
   while (allNodesToProcess.length > 0) {
@@ -232,7 +228,6 @@ export function scheduleWithWorkerConstraints(
           endTime: bestEndTime,
           workerId: bestWorkerId,
         };
-
         scheduledTasks.push(scheduledTask);
         completionTimes[node.id] = bestEndTime;
         processedNodes.add(node.id);

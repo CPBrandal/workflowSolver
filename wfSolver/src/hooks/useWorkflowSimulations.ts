@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { scheduleWithWorkerConstraints } from '../schedulers/scheduler';
+import { cpGreedy } from '../schedulers/scheduler';
 import type { ScheduledTask, UseWorkflowSimulationProps, WorkflowNode } from '../types';
 
 export function useWorkflowSimulation({
@@ -73,7 +73,7 @@ export function useWorkflowSimulation({
 
     const activeTimeouts: ReturnType<typeof setTimeout>[] = [];
 
-    const schedule = scheduleWithWorkerConstraints(nodes, workers, true);
+    const schedule = cpGreedy(nodes, workers, true);
 
     const workflowCompletionTime =
       schedule.length > 0 ? Math.max(...schedule.map(task => task.endTime)) : 0;
