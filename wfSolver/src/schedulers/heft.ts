@@ -225,11 +225,9 @@ function findEarliestSlot(
     return earliestStartTime;
   }
 
-  // Try to insert in gaps between existing tasks
   for (let i = 0; i < schedule.length; i++) {
     const slot = schedule[i];
 
-    // Check if we can fit before the first task
     if (i === 0) {
       const candidateStart = earliestStartTime;
       const candidateEnd = candidateStart + duration;
@@ -238,7 +236,6 @@ function findEarliestSlot(
       }
     }
 
-    // Check gap between current and next task
     if (i < schedule.length - 1) {
       const nextSlot = schedule[i + 1];
       const gapStart = Math.max(slot.endTime, earliestStartTime);
@@ -250,7 +247,6 @@ function findEarliestSlot(
     }
   }
 
-  // If no gap found, schedule after the last task
   const lastSlot = schedule[schedule.length - 1];
   return Math.max(lastSlot.endTime, earliestStartTime);
 }

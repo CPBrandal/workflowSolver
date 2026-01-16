@@ -88,7 +88,7 @@ function VisualWorkflow({
   const containerHeight = Math.max(800, graphHeight + 200); // Minimum height with extra space
 
   return (
-    <div className="max-w mx-auto p-6 bg-white">
+    <div className="w-full mx-auto p-6 bg-white">
       {/* Header */}
       {workers.length > 0 && (
         <div className="flex justify-between items-center mb-6">
@@ -258,7 +258,7 @@ function VisualWorkflow({
       </div>
 
       {/* Worker Details Panel */}
-      {workers.length > 0 && (
+      {/* {workers.length > 0 && (
         <div className="mt-6 p-4 bg-gray-100 rounded-lg">
           <h3 className="font-semibold mb-3 text-gray-800 flex items-center gap-2">
             <Users className="w-5 h-5" />
@@ -295,7 +295,7 @@ function VisualWorkflow({
             ))}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Runtime Display */}
       {workers.length > 0 && (

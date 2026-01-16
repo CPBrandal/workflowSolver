@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
+import { ALGORITHMS, type SchedulingAlgorithm } from '../../constants/constants';
 import { WorkflowService } from '../../screens/database/services/workflowService';
 import type { LocationState, Worker, Workflow } from '../../types';
 import { analyzeCriticalPath, getMinimumProjectDuration } from '../../utils/criticalPathAnalyzer';
 import { workflowTypeMetadata } from '../../utils/workflowPresets';
-import VisualWorkflow from './VisualWorkflow';
 import { InputFileHandler } from './utils/InputFileHandler';
+import VisualizeScheduler from './VisualizeScheduler';
+import VisualWorkflow from './VisualWorkflow';
 
 function WorkflowScreen() {
   const location = useLocation();
@@ -21,6 +23,10 @@ function WorkflowScreen() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [numberOfWorkers, setNumberOfWorkers] = useState<number>();
+  const [runVisualization, setRunVisualization] = useState(false);
+  const [chosenAlgorithm, setChosenAlgorithm] = useState<SchedulingAlgorithm>('Greedy');
+
   {
     /* Critical path */
   }
@@ -30,14 +36,8 @@ function WorkflowScreen() {
       const minimumDuration = getMinimumProjectDuration(workflow.tasks);
       console.log('The minimum time the project will take is: ', minimumDuration, ' seconds');
 
-      const cpResult = analyzeCriticalPath(workflow.tasks, true);
+      const cpResult = analyzeCriticalPath(workflow.tasks);
 
-      console.log(
-        'Critical path sequence:',
-        cpResult.orderedCriticalPath.map(n => n.name)
-      );
-
-      // Update nodes with critical path information
       const updatedTasks = workflow.tasks.map(task => {
         const isOnCriticalPath = cpResult.orderedCriticalPath.some(n => n.id === task.id);
         return { ...task, criticalPath: isOnCriticalPath };
@@ -91,14 +91,12 @@ function WorkflowScreen() {
     return `Generated ${workflowTypeMetadata[workflowType].name.toLowerCase()} workflow with ${nodeCount} nodes.`;
   };
 
-  // Initial Workflow Processing Effect
   useEffect(() => {
     const processWorkflow = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Handle generated workflows (new system)
         if (generatedNodes) {
           setWorkflow({
             name: getWorkflowDisplayName(),
@@ -211,6 +209,15 @@ function WorkflowScreen() {
 
   return (
     <Layout>
+      <div className="bg-white rounded-lg shadow-lg p-6 flex justify-between items-center">
+        <div className="text-2xl font-bold text-gray-800">{getWorkflowDisplayName()}</div>
+        <button
+          onClick={testSaveWorkflow}
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+        >
+          Save to Database
+        </button>
+      </div>
       <div>
         <VisualWorkflow
           nodes={workflow.tasks}
@@ -218,40 +225,70 @@ function WorkflowScreen() {
           onWorkersUpdate={setWorkers}
           cpmAnalysis={workflow.criticalPathResult || null}
         />
-        <div className="max-w-4xl mx-auto p-6 space-y-4">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <button
-              onClick={testSaveWorkflow}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-            >
-              Save to Database
-            </button>{' '}
+      </div>
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-lg font-semibold mb-4">Schedule Visualization</h3>
+
+        <div className="space-y-4">
+          {/* Algorithm Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Scheduling Algorithm
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {ALGORITHMS.map(algorithm => (
+                <button
+                  key={algorithm}
+                  onClick={() => {
+                    setChosenAlgorithm(algorithm);
+                    setRunVisualization(false);
+                  }}
+                  className={`px-4 py-2 rounded font-medium transition-colors ${
+                    chosenAlgorithm === algorithm
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {algorithm.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Workflow Info Panel */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-medium text-gray-800 mb-2">Workflow Information</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">Type:</span>
-                <div className="font-medium">{getWorkflowDisplayName()}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">Tasks:</span>
-                <div className="font-medium">{workflow.tasks.length}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">Generation:</span>
-                <div className="font-medium capitalize">{workflowType || 'Unknown'}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">Critical Path:</span>
-                <div className="font-medium">{workflow.criticalPath?.length || 0} tasks</div>
-              </div>
+          {/* Workers Input and Run Button */}
+          <div className="flex items-center gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Number of Workers
+              </label>
+              <input
+                type="text"
+                value={numberOfWorkers ?? ''}
+                onChange={e => setNumberOfWorkers(parseInt(e.target.value) || undefined)}
+                placeholder="Enter number"
+                className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
+
+            <button
+              onClick={() => setRunVisualization(true)}
+              className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 transition-colors"
+            >
+              Run Visualization
+            </button>
           </div>
         </div>
       </div>
+
+      {chosenAlgorithm && workers.length > 0 && workflow.criticalPathResult && runVisualization && (
+        <div>
+          <VisualizeScheduler
+            workflow={workflow}
+            scheduler={chosenAlgorithm}
+            workers={workers.slice(0, numberOfWorkers ?? workers.length)}
+          />
+        </div>
+      )}
     </Layout>
   );
 }

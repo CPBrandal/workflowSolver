@@ -207,3 +207,9 @@ export interface ProbabilisticWorkflowConfig extends ArbitraryWorkflowConfig {
   clusteringCoefficient?: number;
   preferentialAttachment?: boolean;
 }
+
+export interface ProcessorSlot {
+  startTime: number;
+  endTime: number;
+  taskId: string;
+}
