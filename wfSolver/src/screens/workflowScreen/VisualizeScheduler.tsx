@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import type { SchedulingAlgorithm } from '../../constants/constants';
-import { CP_HEFT_Schedule } from '../../schedulers/cpHeft';
-import { cpHeft2Schedule } from '../../schedulers/cpHeft2/cpHeft2';
+import { cpHeftSchedule } from '../../schedulers/cpHeft2/cpHeft2';
 import { initialGreedy } from '../../schedulers/greedy';
-import { heftSchedule } from '../../schedulers/heft';
+import { heftSchedule } from '../../schedulers/heft/heft';
 import { cpGreedy } from '../../schedulers/scheduler';
 import type { ScheduledTask, Worker, Workflow } from '../../types';
 import { TaskTimelineChart } from '../database/db-view-workflow/TaskTimelineChart';
@@ -22,13 +21,11 @@ function VisualizeScheduler({
     const scheduledTasks: ScheduledTask[] =
       scheduler === 'CP_Greedy'
         ? cpGreedy(workflow.tasks, workers)
-        : scheduler === 'CP_HEFT'
-          ? CP_HEFT_Schedule(workflow.tasks, workers)
-          : scheduler === 'Greedy'
-            ? initialGreedy(workflow.tasks, workers)
-            : scheduler === 'CP_HEFT2'
-              ? cpHeft2Schedule(workflow.tasks, workers)
-              : heftSchedule(workflow.tasks, workers);
+        : scheduler === 'Greedy'
+          ? initialGreedy(workflow.tasks, workers)
+          : scheduler === 'CP_HEFT'
+            ? cpHeftSchedule(workflow.tasks, workers)
+            : heftSchedule(workflow.tasks, workers);
 
     // Calculate final worker states
     const updatedWorkers = workers.map(w => ({ ...w, time: 0 }));
