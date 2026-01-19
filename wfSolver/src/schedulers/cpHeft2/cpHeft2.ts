@@ -20,11 +20,9 @@ export function cpHeftSchedule(
     return [];
   }
 
-  // Find CP worker and CP task IDs
   const criticalPathWorker = workers.find(w => w.criticalPathWorker === true);
   const cpTaskIds = new Set(nodes.filter(n => n.criticalPath).map(t => t.id));
 
-  // Initialize state
   const processorSchedules = new Map<string, ProcessorSlot[]>();
   workers.forEach(w => processorSchedules.set(w.id, []));
 
@@ -32,30 +30,25 @@ export function cpHeftSchedule(
   const completionTimes = new Map<string, number>();
   const scheduledNodeIds = new Set<string>();
 
-  // Calculate and sort by upward rank (descending)
   const ranks = calculateUpwardRanks(nodes, includeTransferTimes);
   const rankMap = new Map(ranks.map(r => [r.nodeId, r.rank]));
   const sortedNodes = [...nodes].sort(
     (a, b) => (rankMap.get(b.id) ?? 0) - (rankMap.get(a.id) ?? 0)
   );
 
-  // Ready-queue scheduling loop
   while (scheduledNodeIds.size < nodes.length) {
     let progress = false;
 
     for (const task of sortedNodes) {
       if (scheduledNodeIds.has(task.id)) continue;
 
-      // Check if all dependencies are scheduled
       const deps = getNodeDependencies(task.id, nodes);
       if (!deps.every(d => scheduledNodeIds.has(d))) continue;
 
-      // Determine candidate workers
       const candidateWorkers = cpTaskIds.has(task.id)
         ? [criticalPathWorker ?? workers[0]]
         : workers;
 
-      // Find best worker by EFT
       let minEFT = Infinity;
       let bestWorkerId = candidateWorkers[0].id;
       let bestStartTime = 0;
@@ -76,7 +69,6 @@ export function cpHeftSchedule(
         }
       }
 
-      // Schedule task
       scheduledTasks.push({
         nodeId: task.id,
         startTime: bestStartTime,
@@ -87,13 +79,11 @@ export function cpHeftSchedule(
       scheduledNodeIds.add(task.id);
       progress = true;
 
-      // Update processor schedule
       const schedule = processorSchedules.get(bestWorkerId)!;
       schedule.push({ startTime: bestStartTime, endTime: minEFT, taskId: task.id });
       schedule.sort((a, b) => a.startTime - b.startTime);
     }
 
-    // Safety check for infinite loops
     if (!progress && scheduledNodeIds.size < nodes.length) {
       console.error('Could not schedule all tasks - dependency cycle or missing nodes');
       break;
