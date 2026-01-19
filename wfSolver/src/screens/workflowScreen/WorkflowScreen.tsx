@@ -149,6 +149,9 @@ function WorkflowScreen() {
     }
 
     try {
+      for(const task of workflow.tasks) {
+        console.log(task.gammaDistribution);
+      }
       const workflowId = await WorkflowService.saveWorkflowTopology(workflow, undefined, [
         workflowType || 'unknown',
       ]);
