@@ -37,9 +37,10 @@ function ODPIP() {
 
   const handleExport = () => {
     if (subsetValues.length > 0) {
-      const filename = selectedWorkflow 
-        ? `${selectedWorkflow.name}-subset-values.txt`
-        : 'subset-values.txt';
+      const sanitizedName = selectedWorkflow 
+        ? selectedWorkflow.name.replace(/\s+/g, '_')
+        : 'subset-values';
+      const filename = `${sanitizedName}-subset-values.txt`;
       exportSubsetValuesToFile(subsetValues, filename);
     }
   };

@@ -121,10 +121,10 @@ function calculateSubsetValue(subset: WorkflowNode[], criticalPathDuration: numb
 
 /**
  * Export subset values to a .txt file in ODP-IP format.
- * Format: space-separated values on a single line.
+ * Format: one value per line.
  */
 export function exportSubsetValuesToFile(values: number[], filename = 'subset-values.txt'): void {
-  const content = values.join(' ');
+  const content = values.join('\n');
   
   const blob = new Blob([content], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
