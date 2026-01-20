@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { Layout } from '../../../components/Layout';
 import type { SchedulingAlgorithm } from '../../../constants/constants';
 import { ALGORITHMS } from '../../../constants/constants';
-import { CP_HEFT_Schedule } from '../../../schedulers/cpHeft';
+import { cpHeftSchedule } from '../../../schedulers/cpHeft2/cpHeft2';
 import { initialGreedy } from '../../../schedulers/greedy';
-import { heftSchedule } from '../../../schedulers/heft';
+import { heftSchedule } from '../../../schedulers/heft/heft';
 import { cpGreedy } from '../../../schedulers/scheduler';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
@@ -90,7 +90,7 @@ function ViewWorkflow() {
         chosenAlgorithm === 'CP_Greedy'
           ? cpGreedy(simulatedWorkflow.tasks, workers)
           : chosenAlgorithm === 'CP_HEFT'
-            ? CP_HEFT_Schedule(simulatedWorkflow.tasks, workers)
+            ? cpHeftSchedule(simulatedWorkflow.tasks, workers)
             : chosenAlgorithm === 'Greedy'
               ? initialGreedy(simulatedWorkflow.tasks, workers)
               : heftSchedule(simulatedWorkflow.tasks, workers);

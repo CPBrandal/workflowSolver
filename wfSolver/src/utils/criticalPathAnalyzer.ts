@@ -76,7 +76,7 @@ export class CriticalPathAnalyzer {
   /**
    * Forward pass: Calculate earliest start and finish times
    */
-  private forwardPass(sortedNodeIds: string[]): void {
+  private forwardPass(sortedNodeIds: string[]) {
     for (const nodeId of sortedNodeIds) {
       const node = this.nodes.find(n => n.id === nodeId);
       if (!node) continue;

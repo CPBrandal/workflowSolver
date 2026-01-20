@@ -11,12 +11,12 @@
  *
  * Note: The number of partitions follows Bell numbers (1, 1, 2, 5, 15, 52, 203, 877...)
  */
-export function generatePartitions<T>(elements: T[]) {
+export function generateWorkflowPartitions<T>(elements: T[]) {
   if (elements.length === 0) return [[]];
   if (elements.length === 1) return [[[elements[0]]]];
 
   const [first, ...rest] = elements;
-  const partitionsOfRest = generatePartitions(rest);
+  const partitionsOfRest = generateWorkflowPartitions(rest);
   const result: T[][][] = [];
 
   for (const partition of partitionsOfRest) {

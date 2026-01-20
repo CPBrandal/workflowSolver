@@ -1,5 +1,5 @@
 import type { SchedulingAlgorithm } from '../../../constants/constants';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib_backend/lib/supabase';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowStatistics } from '../../../types/database';
 

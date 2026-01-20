@@ -1,23 +1,39 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { EfficiencyGraph } from './screens/algorithmComparison/EfficiencyGraph';
-import WorkflowFromDBScreen from './screens/database/db-run-simulation/WorkflowFromDBScreen';
-import SimulationsFromDBScreen from './screens/database/db-simulations/SimulationsFromDBScreen';
-import ViewWorkflow from './screens/database/db-view-workflow/ViewWorkflow';
-import DataBaseEditScreen from './screens/database/editDatabase/DataBaseEditScreen';
-import HomeScreen from './screens/homeScreen/HomeScreen';
-import WorkflowScreen from './screens/workflowScreen/WorkflowScreen';
+import ODPIP from './screens/ODPIP/ODPIP';
+
+// Lazy load all screens
+const HomeScreen = lazy(() => import('./screens/homeScreen/HomeScreen'));
+const WorkflowScreen = lazy(() => import('./screens/workflowScreen/WorkflowScreen'));
+const WorkflowFromDBScreen = lazy(
+  () => import('./screens/database/db-run-simulation/WorkflowFromDBScreen')
+);
+const SimulationsFromDBScreen = lazy(
+  () => import('./screens/database/db-simulations/SimulationsFromDBScreen')
+);
+const ViewWorkflow = lazy(() => import('./screens/database/db-view-workflow/ViewWorkflow'));
+const DataBaseEditScreen = lazy(() => import('./screens/database/editDatabase/DataBaseEditScreen'));
+const EfficiencyGraph = lazy(() =>
+  import('./screens/algorithmComparison/EfficiencyGraph').then(m => ({
+    default: m.EfficiencyGraph,
+  }))
+);
+
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/workflow" element={<WorkflowScreen />} />
-        <Route path="/db-workflows" element={<WorkflowFromDBScreen />} />
-        <Route path="/db-simulations" element={<SimulationsFromDBScreen />} />
-        <Route path="/db-view-workflow" element={<ViewWorkflow />} />
-        <Route path="/edit-database" element={<DataBaseEditScreen />} />
-        <Route path="/comparison" element={<EfficiencyGraph />} />
-      </Routes>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<HomeScreen />} />
+          <Route path="/workflow" element={<WorkflowScreen />} />
+          <Route path="/db-workflows" element={<WorkflowFromDBScreen />} />
+          <Route path="/db-simulations" element={<SimulationsFromDBScreen />} />
+          <Route path="/db-view-workflow" element={<ViewWorkflow />} />
+          <Route path="/edit-database" element={<DataBaseEditScreen />} />
+          <Route path="/comparison" element={<EfficiencyGraph />} />
+          <Route path="/odpip" element={<ODPIP />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

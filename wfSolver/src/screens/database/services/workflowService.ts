@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib_backend/lib/supabase';
 import type { ArbitraryWorkflowConfig, Workflow } from '../../../types';
 import type { WorkflowRecord } from '../../../types/database';
 

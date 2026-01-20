@@ -10,16 +10,13 @@ export function cpGreedy(
   const completionTimes: { [nodeId: string]: number } = {};
   const processedNodes = new Set<string>();
 
-  // Map to track which worker each node is scheduled on
   const nodeToWorker: { [nodeId: string]: string } = {};
 
-  // Track worker availability times
   const workerAvailability: { [workerId: string]: number } = {};
   workers.forEach(worker => {
     workerAvailability[worker.id] = 0;
   });
 
-  // Find the dedicated critical path worker
   const criticalPathWorker = workers.find(worker => worker.criticalPathWorker);
   const criticalPathWorkerId = criticalPathWorker?.id;
 
@@ -29,7 +26,6 @@ export function cpGreedy(
     console.log(`Using ${criticalPathWorkerId} as dedicated critical path worker`);
   }
 
-  // Helper function to find transfer time
   function findTransferTime(
     sourceNodeId: string,
     targetNodeId: string,
@@ -38,7 +34,6 @@ export function cpGreedy(
   ) {
     if (!includeTransferTimes) return 0;
 
-    // Transfer time is 0 if both tasks are on the same worker
     if (sourceWorkerId && targetWorkerId && sourceWorkerId === targetWorkerId) {
       return 0;
     }
@@ -51,15 +46,12 @@ export function cpGreedy(
 
   // Helper to check if scheduling a task on CP worker would interfere with CP tasks
   function wouldInterfereWithCP(taskStartTime: number, taskEndTime: number, cpWorkerId: string) {
-    // Get all CP tasks scheduled on CP worker
     const cpTasksOnCPWorker = scheduledTasks.filter(task => {
       const node = nodes.find(n => n.id === task.nodeId);
       return node?.criticalPath && task.workerId === cpWorkerId;
     });
 
-    // Check if the task would overlap with any CP task
     for (const cpTask of cpTasksOnCPWorker) {
-      // If tasks overlap (not completely before or after), it interferes
       if (!(taskEndTime <= cpTask.startTime || taskStartTime >= cpTask.endTime)) {
         return true;
       }
@@ -67,7 +59,6 @@ export function cpGreedy(
     return false;
   }
 
-  // ========== Unified scheduling: Prioritize CP tasks, but schedule all nodes ==========
   console.log('=== Scheduling Tasks (CP greedy ) ===');
   const allNodesToProcess = [...nodes];
 
