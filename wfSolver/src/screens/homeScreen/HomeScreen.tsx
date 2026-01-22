@@ -59,8 +59,8 @@ function HomeScreen() {
   //test
 
   const handleCreateArbitraryWorkflow = () => {
-    if (nodeCount < 1 || nodeCount > 200) {
-      alert('Please enter a node count between 1 and 200');
+    if (nodeCount < 1 || nodeCount > 100) {
+      alert('Please enter a node count between 1 and 100');
       return;
     }
     setGeneratingWorkflow(true);

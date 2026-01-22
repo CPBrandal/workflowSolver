@@ -29,7 +29,6 @@ export interface ProbabilisticWorkflowConfig extends ArbitraryWorkflowConfig {
 
   // Advanced parameters
   clusteringCoefficient?: number; // For creating clustered regions
-  preferentialAttachment?: boolean; // Use preferential attachment for edges
 }
 
 /**
@@ -97,7 +96,6 @@ export function generateProbabilisticWorkflow(config: ProbabilisticWorkflowConfi
     minLevels = 3,
     maxLevels = nodeCount - 2,
     clusteringCoefficient = 0.3,
-    preferentialAttachment = false,
     maxWidth = Math.floor((nodeCount - 2) * 0.6), // Conservative max width
     edgeProbability = 0.4,
     maxEdgeSpan = 3,
@@ -138,8 +136,7 @@ export function generateProbabilisticWorkflow(config: ProbabilisticWorkflowConfi
     connectivityDecay,
     hubProbability,
     clusteringCoefficient,
-    preferentialAttachment,
-    edgeProbability,
+    edgeProbability,  
     maxEdgeSpan
   );
 
@@ -353,7 +350,6 @@ function generateProbabilisticConnectivity(
   connectivityDecay: number,
   hubProbability: number,
   clusteringCoefficient: number,
-  preferentialAttachment: boolean,
   baseEdgeProbability: number,
   maxEdgeSpan: number
 ): void {
@@ -389,13 +385,6 @@ function generateProbabilisticConnectivity(
           // Boost probability for hub connections
           if (hubNodes.has(sourceNode.id) || hubNodes.has(targetNode.id)) {
             edgeProbability *= 1.5;
-          }
-
-          // Preferential attachment: boost probability based on existing degree
-          if (preferentialAttachment) {
-            const sourceDegree = sourceNode.connections.length + 1;
-            const targetInDegree = countIncomingEdges(targetNode, nodes) + 1;
-            edgeProbability *= Math.log(sourceDegree * targetInDegree) / 10;
           }
 
           // Apply clustering coefficient for local connectivity
@@ -542,10 +531,4 @@ function calculateXPosition(index: number, levelWidth: number): number {
   if (levelWidth === 1) return 2;
   const spacing = 4 / (levelWidth - 1);
   return index * spacing;
-}
-
-function countIncomingEdges(node: WorkflowNode, allNodes: WorkflowNode[]): number {
-  return allNodes.reduce((count, sourceNode) => {
-    return count + sourceNode.connections.filter(edge => edge.targetNodeId === node.id).length;
-  }, 0);
 }
