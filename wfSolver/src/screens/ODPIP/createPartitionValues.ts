@@ -5,11 +5,11 @@ import { analyzeCriticalPath } from '../../utils/criticalPathAnalyzer';
  * Generates subset values for ODP-IP algorithm.
  * Returns an array where index i contains the value of the subset
  * represented by the binary encoding of i.
- * 
+ *
  * Example for 4 nodes: index 5 = binary 0101 = {node0, node2}
  */
 export function createSubsetValues(workflow: Workflow) {
-  for(const task of workflow.tasks) {
+  for (const task of workflow.tasks) {
     task.executionTime = getExpectedExecutionTime(task);
   }
   const cpmResult = analyzeCriticalPath(workflow.tasks);
@@ -25,16 +25,16 @@ export function createSubsetValues(workflow: Workflow) {
   const nodes = workflow.tasks.filter(task => !task.criticalPath);
   const n = nodes.length;
   const numSubsets = Math.pow(2, n);
-  
+
   const values: number[] = new Array(numSubsets);
-  
+
   // Generate value for each subset based on bitmask
   for (let mask = 0; mask < numSubsets; mask++) {
     const subset = maskToSubset(mask, nodes);
     values[mask] = calculateSubsetValue(subset, criticalPathDuration);
   }
-  
-  return {values, criticalPathDuration};
+
+  return { values, criticalPathDuration };
 }
 
 /**
@@ -59,7 +59,7 @@ export function subsetToMask(subset: WorkflowNode[], allNodes: WorkflowNode[]): 
   for (const node of subset) {
     const index = allNodes.findIndex(n => n.id === node.id);
     if (index !== -1) {
-      mask |= (1 << index);
+      mask |= 1 << index;
     }
   }
   return mask;
@@ -92,14 +92,14 @@ function calculateSubsetExecutionTime(subset: WorkflowNode[]): number {
 
 /**
  * Calculate the value for a subset of nodes.
- * 
+ *
  * The value represents how "good" this subset is as a coalition (tasks on one worker).
  * Higher value = better.
- * 
+ *
  * Logic:
  * - If subsetTime ≤ criticalPath: Value = subsetTime (more work = better utilization)
  * - If subsetTime > criticalPath: Value = 0 (exceeds limit, need more workers)
- * 
+ *
  * This rewards filling a worker's time as close to the critical path as possible,
  * but any subset that exceeds the critical path is worthless (would increase makespan).
  */
@@ -109,12 +109,12 @@ function calculateSubsetValue(subset: WorkflowNode[], criticalPathDuration: numb
   }
 
   const subsetTime = calculateSubsetExecutionTime(subset);
-  
+
   // If we exceed critical path, this subset is not viable for one worker
   if (subsetTime > criticalPathDuration) {
     return 0;
   }
-  
+
   // Otherwise, value = execution time (higher = better utilization)
   return Math.round(subsetTime * 100) / 100; // Round to 2 decimal places
 }
@@ -125,7 +125,7 @@ function calculateSubsetValue(subset: WorkflowNode[], criticalPathDuration: numb
  */
 export function exportSubsetValuesToFile(values: number[], filename = 'subset-values.txt'): void {
   const content = values.join('\n');
-  
+
   const blob = new Blob([content], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -140,30 +140,28 @@ export function exportSubsetValuesToFile(values: number[], filename = 'subset-va
  * Uses pre-computed values to avoid recalculating.
  */
 export function getSubsetValuesDescription(
-  workflow: Workflow, 
-  values: number[], 
+  workflow: Workflow,
+  values: number[],
   criticalPathDuration: number
 ): string {
   const nodes = workflow.tasks.filter(task => !task.criticalPath);
-  
+
   const lines: string[] = [];
   lines.push(`Critical Path Duration: ${criticalPathDuration.toFixed(2)}`);
   lines.push(`Non-critical tasks: ${nodes.length}`);
   lines.push(`Total subsets: ${values.length}`);
   lines.push('---');
-  
+
   for (let mask = 0; mask < values.length; mask++) {
     const subset = maskToSubset(mask, nodes);
     const binary = mask.toString(2).padStart(nodes.length, '0');
-    const subsetNames = subset.length > 0 
-      ? `{${subset.map(n => n.name).join(', ')}}` 
-      : '{}';
+    const subsetNames = subset.length > 0 ? `{${subset.map(n => n.name).join(', ')}}` : '{}';
     const execTime = calculateSubsetExecutionTime(subset);
     lines.push(
       `[${mask}] ${binary} = ${subsetNames}\n` +
-      `    Exec time: ${execTime.toFixed(2)}, Value: ${values[mask]}`
+        `    Exec time: ${execTime.toFixed(2)}, Value: ${values[mask]}`
     );
   }
-  
+
   return lines.join('\n');
 }
