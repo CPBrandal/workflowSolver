@@ -26,7 +26,6 @@ export const createBalancedWorkflow = (nodeCount: number): WorkflowNode[] => {
     hubProbability: 0.05, // MINIMAL hubs
     maxEdgeSpan: 2, // SHORT spans only
     clusteringCoefficient: 0.15, // MINIMAL clustering
-    preferentialAttachment: false, // NO preferential attachment
 
     maxWidth: Math.ceil(nodeCount / 3),
     singleSink: true,

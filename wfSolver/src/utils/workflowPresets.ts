@@ -23,7 +23,6 @@ export const createScientificWorkflow = (nodeCount: number): WorkflowNode[] => {
     hubProbability: 0.08, // REDUCED from 0.15 to 0.08
     maxEdgeSpan: 2, // REDUCED from 3 to 2
     clusteringCoefficient: 0.2, // REDUCED from 0.3 to 0.2
-    preferentialAttachment: false, // DISABLED to prevent rich-get-richer
   });
 };
 
@@ -47,7 +46,6 @@ export const createDataPipeline = (nodeCount: number): WorkflowNode[] => {
     hubProbability: 0.02, // MINIMAL hubs in pipelines
     maxEdgeSpan: 1, // ONLY adjacent level connections
     clusteringCoefficient: 0.1, // MINIMAL clustering
-    preferentialAttachment: false, // NO preferential attachment
   });
 };
 
@@ -69,7 +67,6 @@ export const createMLWorkflow = (nodeCount: number): WorkflowNode[] => {
     hubProbability: 0.1, // REDUCED from 0.2 to 0.1
     maxEdgeSpan: 2, // REDUCED from longer spans
     clusteringCoefficient: 0.15, // REDUCED clustering
-    preferentialAttachment: false, // DISABLED to control connection growth
   });
 };
 
@@ -94,7 +91,6 @@ export const createComplexWorkflow = (nodeCount: number): WorkflowNode[] => {
     hubProbability: 0.15, // REDUCED from 0.25 to 0.15
     maxEdgeSpan: 3, // REDUCED from 4 to 3
     clusteringCoefficient: 0.25, // REDUCED from 0.4 to 0.25
-    preferentialAttachment: false, // DISABLED even for complex
   });
 };
 
@@ -116,7 +112,6 @@ export const createBalancedWorkflow = (nodeCount: number): WorkflowNode[] => {
     hubProbability: 0.05, // MINIMAL hubs
     maxEdgeSpan: 2, // SHORT spans only
     clusteringCoefficient: 0.15, // MINIMAL clustering
-    preferentialAttachment: false, // NO preferential attachment
 
     maxWidth: Math.ceil(nodeCount / 3),
     singleSink: true,
