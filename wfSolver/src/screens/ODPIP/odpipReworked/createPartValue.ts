@@ -1,5 +1,6 @@
-import type { Workflow, WorkflowNode } from '../../types';
-import { analyzeCriticalPath } from '../../utils/criticalPathAnalyzer';
+import type { Workflow, WorkflowNode } from '../../../types';
+import { analyzeCriticalPath } from '../../../utils/criticalPathAnalyzer';
+import { getNodeDependencies } from '../../../utils/getNodeDependencies';
 
 /**
  * Generates subset values for ODP-IP algorithm.
@@ -26,7 +27,7 @@ export function createSubsetValues(workflow: Workflow) {
   }));
 
   const criticalPathDuration = cpmResult.criticalPathDuration;
-  console.log('Critical Path Duration: ', criticalPathDuration);
+  console.log('Expected Critical Path Duration: ', criticalPathDuration);
   console.log('Number of agents: ', processedTasks.length - cpmResult.criticalPath.length);
 
   const nodes = processedTasks.filter(task => !task.criticalPath);
@@ -187,4 +188,59 @@ export function getSubsetValuesDescription(
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Find non-critical-path dependency chains for each critical path node.
+ *
+ * For each CP node that depends on non-CP tasks, recursively collects
+ * the full chain of non-CP predecessors. CP nodes are processed in
+ * ascending level order so that lower-level CP nodes claim their
+ * non-CP dependencies first. Each non-CP task is assigned to exactly
+ * one CP node (no duplicates across maps).
+ */
+export function getCriticalPathExternalDependencies(
+  allTasks: WorkflowNode[],
+  criticalPathIds: Set<string>
+): Map<string, WorkflowNode[]> {
+  const cpTasks = allTasks
+    .filter(t => criticalPathIds.has(t.id))
+    .sort((a, b) => a.level - b.level);
+
+  const assigned = new Set<string>();
+  const result = new Map<string, WorkflowNode[]>();
+
+  for (const cpNode of cpTasks) {
+    const chain: WorkflowNode[] = [];
+    collectNonCpDependencies(cpNode.id, allTasks, criticalPathIds, assigned, chain);
+
+    if (chain.length > 0) {
+      result.set(cpNode.id, chain);
+    }
+  }
+
+  return result;
+}
+
+function collectNonCpDependencies(
+  nodeId: string,
+  allTasks: WorkflowNode[],
+  criticalPathIds: Set<string>,
+  assigned: Set<string>,
+  chain: WorkflowNode[]
+): void {
+  const predecessorIds = getNodeDependencies(nodeId, allTasks);
+
+  for (const predId of predecessorIds) {
+    if (criticalPathIds.has(predId) || assigned.has(predId)) continue;
+
+    const predNode = allTasks.find(t => t.id === predId);
+    if (!predNode) continue;
+
+    assigned.add(predId);
+    chain.push(predNode);
+
+    // Recurse further up the non-CP chain
+    collectNonCpDependencies(predId, allTasks, criticalPathIds, assigned, chain);
+  }
 }

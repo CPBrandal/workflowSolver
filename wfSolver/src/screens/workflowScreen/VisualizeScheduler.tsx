@@ -5,7 +5,7 @@ import { initialGreedy } from '../../schedulers/greedy';
 import { heftSchedule } from '../../schedulers/heft/heft';
 import { cpGreedy } from '../../schedulers/scheduler';
 import type { ScheduledTask, Worker, Workflow } from '../../types';
-import { TaskTimelineChart } from '../database/db-view-workflow/TaskTimelineChart';
+import { TaskTimelineChart } from '../database/view-workflow/TaskTimelineChart';
 
 function VisualizeScheduler({
   workflow,

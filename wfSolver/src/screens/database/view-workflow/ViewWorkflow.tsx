@@ -5,6 +5,7 @@ import { ALGORITHMS } from '../../../constants/constants';
 import { cpHeftSchedule } from '../../../schedulers/cpHeft2/cpHeft2';
 import { initialGreedy } from '../../../schedulers/greedy';
 import { heftSchedule } from '../../../schedulers/heft/heft';
+import { odpipScheduler } from '../../../schedulers/odpipScheduler';
 import { cpGreedy } from '../../../schedulers/scheduler';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
@@ -93,7 +94,11 @@ function ViewWorkflow() {
             ? cpHeftSchedule(simulatedWorkflow.tasks, workers)
             : chosenAlgorithm === 'Greedy'
               ? initialGreedy(simulatedWorkflow.tasks, workers)
-              : heftSchedule(simulatedWorkflow.tasks, workers);
+              : chosenAlgorithm === 'HEFT'
+                ? heftSchedule(simulatedWorkflow.tasks, workers)
+                : chosenAlgorithm === 'ODPIP'
+                  ? await odpipScheduler(simulatedWorkflow, workers)
+                  : [];
 
       const finalWorkers = workers.map(w => ({ ...w }));
       schedule.forEach(task => {
@@ -302,7 +307,7 @@ function ViewWorkflow() {
           )}
 
           {/* Simulation Selector */}
-          {selectedWorkflowId && selectedNumberOfWorkers > 0 && (
+          {selectedWorkflowId && (selectedNumberOfWorkers > 0 || chosenAlgorithm === 'ODPIP') && (
             <div>
               <label
                 htmlFor="simulationSelect"

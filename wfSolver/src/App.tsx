@@ -6,12 +6,12 @@ import ODPIP from './screens/ODPIP/ODPIP';
 const HomeScreen = lazy(() => import('./screens/homeScreen/HomeScreen'));
 const WorkflowScreen = lazy(() => import('./screens/workflowScreen/WorkflowScreen'));
 const WorkflowFromDBScreen = lazy(
-  () => import('./screens/database/db-run-simulation/WorkflowFromDBScreen')
+  () => import('./screens/database/run-simulation/WorkflowFromDBScreen')
 );
 const SimulationsFromDBScreen = lazy(
-  () => import('./screens/database/db-simulations/SimulationsFromDBScreen')
+  () => import('./screens/database/simulations/SimulationsFromDBScreen')
 );
-const ViewWorkflow = lazy(() => import('./screens/database/db-view-workflow/ViewWorkflow'));
+const ViewWorkflow = lazy(() => import('./screens/database/view-workflow/ViewWorkflow'));
 const DataBaseEditScreen = lazy(() => import('./screens/database/editDatabase/DataBaseEditScreen'));
 const EfficiencyGraph = lazy(() =>
   import('./screens/algorithmComparison/EfficiencyGraph').then(m => ({

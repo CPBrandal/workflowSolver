@@ -58,7 +58,9 @@ export class InstantSimulationRunner {
             ? initialGreedy(simulatedWorkflow.tasks, workers, useTransferTime)
             : algorithm === 'CP_HEFT'
               ? cpHeftSchedule(simulatedWorkflow.tasks, workers, useTransferTime)
-              : heftSchedule(simulatedWorkflow.tasks, workers, useTransferTime);
+              : algorithm === 'HEFT'
+                ? heftSchedule(simulatedWorkflow.tasks, workers, useTransferTime)
+                : [];
 
       // 8. Calculate actual runtime
       const actualRuntime =

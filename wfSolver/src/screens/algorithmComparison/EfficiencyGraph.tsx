@@ -39,7 +39,7 @@ export function EfficiencyGraph() {
   const [cpGreedyDistributionData, setCpGreedyDistData] = useState<RDistributionPoint[]>([]);
   const [heftDistributionData, setHeftDistributionData] = useState<RDistributionPoint[]>([]);
   const [cpHeftDistributionData, setCpHeftDistributionData] = useState<RDistributionPoint[]>([]);
-
+  const [odpipDistributionData, setOdpipDistributionData] = useState<RDistributionPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,6 +113,13 @@ export function EfficiencyGraph() {
           }
         );
         setCpHeftDistributionData(cpHeftData);
+
+        const odpipData = await AlgorithComparisonController.getRDistributionForWorkersByAlgorithm({
+          workflowId: selectedWorkflowId,
+          workerCounts: validWorkers,
+          algorithm: 'odpip',
+        });
+        setOdpipDistributionData(odpipData);
       } catch (error) {
         setError((error as Error).message);
       } finally {
@@ -129,7 +136,7 @@ export function EfficiencyGraph() {
     const cpGreedyRow = cpGreedyDistributionData.find(row => row.workerCount === workerCount);
     const heftRow = heftDistributionData.find(row => row.workerCount === workerCount);
     const cpHeftRow = cpHeftDistributionData.find(row => row.workerCount === workerCount);
-
+    const odpipRow = odpipDistributionData.find(row => row.workerCount === workerCount);
     return {
       workers: workerCount,
       greedyP10: greedyRow?.p10,
@@ -144,6 +151,9 @@ export function EfficiencyGraph() {
       cpHeftP10: cpHeftRow?.p10,
       cpHeftP50: cpHeftRow?.p50,
       cpHeftP90: cpHeftRow?.p90,
+      odpipP10: odpipRow?.p10,
+      odpipP50: odpipRow?.p50,
+      odpipP90: odpipRow?.p90,
     };
   });
 
@@ -171,7 +181,8 @@ export function EfficiencyGraph() {
     greedyDistributionData.length > 0 ||
     heftDistributionData.length > 0 ||
     cpHeftDistributionData.length > 0 ||
-    cpGreedyDistributionData.length > 0;
+    cpGreedyDistributionData.length > 0 ||
+    odpipDistributionData.length > 0;
 
   return (
     <Layout>
@@ -403,6 +414,29 @@ export function EfficiencyGraph() {
                     activeDot={{ r: 6 }}
                     strokeDasharray="2 2"
                   />
+
+                  {/* ODPIP Lines - Yellow shades */}
+                  <Line
+                    type="monotone"
+                    dataKey="odpipP10"
+                    stroke="#eab308"
+                    strokeWidth={2}
+                    name="ODPIP P10"
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                    strokeDasharray="5 5"
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="odpipP50"
+                    stroke="#d97706"
+                    strokeWidth={2}
+                    name="ODPIP P50"
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                    strokeDasharray="5 5"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -549,6 +583,41 @@ export function EfficiencyGraph() {
                             {row.p50.toFixed(3)}
                           </td>
                           <td className="p-3 text-right font-medium" style={{ color: '#047857' }}>
+                            {row.p90.toFixed(3)}
+                          </td>
+                          <td className="p-3 text-right font-medium">{row.spread.toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ODPIP Table */}
+              <div>
+                <h3 className="text-xl font-bold mb-2 text-yellow-600">ODPIP Algorithm</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-300 bg-yellow-50">
+                        <th className="p-3 text-left">Workers</th>
+                        <th className="p-3 text-right">P10</th>
+                        <th className="p-3 text-right">P50</th>
+                        <th className="p-3 text-right">P90</th>
+                        <th className="p-3 text-right">Spread</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {odpipDistributionData.map(row => (
+                        <tr key={row.workerCount} className="border-b border-gray-200">
+                          <td className="p-3">{row.workerCount}</td>
+                          <td className="p-3 text-right font-medium" style={{ color: '#eab308' }}>
+                            {row.p10.toFixed(3)}
+                          </td>
+                          <td className="p-3 text-right font-medium" style={{ color: '#d97706' }}>
+                            {row.p50.toFixed(3)}
+                          </td>
+                          <td className="p-3 text-right font-medium" style={{ color: '#d97706' }}>
                             {row.p90.toFixed(3)}
                           </td>
                           <td className="p-3 text-right font-medium">{row.spread.toFixed(3)}</td>

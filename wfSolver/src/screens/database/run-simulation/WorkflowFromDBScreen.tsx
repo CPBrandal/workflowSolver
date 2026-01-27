@@ -5,6 +5,7 @@ import type { Worker, Workflow } from '../../../types';
 import type { WorkflowRecord } from '../../../types/database';
 import { WorkflowService } from '../services/workflowService';
 import { InstantSimulationRunner } from './InstantSimulationsRunner';
+import { OdpipRunSimulations } from './OdpipRunSimulations';
 
 function WorkflowFromDBScreen() {
   const [savedWorkflows, setSavedWorkflows] = useState<WorkflowRecord[]>([]);
@@ -68,6 +69,39 @@ function WorkflowFromDBScreen() {
     }
 
     setShowWorkflow(!showWorkflow);
+  };
+
+  const handleRunODPIP = async () => {
+    if (!selectedWorkflowId || !workflow) {
+      alert('Please select a workflow first');
+      return;
+    }
+    setIsRunningSimulations(true);
+    try {
+      const savedIds = await OdpipRunSimulations.runODPIP(
+        workflow,
+        numberOfSimulations,
+        selectedWorkflowId,
+        (current, total) => {
+          setSimulationProgress({
+            current,
+            total,
+            currentWorkerCount: 0,
+            totalWorkerCounts: 0,
+          });
+        },
+        useTransferTime
+      );
+      alert(
+        `Successfully completed ${savedIds.length} total simulations!\n` +
+          `(${numberOfSimulations} simulations × ${savedIds.length} ODPIP configurations)`
+      );
+    } catch (error) {
+      console.error('ODPIP error:', error);
+      alert('Failed to run ODPIP. Check console for details.');
+    } finally {
+      setIsRunningSimulations(false);
+    }
   };
 
   const handleRunSimulations = async () => {
@@ -364,6 +398,21 @@ function WorkflowFromDBScreen() {
           </div>
         )}
 
+        {workflow && (
+          <div className="mt-4 max-w-lg mx-auto p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex-1 mb-3">
+              <label className="text-sm font-medium text-gray-700">ODPIP</label>
+              <p className="text-xs text-gray-500 mt-1">Run ODPIP for the workflow</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleRunODPIP()}
+              className={`w-full px-5 py-2.5 text-white border-0 rounded cursor-pointer transition-colors bg-blue-600 hover:bg-blue-700`}
+            >
+              Run ODPIP
+            </button>
+          </div>
+        )}
         {/* Simulation Configuration */}
         {workflow && (
           <div className="mt-6 pt-6 max-w-lg mx-auto">

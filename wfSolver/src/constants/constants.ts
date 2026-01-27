@@ -22,10 +22,10 @@ export const TRANSFER_PARAM_DISTRIBUTIONS = {
   } as GammaParams,
 };
 
-export const ALGORITHMS = ['Greedy', 'CP_Greedy', 'HEFT', 'CP_HEFT'] as const;
+export const ALGORITHMS = ['Greedy', 'CP_Greedy', 'HEFT', 'CP_HEFT', 'ODPIP'] as const;
 export type SchedulingAlgorithm = (typeof ALGORITHMS)[number];
 
 export const TOPOLOGY_TYPES = ['arbitrary', 'scientific'] as const;
 export type TopologyType = (typeof TOPOLOGY_TYPES)[number];
 
-export const VALID_WORKERS = [4, 5, 6, 7, 8];
+export const VALID_WORKERS = [2, 3, 4, 5];

@@ -1,17 +1,21 @@
-import { useEffect, useState } from "react";
-import { Layout } from "../../components/Layout";
-import { checkBackendHealth, solveODPIP, type ODPIPResult } from "../../services/odpipService";
-import type { Workflow } from "../../types";
-import type { WorkflowRecord } from "../../types/database";
-import { WorkflowService } from "../database/services/workflowService";
-import { createSubsetValues, exportSubsetValuesToFile, getSubsetValuesDescription } from "./createPartitionValues";
+import { useEffect, useState } from 'react';
+import { Layout } from '../../components/Layout';
+import { checkBackendHealth, solveODPIP, type ODPIPResult } from '../../services/odpipService';
+import type { Workflow } from '../../types';
+import type { WorkflowRecord } from '../../types/database';
+import { WorkflowService } from '../database/services/workflowService';
+import {
+  createSubsetValues,
+  exportSubsetValuesToFile,
+  getSubsetValuesDescription,
+} from './createPartitionValues';
 
 function ODPIP() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [dbWorkflows, setDbWorkflows] = useState<WorkflowRecord[]>([]);
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   const [subsetValues, setSubsetValues] = useState<number[]>([]);
-  const [description, setDescription] = useState<string>("");
+  const [description, setDescription] = useState<string>('');
   const [showDescription, setShowDescription] = useState(false);
   const [solverResult, setSolverResult] = useState<ODPIPResult | null>(null);
   const [solving, setSolving] = useState(false);
@@ -36,7 +40,7 @@ function ODPIP() {
   useEffect(() => {
     if (selectedWorkflow) {
       try {
-        const {values, criticalPathDuration} = createSubsetValues(selectedWorkflow);
+        const { values, criticalPathDuration } = createSubsetValues(selectedWorkflow);
         setSubsetValues(values);
         setDescription(getSubsetValuesDescription(selectedWorkflow, values, criticalPathDuration));
       } catch (error) {
@@ -47,7 +51,7 @@ function ODPIP() {
 
   const handleExport = () => {
     if (subsetValues.length > 0) {
-      const sanitizedName = selectedWorkflow 
+      const sanitizedName = selectedWorkflow
         ? selectedWorkflow.name.replace(/\s+/g, '_')
         : 'subset-values';
       const filename = `${sanitizedName}-subset-values.txt`;
@@ -87,8 +91,8 @@ function ODPIP() {
     const nonCriticalTasks = selectedWorkflow.tasks.filter(t => !t.criticalPath);
 
     return partition
-      .map((coalition) => {
-        const taskNames = coalition.map((agentIdx) => {
+      .map(coalition => {
+        const taskNames = coalition.map(agentIdx => {
           const task = nonCriticalTasks[agentIdx - 1];
           return task ? task.name : `Agent ${agentIdx}`;
         });
@@ -111,25 +115,29 @@ function ODPIP() {
 
           {/* Backend Status */}
           <div className="flex justify-center mb-6">
-            <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
-              backendAvailable === null
-                ? 'bg-gray-100 text-gray-600'
-                : backendAvailable
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              <span className={`w-2 h-2 rounded-full mr-2 ${
+            <div
+              className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
                 backendAvailable === null
-                  ? 'bg-gray-400'
+                  ? 'bg-gray-100 text-gray-600'
                   : backendAvailable
-                  ? 'bg-green-500'
-                  : 'bg-red-500'
-              }`} />
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full mr-2 ${
+                  backendAvailable === null
+                    ? 'bg-gray-400'
+                    : backendAvailable
+                      ? 'bg-green-500'
+                      : 'bg-red-500'
+                }`}
+              />
               {backendAvailable === null
                 ? 'Checking backend...'
                 : backendAvailable
-                ? 'Backend connected'
-                : 'Backend offline - run: npm run server'}
+                  ? 'Backend connected'
+                  : 'Backend offline - run: npm run server'}
             </div>
           </div>
 
@@ -140,14 +148,16 @@ function ODPIP() {
             ) : (
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                onChange={(e) => {
+                onChange={e => {
                   const selected = dbWorkflows.find(w => w.id === e.target.value);
                   if (selected) handleWorkflowSelect(selected);
                 }}
                 defaultValue=""
               >
-                <option value="" disabled>Choose a workflow...</option>
-                {dbWorkflows.map((workflow) => (
+                <option value="" disabled>
+                  Choose a workflow...
+                </option>
+                {dbWorkflows.map(workflow => (
                   <option key={workflow.id} value={workflow.id}>
                     {workflow.topology.name}
                   </option>
@@ -160,9 +170,7 @@ function ODPIP() {
         {/* Results Card */}
         {selectedWorkflow && subsetValues.length > 0 && (
           <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-semibold mb-2 text-center">
-              Subset Values
-            </h2>
+            <h2 className="text-2xl font-semibold mb-2 text-center">Subset Values</h2>
             <p className="text-gray-600 text-center mb-6">
               {subsetValues.length} subsets generated for {selectedWorkflow.name}
             </p>
@@ -220,7 +228,9 @@ function ODPIP() {
                   </div>
                   <div>
                     <span className="text-gray-500">Task groups:</span>
-                    <p className="mt-1 text-gray-800">{getPartitionDescription(solverResult.partition)}</p>
+                    <p className="mt-1 text-gray-800">
+                      {getPartitionDescription(solverResult.partition)}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -230,7 +240,9 @@ function ODPIP() {
             {showDescription && (
               <div className="mt-6 bg-gray-50 border border-gray-200 p-4 rounded-lg max-h-96 overflow-y-auto">
                 <h3 className="font-medium mb-3 text-gray-700">Subset Details</h3>
-                <pre className="text-sm whitespace-pre-wrap text-gray-600 font-mono">{description}</pre>
+                <pre className="text-sm whitespace-pre-wrap text-gray-600 font-mono">
+                  {description}
+                </pre>
               </div>
             )}
           </div>
