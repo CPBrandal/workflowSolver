@@ -1,19 +1,24 @@
-import type { ScheduledTask, Worker, Workflow } from '../../../types';
+import type { ScheduledTask, Worker, Workflow, WorkflowNode } from '../../../types';
 import { analyzeCriticalPath, getProjectDuration } from '../../../utils/criticalPathAnalyzer';
 import { gammaSampler } from '../../../utils/gammaSampler';
 import { getNodeDependencies } from '../../../utils/getNodeDependencies';
 import { SimulationService } from '../services/simulationService';
 
+export interface CpNodePartition {
+  cpNodeId: string;
+  partition: number[][];
+  dependencyChain: WorkflowNode[];
+}
+
 export async function runOdpip(
   workflow: Workflow,
   workflowId: string,
   simulationNumber: number,
-  partition: number[][],
-  workers: Worker[],
-  useTransferTime: boolean = true
+  cpNodePartitions: CpNodePartition[],
+  workers: Worker[]
 ): Promise<string | null> {
   // 1. Sample execution and transfer times from gamma distributions
-  const simulatedWorkflow = sampleExecutionTimes(workflow, useTransferTime);
+  const simulatedWorkflow = workflow;
 
   // 2. Store original edge transfer times before any modifications
   const originalEdgeTransferTimes: Record<string, number> = {};
@@ -28,17 +33,17 @@ export async function runOdpip(
   const cpmResult = analyzeCriticalPath(simulatedWorkflow.tasks, true);
 
   // 4. Mark nodes that are on the critical path
-  //   simulatedWorkflow.tasks = simulatedWorkflow.tasks.map(task => ({
-  //     ...task,
-  //     criticalPath: cpmResult.orderedCriticalPath.some(n => n.id === task.id),
-  //   }));
+  simulatedWorkflow.tasks = simulatedWorkflow.tasks.map(task => ({
+    ...task,
+    criticalPath: cpmResult.orderedCriticalPath.some(n => n.id === task.id),
+  }));
 
   // 5. Store critical path in workflow
   simulatedWorkflow.criticalPath = cpmResult.orderedCriticalPath;
   simulatedWorkflow.criticalPathResult = cpmResult;
 
-  // 6. Schedule tasks according to the partition
-  const schedule = scheduleWithPartition(simulatedWorkflow, partition, workers, useTransferTime);
+  // 6. Schedule tasks according to the partitions
+  const schedule = scheduleWithPartition(simulatedWorkflow, cpNodePartitions, workers, true);
 
   // 7. Calculate theoretical runtime (execution times only, no transfer times)
   const theoreticalRuntime = getProjectDuration(simulatedWorkflow.tasks, false);
@@ -58,13 +63,14 @@ export async function runOdpip(
     simulatedWorkflow,
     finalWorkers,
     originalEdgeTransferTimes,
-    'ODPIP'
+    'ODPIP',
+    schedule
   );
 
   return simId;
 }
 
-function sampleExecutionTimes(workflow: Workflow, useTransferTime: boolean): Workflow {
+export function sampleExecutionTimes(workflow: Workflow, useTransferTime: boolean): Workflow {
   const sampledWorkflow = JSON.parse(JSON.stringify(workflow)) as Workflow;
 
   sampledWorkflow.tasks.forEach(task => {
@@ -82,13 +88,12 @@ function sampleExecutionTimes(workflow: Workflow, useTransferTime: boolean): Wor
 
 function scheduleWithPartition(
   workflow: Workflow,
-  partition: number[][],
+  cpNodePartitions: CpNodePartition[],
   workers: Worker[],
   includeTransferTimes: boolean
 ): ScheduledTask[] {
   const allNodes = workflow.tasks;
   const criticalPathNodes = allNodes.filter(task => task.criticalPath);
-  const nonCriticalPathNodes = allNodes.filter(task => !task.criticalPath);
 
   // Build worker assignments: critical path gets worker 0, each coalition gets subsequent workers
   const workerAssignments: Map<string, string> = new Map();
@@ -101,17 +106,27 @@ function scheduleWithPartition(
   }
   workerIndex++;
 
-  // Assign each coalition from partition to a worker
-  // Partition indices are 1-indexed (agents 1, 2, 3, ...), so subtract 1 for array access
-  for (const coalition of partition) {
-    const workerId = workers[workerIndex]?.id ?? `worker-${workerIndex}`;
-    for (const agentIndex of coalition) {
-      const node = nonCriticalPathNodes[agentIndex - 1];
-      if (node) {
-        workerAssignments.set(node.id, workerId);
+  // Assign each coalition from each CP node's partition to a worker
+  // Partition indices are 1-indexed, mapping into that entry's dependencyChain
+  for (const { partition, dependencyChain } of cpNodePartitions) {
+    for (const coalition of partition) {
+      const workerId = workers[workerIndex]?.id ?? `worker-${workerIndex}`;
+      for (const agentIndex of coalition) {
+        const node = dependencyChain[agentIndex - 1];
+        if (node) {
+          workerAssignments.set(node.id, workerId);
+        }
       }
+      workerIndex++;
     }
-    workerIndex++;
+  }
+
+  // Assign any remaining unassigned nodes to the critical path worker
+  for (const node of allNodes) {
+    if (!workerAssignments.has(node.id)) {
+      console.warn(`Node ${node.id} not in any partition, assigning to CP worker`);
+      workerAssignments.set(node.id, cpWorkerId);
+    }
   }
 
   // Schedule tasks respecting dependencies and transfer times

@@ -78,7 +78,8 @@ export class InstantSimulationRunner {
         simulatedWorkflow,
         finalWorkers,
         originalEdgeTransferTimes,
-        algorithm
+        algorithm,
+        schedule
       );
 
       if (simId) {

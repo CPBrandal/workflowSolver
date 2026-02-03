@@ -89,8 +89,7 @@ function WorkflowFromDBScreen() {
             currentWorkerCount: 0,
             totalWorkerCounts: 0,
           });
-        },
-        useTransferTime
+        }
       );
       alert(
         `Successfully completed ${savedIds.length} total simulations!\n` +

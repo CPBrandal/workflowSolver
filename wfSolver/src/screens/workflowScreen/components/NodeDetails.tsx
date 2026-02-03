@@ -14,6 +14,9 @@ export function NodeDetails({ selectedNode }: NodeDetailsProps) {
           <span className="font-medium">Name:</span> {selectedNode.name}
         </p>
         <p>
+          <span className="font-medium">ID:</span> {selectedNode.id}
+        </p>
+        <p>
           <span className="font-medium">Status:</span>
           <span
             className={`ml-2 px-2 py-1 rounded-full text-xs ${

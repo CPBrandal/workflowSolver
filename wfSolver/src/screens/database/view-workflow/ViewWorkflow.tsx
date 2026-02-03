@@ -5,7 +5,6 @@ import { ALGORITHMS } from '../../../constants/constants';
 import { cpHeftSchedule } from '../../../schedulers/cpHeft2/cpHeft2';
 import { initialGreedy } from '../../../schedulers/greedy';
 import { heftSchedule } from '../../../schedulers/heft/heft';
-import { odpipScheduler } from '../../../schedulers/odpipScheduler';
 import { cpGreedy } from '../../../schedulers/scheduler';
 import type { Worker, Workflow } from '../../../types';
 import type { SimulationRecord, WorkflowRecord } from '../../../types/database';
@@ -41,7 +40,7 @@ function ViewWorkflow() {
 
   const [processingSimulation, setProcessingSimulation] = useState(false);
 
-  // Function to run the simulation with all three algorithms
+  // Function to replay or run the simulation
   const runSimulationWithAllAlgorithms = async (sim: SimulationRecord, workflowData: Workflow) => {
     if (!sim || !workflowData) {
       setSimulationResult(null);
@@ -51,12 +50,29 @@ function ViewWorkflow() {
     setProcessingSimulation(true);
 
     try {
-      // Create a copy of the workflow with the simulation's execution times
+      // First, try to use stored scheduled_tasks for exact replay
+      const reconstructed = ViewWorkflowController.reconstructSimulationResult(sim, workflowData);
+      if (reconstructed) {
+        setSimulationResult(reconstructed);
+        setTimeout(() => setProcessingSimulation(false), 500);
+        return;
+      }
+
+      // ODPIP simulations require stored schedules - can't re-run the algorithm easily
+      if (chosenAlgorithm === 'ODPIP') {
+        console.warn('ODPIP simulation has no stored schedule - cannot replay');
+        setSimulationResult(null);
+        setProcessingSimulation(false);
+        return;
+      }
+
+      // Fallback: re-run algorithm for non-ODPIP simulations without stored schedules
       const simulatedWorkflow: Workflow = {
         ...workflowData,
         tasks: workflowData.tasks.map(task => ({
           ...task,
           executionTime: sim.node_execution_times[task.id] || 0,
+          criticalPath: sim.critical_path_node_ids?.includes(task.id) || false,
           connections: task.connections.map(edge => ({
             ...edge,
             transferTime:
@@ -65,7 +81,6 @@ function ViewWorkflow() {
         })),
       };
 
-      // Create workers based on the simulation's worker count
       const workers: Worker[] = [];
       const workerCount = sim.worker_count || 2;
       for (let i = 0; i < workerCount; i++) {
@@ -78,15 +93,6 @@ function ViewWorkflow() {
         });
       }
 
-      // Mark critical path nodes
-      if (sim.critical_path_node_ids) {
-        simulatedWorkflow.tasks = simulatedWorkflow.tasks.map(task => ({
-          ...task,
-          criticalPath: sim.critical_path_node_ids?.includes(task.id) || false,
-        }));
-      }
-
-      // ================== Algorithm 1: Chosen Algorithm ==================
       const schedule =
         chosenAlgorithm === 'CP_Greedy'
           ? cpGreedy(simulatedWorkflow.tasks, workers)
@@ -96,9 +102,7 @@ function ViewWorkflow() {
               ? initialGreedy(simulatedWorkflow.tasks, workers)
               : chosenAlgorithm === 'HEFT'
                 ? heftSchedule(simulatedWorkflow.tasks, workers)
-                : chosenAlgorithm === 'ODPIP'
-                  ? await odpipScheduler(simulatedWorkflow, workers)
-                  : [];
+                : [];
 
       const finalWorkers = workers.map(w => ({ ...w }));
       schedule.forEach(task => {
@@ -114,20 +118,10 @@ function ViewWorkflow() {
         workers: finalWorkers,
       });
 
-      // Brief delay for visual feedback
-      setTimeout(() => {
-        setProcessingSimulation(false);
-      }, 500);
+      setTimeout(() => setProcessingSimulation(false), 500);
     } catch (error) {
       console.error('Error processing simulation:', error);
       setProcessingSimulation(false);
-    }
-  };
-
-  // Handler for re-run button
-  const handleRerunSimulation = () => {
-    if (selectedSimulation && workflow) {
-      runSimulationWithAllAlgorithms(selectedSimulation, workflow);
     }
   };
 
@@ -170,12 +164,19 @@ function ViewWorkflow() {
       // Load simulations for this workflow
       setLoadingSimulations(true);
       try {
-        const sims = await ViewWorkflowController.getSimulationsByWorkersAndAlgorithm({
-          workflowId: selectedWorkflowId,
-          numberOfWorkers: selectedNumberOfWorkers,
-          algorithm: chosenAlgorithm,
-        });
-        setSimulations(sims);
+        if (chosenAlgorithm === 'ODPIP') {
+          const sims = await ViewWorkflowController.getODPIPSimulations({
+            workflowId: selectedWorkflowId,
+          });
+          setSimulations(sims);
+        } else {
+          const sims = await ViewWorkflowController.getSimulationsByWorkersAndAlgorithm({
+            workflowId: selectedWorkflowId,
+            numberOfWorkers: selectedNumberOfWorkers,
+            algorithm: chosenAlgorithm,
+          });
+          setSimulations(sims);
+        }
       } catch (error) {
         console.error('Error loading simulations:', error);
         setSimulations([]);
@@ -411,30 +412,6 @@ function ViewWorkflow() {
               </h3>
 
               <div className="flex items-center gap-2">
-                {/* Re-run Button */}
-                {selectedSimulation && workflow && (
-                  <button
-                    onClick={handleRerunSimulation}
-                    disabled={processingSimulation}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2"
-                  >
-                    <svg
-                      className={`w-4 h-4 ${processingSimulation ? 'animate-spin' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                    {processingSimulation ? 'Re-running...' : 'Re-run Simulation'}
-                  </button>
-                )}
-
                 {/* Show/Hide Visual Workflow Button */}
                 <button
                   onClick={() => setShowVisualWorkflow(!showVisualWorkflow)}

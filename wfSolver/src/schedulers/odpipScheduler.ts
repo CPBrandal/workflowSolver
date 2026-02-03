@@ -1,4 +1,4 @@
-import { createSubsetValues } from '../screens/ODPIP/createPartitionValues';
+import { createSubsetValues2 } from '../screens/ODPIP/odpipReworked/createPartValue';
 import { solveODPIP } from '../services/odpipService';
 import type { ScheduledTask, Worker, Workflow } from '../types';
 import { getNodeDependencies } from '../utils/getNodeDependencies';
@@ -8,45 +8,54 @@ export async function odpipScheduler(
   workers: Worker[],
   includeTransferTimes: boolean = true
 ) {
-  const { values, criticalPathDuration } = createSubsetValues(workflow);
-  const numOfAgents = Math.log2(values.length);
+  const subsetValuesPerCpNode = createSubsetValues2(workflow);
 
-  let partition: number[][];
-  try {
-    const result = await solveODPIP(numOfAgents, values);
-    partition = result.partition;
-    console.log('ODP-IP result:', result);
-  } catch (error) {
-    console.error(error);
-    throw new Error('Failed to solve ODP-IP');
+  const partitions: { partition: number[][]; dependencyChain: typeof subsetValuesPerCpNode[0]['dependencyChain'] }[] = [];
+  for (const entry of subsetValuesPerCpNode) {
+    const result = await solveODPIP(entry.values.length, entry.values);
+    partitions.push({ partition: result.partition, dependencyChain: entry.dependencyChain });
   }
 
   const allNodes = workflow.tasks;
   const criticalPathNodes = allNodes.filter(task => task.criticalPath);
-  const nonCriticalPathNodes = allNodes.filter(task => !task.criticalPath);
+
+  // Count total coalitions across all partitions
+  const totalCoalitions = partitions.reduce((sum, p) => sum + p.partition.length, 0);
+  const requiredWorkers = totalCoalitions + 1; // 1 for critical path + 1 per coalition
+  while (workers.length < requiredWorkers) {
+    workers.push({
+      id: `worker-${workers.length + 1}`,
+      time: 0,
+      isActive: false,
+      currentTask: null,
+      criticalPathWorker: false,
+    });
+  }
 
   // Build worker assignments: each coalition gets a worker, plus one for critical path
   const workerAssignments: Map<string, string> = new Map(); // nodeId -> workerId
   let workerIndex = 0;
 
   // Assign critical path nodes to first worker
-  const cpWorkerId = workers[workerIndex]?.id ?? `worker-${workerIndex}`;
+  const cpWorkerId = workers[workerIndex].id;
   for (const node of criticalPathNodes) {
     workerAssignments.set(node.id, cpWorkerId);
   }
   workerIndex++;
 
-  // Assign each coalition from partition to a worker
-  // Partition indices are 1-indexed (agents 1, 2, 3, ...), so subtract 1 for array access
-  for (const coalition of partition) {
-    const workerId = workers[workerIndex]?.id ?? `worker-${workerIndex}`;
-    for (const agentIndex of coalition) {
-      const node = nonCriticalPathNodes[agentIndex - 1];
-      if (node) {
-        workerAssignments.set(node.id, workerId);
+  // Assign each coalition from each CP node's partition to a worker
+  // Partition indices are 1-indexed, mapping into that entry's dependencyChain
+  for (const { partition, dependencyChain } of partitions) {
+    for (const coalition of partition) {
+      const workerId = workers[workerIndex].id;
+      for (const agentIndex of coalition) {
+        const node = dependencyChain[agentIndex - 1];
+        if (node) {
+          workerAssignments.set(node.id, workerId);
+        }
       }
+      workerIndex++;
     }
-    workerIndex++;
   }
 
   // Now schedule tasks respecting dependencies and transfer times
@@ -130,7 +139,6 @@ export async function odpipScheduler(
   }
 
   console.log('=== ODP-IP Schedule ===');
-  console.log(`Critical path duration: ${criticalPathDuration}`);
   console.log(`Workers used: ${workerIndex}`);
   scheduledTasks.forEach(task => {
     const node = allNodes.find(n => n.id === task.nodeId);

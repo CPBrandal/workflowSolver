@@ -1,4 +1,4 @@
-import type { ArbitraryWorkflowConfig, Worker, Workflow } from './index';
+import type { ArbitraryWorkflowConfig, ScheduledTask, Worker, Workflow } from './index';
 
 export interface WorkflowRecord {
   id: string;
@@ -24,6 +24,7 @@ export interface SimulationRecord {
   critical_path_node_ids?: string[];
   worker_count: number;
   algorithm: string;
+  scheduled_tasks?: ScheduledTask[];
 }
 
 export interface WorkflowStatistics {

@@ -1,6 +1,10 @@
 import type { Workflow, WorkflowNode } from '../../../types';
 import { analyzeCriticalPath } from '../../../utils/criticalPathAnalyzer';
+import { gammaSampler } from '../../../utils/gammaSampler';
 import { getNodeDependencies } from '../../../utils/getNodeDependencies';
+
+export const w1 = 1;
+export const w2 = 1;
 
 /**
  * Generates subset values for ODP-IP algorithm.
@@ -9,15 +13,20 @@ import { getNodeDependencies } from '../../../utils/getNodeDependencies';
  *
  * Example for 4 nodes: index 5 = binary 0101 = {node0, node2}
  */
-export function createSubsetValues(workflow: Workflow) {
-  const tasks = workflow.tasks.map(task => ({
-    ...task,
-    executionTime: getExpectedExecutionTime(task),
-    connections: task.connections.map(edge => ({
-      ...edge,
-      transferTime: edge.gammaDistribution.shape * edge.gammaDistribution.scale,
-    })),
-  }));
+export function createSubsetValues2(workflow: Workflow, alreadyInitialized: boolean = true) {
+  const tasks = workflow.tasks.map(task => {
+    if (!alreadyInitialized) {
+      return {
+        ...task,
+        executionTime: gammaSampler(task.gammaDistribution)(),
+        connections: task.connections.map(edge => ({
+          ...edge,
+          transferTime: gammaSampler(edge.gammaDistribution)(),
+        })),
+      };
+    }
+    return task;
+  });
 
   const cpmResult = analyzeCriticalPath(tasks);
 
@@ -30,20 +39,56 @@ export function createSubsetValues(workflow: Workflow) {
   console.log('Expected Critical Path Duration: ', criticalPathDuration);
   console.log('Number of agents: ', processedTasks.length - cpmResult.criticalPath.length);
 
-  const nodes = processedTasks.filter(task => !task.criticalPath);
-  console.log('Nodes: ', nodes);
-  const n = nodes.length;
-  const numSubsets = Math.pow(2, n);
+  const cpDependenciesMap = getCriticalPathExternalDependencies(
+    processedTasks,
+    cpmResult.orderedCriticalPath
+  );
 
-  const values: number[] = new Array(numSubsets);
+  console.log('CP Dependencies Map: ', cpDependenciesMap);
 
-  // Generate value for each subset based on bitmask
-  for (let mask = 0; mask < numSubsets; mask++) {
-    const subset = maskToSubset(mask, nodes);
-    values[mask] = calculateSubsetValue(subset, criticalPathDuration);
+  const subsetValuesPerCpNode: {
+    cpNodeId: string;
+    values: number[];
+    goalValue: number;
+    dependencyChain: WorkflowNode[];
+  }[] = [];
+
+  // Track the index of the previous CP node with external dependencies
+  let previousCpNodeWithDepsIndex = -1;
+
+  for (const [cpNodeId, dependencyChain] of cpDependenciesMap) {
+    const currentCpIndex = cpmResult.orderedCriticalPath.findIndex(n => n.id === cpNodeId);
+
+    // Calculate goal value: sum of exec times of CP nodes from previous entry to this one
+    // Example: CP = start → 1 → 2 → 3 → 4 → end, nodes 1 and 3 have external deps
+    // For node 1: sum from start (idx 0) to node 1 (exclusive) = exec(start)
+    // For node 3: sum from node 1 (idx 1) to node 3 (exclusive) = exec(1) + exec(2)
+    let goalValue = 0;
+    const startIndex = previousCpNodeWithDepsIndex === -1 ? 0 : previousCpNodeWithDepsIndex;
+    for (let i = startIndex; i < currentCpIndex; i++) {
+      goalValue += cpmResult.orderedCriticalPath[i].executionTime ?? 0;
+    }
+
+    const n = dependencyChain.length;
+    const numSubsets = Math.pow(2, n);
+    const values: number[] = new Array(numSubsets);
+
+    for (let mask = 0; mask < numSubsets; mask++) {
+      const subset = maskToSubset(mask, dependencyChain);
+      values[mask] = calculateSubsetValue2(subset, cpNodeId, goalValue);
+    }
+
+    subsetValuesPerCpNode.push({
+      cpNodeId,
+      values,
+      goalValue,
+      dependencyChain,
+    });
+
+    previousCpNodeWithDepsIndex = currentCpIndex;
   }
 
-  return { values, criticalPathDuration };
+  return subsetValuesPerCpNode;
 }
 
 /**
@@ -75,19 +120,6 @@ export function subsetToMask(subset: WorkflowNode[], allNodes: WorkflowNode[]): 
 }
 
 /**
- * Get the expected execution time from gamma distribution.
- * Mean of Gamma(shape, scale) = shape × scale
- */
-function getExpectedExecutionTime(node: WorkflowNode): number {
-  const gamma = node.gammaDistribution;
-  if (gamma) {
-    return gamma.shape * gamma.scale;
-  }
-  // Fallback to fixed execution time if no gamma params
-  return node.executionTime ?? 0;
-}
-
-/**
  * Calculate the total expected execution time for a subset.
  * This represents the total time a single worker would need to execute all tasks in the subset.
  */
@@ -99,48 +131,51 @@ function calculateSubsetExecutionTime(subset: WorkflowNode[]): number {
   return totalTime;
 }
 
-/**
- * Calculate the value for a subset of nodes.
- *
- * The value represents how "good" this subset is as a coalition (tasks on one worker).
- * Higher value = better.
- *
- * Logic:
- * - If subsetTime ≤ criticalPath: Value = subsetTime (more work = better utilization)
- * - If subsetTime > criticalPath: Value = 0 (exceeds limit, need more workers)
- *
- * This rewards filling a worker's time as close to the critical path as possible,
- * but any subset that exceeds the critical path is worthless (would increase makespan).
- */
-function calculateSubsetValue(subset: WorkflowNode[], criticalPathDuration: number): number {
+function calculateSubsetExecutionTime2(subset: WorkflowNode[], cpNodeId: string) {
+  let totalTime = 0;
+  for (const node of subset) {
+    totalTime += node.executionTime ?? 0;
+    if (node.connections.some(edge => edge.targetNodeId === cpNodeId)) {
+      totalTime += node.connections.find(edge => edge.targetNodeId === cpNodeId)?.transferTime ?? 0;
+    }
+    if (node.connections.some(edge => edge.sourceNodeId === cpNodeId)) {
+      totalTime += node.connections.find(edge => edge.sourceNodeId === cpNodeId)?.transferTime ?? 0;
+    }
+  }
+  return totalTime;
+}
+
+function calculateExternalCommunicationTime(subset: WorkflowNode[]) {
+  if (subset.length < 2) {
+    return 0;
+  }
+  let totalTime = 0;
+  for (const node of subset) {
+    for (const edge of node.connections) {
+      if (subset.some(n => n.id === edge.targetNodeId)) {
+        totalTime += edge.transferTime ?? 0;
+      }
+    }
+  }
+  return totalTime;
+}
+
+function calculateSubsetValue2(subset: WorkflowNode[], cpNodeId: string, maxValue: number): number {
   if (subset.length === 0) {
     return 0;
   }
 
-  const subsetTime = calculateSubsetExecutionTime(subset);
-
-  // If we exceed critical path, this subset is not viable for one worker
-  if (subsetTime > criticalPathDuration) {
-    return 0;
-  }
-
-  // Internal edges (both endpoints in subset): +transferTime (reward co-location)
-  // Cross-boundary edges (only one endpoint in subset): -transferTime (penalize external dependencies)
-  const subsetNodeIds = new Set(subset.map(node => node.id));
-  let transferTimeAdjustment = 0;
-
-  for (const node of subset) {
-    for (const edge of node.connections) {
-      if (subsetNodeIds.has(edge.targetNodeId)) {
-        transferTimeAdjustment += edge.transferTime ?? 0;
-      } else {
-        transferTimeAdjustment -= edge.transferTime ?? 0;
-      }
-    }
-  }
-
-  const totalValue = subsetTime + transferTimeAdjustment;
-  return Math.round(totalValue * 100) / 100; // Round to 2 decimal places
+  const subsetTime = calculateSubsetExecutionTime2(subset, cpNodeId);
+  console.log('Subset Time: ', subsetTime);
+  const externalCommunicationTime = calculateExternalCommunicationTime(subset);
+  console.log('External Communication Time: ', externalCommunicationTime);
+  const alpha = w1 * Math.exp(-Math.pow(subsetTime - maxValue, 2));
+  console.log('Alpha: ', alpha);
+  const beta = w2 * (1 - Math.exp(-Math.pow(externalCommunicationTime, 2)));
+  console.log('Beta: ', beta);
+  const totalValue = alpha + beta;
+  console.log('Total Value: ', totalValue); // Round to 2 decimal places
+  return totalValue;
 }
 
 /**
@@ -201,18 +236,17 @@ export function getSubsetValuesDescription(
  */
 export function getCriticalPathExternalDependencies(
   allTasks: WorkflowNode[],
-  criticalPathIds: Set<string>
+  criticalPathNodes: WorkflowNode[]
 ): Map<string, WorkflowNode[]> {
-  const cpTasks = allTasks
-    .filter(t => criticalPathIds.has(t.id))
-    .sort((a, b) => a.level - b.level);
+  const cpIds = new Set(criticalPathNodes.map(n => n.id));
+  const cpTasks = [...criticalPathNodes].sort((a, b) => a.level - b.level);
 
   const assigned = new Set<string>();
   const result = new Map<string, WorkflowNode[]>();
 
   for (const cpNode of cpTasks) {
     const chain: WorkflowNode[] = [];
-    collectNonCpDependencies(cpNode.id, allTasks, criticalPathIds, assigned, chain);
+    collectNonCpDependencies(cpNode.id, allTasks, cpIds, assigned, chain);
 
     if (chain.length > 0) {
       result.set(cpNode.id, chain);
@@ -222,17 +256,41 @@ export function getCriticalPathExternalDependencies(
   return result;
 }
 
+export function getCpNodeEarliestStart(
+  cpNodeId: string,
+  allTasks: WorkflowNode[],
+  criticalPathNodes: WorkflowNode[]
+): number {
+  const cpIds = new Set(criticalPathNodes.map(n => n.id));
+  let total = 0;
+  let currentId = cpNodeId;
+
+  while (true) {
+    const predecessorIds = getNodeDependencies(currentId, allTasks);
+    const cpPredecessor = predecessorIds.find(id => cpIds.has(id));
+    if (!cpPredecessor) break;
+
+    const predNode = allTasks.find(t => t.id === cpPredecessor);
+    if (!predNode) break;
+
+    total += predNode.executionTime ?? 0;
+    currentId = cpPredecessor;
+  }
+
+  return total;
+}
+
 function collectNonCpDependencies(
   nodeId: string,
   allTasks: WorkflowNode[],
-  criticalPathIds: Set<string>,
+  cpIds: Set<string>,
   assigned: Set<string>,
   chain: WorkflowNode[]
 ): void {
   const predecessorIds = getNodeDependencies(nodeId, allTasks);
 
   for (const predId of predecessorIds) {
-    if (criticalPathIds.has(predId) || assigned.has(predId)) continue;
+    if (cpIds.has(predId) || assigned.has(predId)) continue;
 
     const predNode = allTasks.find(t => t.id === predId);
     if (!predNode) continue;
@@ -241,6 +299,6 @@ function collectNonCpDependencies(
     chain.push(predNode);
 
     // Recurse further up the non-CP chain
-    collectNonCpDependencies(predId, allTasks, criticalPathIds, assigned, chain);
+    collectNonCpDependencies(predId, allTasks, cpIds, assigned, chain);
   }
 }

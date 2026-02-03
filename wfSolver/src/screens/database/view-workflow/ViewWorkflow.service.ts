@@ -23,4 +23,17 @@ export class ViewWorkflowService {
 
     return { data, error };
   }
+
+  static async getSimulationsForODPIP({ workflowId }: { workflowId: string }) {
+    const { data, error } = await supabase
+      .from('simulations')
+      .select('*')
+      .match({
+        workflow_id: workflowId,
+        algorithm: 'odpip',
+      })
+      .order('simulation_number', { ascending: true });
+
+    return { data, error };
+  }
 }

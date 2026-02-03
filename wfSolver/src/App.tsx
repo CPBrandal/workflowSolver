@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import ODPIP from './screens/ODPIP/ODPIP';
+import OdpipNew from './screens/ODPIP/odpipReworked/OdpipNew';
 
 // Lazy load all screens
 const HomeScreen = lazy(() => import('./screens/homeScreen/HomeScreen'));
@@ -32,6 +33,7 @@ function App() {
           <Route path="/edit-database" element={<DataBaseEditScreen />} />
           <Route path="/comparison" element={<EfficiencyGraph />} />
           <Route path="/odpip" element={<ODPIP />} />
+          <Route path="/odpip-new" element={<OdpipNew />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

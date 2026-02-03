@@ -29,6 +29,7 @@ export function createSubsetValues(workflow: Workflow) {
   console.log('Critical Path Duration: ', criticalPathDuration);
   console.log('Number of agents: ', processedTasks.length - cpmResult.criticalPath.length);
 
+  const cpNodeIds = new Set(processedTasks.filter(task => task.criticalPath).map(t => t.id));
   const nodes = processedTasks.filter(task => !task.criticalPath);
   console.log('Nodes: ', nodes);
   const n = nodes.length;
@@ -39,7 +40,7 @@ export function createSubsetValues(workflow: Workflow) {
   // Generate value for each subset based on bitmask
   for (let mask = 0; mask < numSubsets; mask++) {
     const subset = maskToSubset(mask, nodes);
-    values[mask] = calculateSubsetValue(subset, criticalPathDuration);
+    values[mask] = calculateSubsetValue(subset, criticalPathDuration, cpNodeIds);
   }
 
   return { values, criticalPathDuration };
@@ -111,12 +112,25 @@ function calculateSubsetExecutionTime(subset: WorkflowNode[]): number {
  * This rewards filling a worker's time as close to the critical path as possible,
  * but any subset that exceeds the critical path is worthless (would increase makespan).
  */
-function calculateSubsetValue(subset: WorkflowNode[], criticalPathDuration: number): number {
+function calculateSubsetValue(
+  subset: WorkflowNode[],
+  criticalPathDuration: number,
+  cpNodeIds: Set<string>
+): number {
   if (subset.length === 0) {
     return 0;
   }
 
-  const subsetTime = calculateSubsetExecutionTime(subset);
+  // subsetTime = execution time of all nodes + transfer time from any node to a CP node
+  let subsetTime = calculateSubsetExecutionTime(subset);
+
+  for (const node of subset) {
+    for (const edge of node.connections) {
+      if (cpNodeIds.has(edge.targetNodeId)) {
+        subsetTime += edge.transferTime ?? 0;
+      }
+    }
+  }
 
   // If we exceed critical path, this subset is not viable for one worker
   if (subsetTime > criticalPathDuration) {
@@ -130,15 +144,16 @@ function calculateSubsetValue(subset: WorkflowNode[], criticalPathDuration: numb
 
   for (const node of subset) {
     for (const edge of node.connections) {
+      if (cpNodeIds.has(edge.targetNodeId)) {
+        continue; // already accounted for in subsetTime
+      }
       if (subsetNodeIds.has(edge.targetNodeId)) {
         transferTimeAdjustment += edge.transferTime ?? 0;
-      } else {
-        transferTimeAdjustment -= edge.transferTime ?? 0;
       }
     }
   }
 
-  const totalValue = subsetTime + transferTimeAdjustment;
+  const totalValue = subsetTime + transferTimeAdjustment + subset.length * subset.length;
   return Math.round(totalValue * 100) / 100; // Round to 2 decimal places
 }
 
